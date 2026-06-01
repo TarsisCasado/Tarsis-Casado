@@ -111,8 +111,10 @@
       <button class="btn soft" type="button" onclick="forgotLoadQuestion()">Buscar pergunta</button>
       <p id="forgotQuestion" class="muted">Digite o usuário e clique em "Buscar pergunta".</p>
       <div id="forgotAnswerWrap" class="form hidden">
-        <div><label>Resposta de segurança</label><input id="forgotAnswer"></div>
-        <div><label>Nova senha</label><input id="forgotNewPass" type="password" placeholder="mín. 4 caracteres"></div>
+        <div id="forgotAnswerField"><label>Resposta de segurança</label><input id="forgotAnswer"></div>
+        <div class="row"><div><label>Nova senha</label><input id="forgotNewPass" type="password" placeholder="mín. 4 caracteres"></div><div><label>Confirmar nova senha</label><input id="forgotNewPass2" type="password"></div></div>
+        <div><label>Nova pergunta de segurança (opcional)</label><input id="forgotNewSecQ" placeholder="Para facilitar a próxima recuperação"></div>
+        <div><label>Nova resposta de segurança (opcional)</label><input id="forgotNewSecA"></div>
         <button class="btn" type="button" onclick="forgotReset()">Redefinir senha</button>
       </div>
       <button class="btn ghost" type="button" onclick="showAuthBox('loginBox')">Voltar ao login</button>
@@ -542,7 +544,8 @@ async function migrateLegacyAccount(){
     const old=JSON.parse(localStorage.getItem(LEGACY_LOGIN)||'{}');
     if(!old.h) return;
     const rec={};
-    rec[normU(MASTER_NAME)]={name:MASTER_NAME,role:'master',salt:'',h:old.h,secQ:'',secAh:''};
+    // legacy:true sinaliza que o hash está no formato antigo (sem salt).
+    rec[normU(MASTER_NAME)]={name:MASTER_NAME,role:'master',salt:'',h:old.h,secQ:'',secAh:'',legacy:true};
     saveUsers({version:1,users:rec});
     // Move os dados antigos para o espaço do master.
     const legacyData=localStorage.getItem(LEGACY_STORAGE);
@@ -571,7 +574,13 @@ async function login(){
   const key=normU(document.getElementById('loginUser').value);
   const rec=users.users[key];
   const p=document.getElementById('loginPass').value;
-  if(rec && await makeCred(p,rec.salt)===rec.h){
+  if(!rec) return alert('Usuário ou senha inválidos.');
+  // Contas migradas da versão antiga usam hash sem salt; aceita e faz upgrade.
+  const isLegacy = rec.legacy || !rec.salt;
+  const okLegacy = isLegacy && await hash(p)===rec.h;
+  const okNew = !isLegacy && await makeCred(p,rec.salt)===rec.h;
+  if(okLegacy || okNew){
+    if(okLegacy){ rec.salt=genSalt(); rec.h=await makeCred(p,rec.salt); delete rec.legacy; saveUsers(users); }
     sessionStorage.setItem(SESSION_KEY,key);
     boot();
   }else alert('Usuário ou senha inválidos.');
@@ -587,8 +596,15 @@ function forgotLoadQuestion(){
   const users=loadUsers();
   const rec=users && users.users[normU(document.getElementById('forgotUser').value)];
   if(!rec) return alert('Usuário não encontrado.');
-  if(!rec.secQ) return alert('Este usuário não tem pergunta de segurança. Peça ao master para redefinir a senha.');
-  document.getElementById('forgotQuestion').textContent='Pergunta: '+rec.secQ;
+  const field=document.getElementById('forgotAnswerField');
+  if(rec.secAh){
+    document.getElementById('forgotQuestion').textContent='Pergunta: '+(rec.secQ||'(responda sua pergunta de segurança)');
+    field.classList.remove('hidden');
+  }else{
+    // Contas migradas / sem pergunta: permite redefinir direto neste dispositivo.
+    document.getElementById('forgotQuestion').textContent='Esta conta não tem pergunta de segurança. Defina uma nova senha abaixo (seus dados financeiros serão mantidos).';
+    field.classList.add('hidden');
+  }
   document.getElementById('forgotAnswerWrap').classList.remove('hidden');
 }
 async function forgotReset(){
@@ -596,13 +612,21 @@ async function forgotReset(){
   const key=normU(document.getElementById('forgotUser').value);
   const rec=users && users.users[key];
   if(!rec) return alert('Usuário não encontrado.');
-  const a=document.getElementById('forgotAnswer').value.trim();
-  if(await hash(normU(a))!==rec.secAh) return alert('Resposta de segurança incorreta.');
+  if(rec.secAh){
+    const a=document.getElementById('forgotAnswer').value.trim();
+    if(await hash(normU(a))!==rec.secAh) return alert('Resposta de segurança incorreta.');
+  }
   const p=document.getElementById('forgotNewPass').value;
+  const p2=document.getElementById('forgotNewPass2').value;
   if(!p||p.length<4) return alert('Defina uma nova senha (mínimo 4 caracteres).');
-  rec.salt=genSalt(); rec.h=await makeCred(p,rec.salt);
+  if(p!==p2) return alert('As senhas não conferem.');
+  rec.salt=genSalt(); rec.h=await makeCred(p,rec.salt); delete rec.legacy;
+  const nq=document.getElementById('forgotNewSecQ').value.trim();
+  const na=document.getElementById('forgotNewSecA').value.trim();
+  if(nq && na){ rec.secQ=nq; rec.secAh=await hash(normU(na)); }
   saveUsers(users);
   alert('Senha redefinida com sucesso. Faça login.');
+  showAuthBox('loginBox');
   initLogin();
 }
 function logout(){sessionStorage.removeItem(SESSION_KEY);location.reload()}
