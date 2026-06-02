@@ -3049,15 +3049,30 @@ function toggleMsDropdown(id) {
   }
 }
 
+const MS_OPTIONS = {};
+
 function populateMsDropdown(id, options) {
   if (!MS_STATE[id]) MS_STATE[id] = new Set();
+  MS_OPTIONS[id] = options;
   const list = document.getElementById('ms-'+id+'-list');
   if (!list) return;
-  list.innerHTML = options.map(o => `<div class="ms-item" id="ms-${id}-item-${btoa(unescape(encodeURIComponent(o))).replace(/=/g,'')}">
-    <input type="checkbox" id="ms-${id}-cb-${btoa(unescape(encodeURIComponent(o))).replace(/=/g,'')}" ${MS_STATE[id].has(o)?'checked':''} onchange="toggleMsItem('${id}','${o.replace(/'/g,"\\'")}',this.checked)">
-    <label for="ms-${id}-cb-${btoa(unescape(encodeURIComponent(o))).replace(/=/g,'')}">${escHtml(o)}</label>
-  </div>`).join('');
+  // Remove options that no longer exist
+  [...MS_STATE[id]].forEach(v => { if (!options.includes(v)) MS_STATE[id].delete(v); });
+  list.innerHTML = options.map((o, i) => {
+    const cbId = `ms-${id}-cb-${i}`;
+    const checked = MS_STATE[id].has(o) ? 'checked' : '';
+    return `<div class="ms-item"><input type="checkbox" id="${cbId}" data-idx="${i}" ${checked} onchange="onMsCbChange('${id}',${i},this.checked)"><label for="${cbId}">${escHtml(o)}</label></div>`;
+  }).join('');
   updateMsLabel(id);
+}
+
+function onMsCbChange(id, idx, checked) {
+  if (!MS_STATE[id]) MS_STATE[id] = new Set();
+  const val = (MS_OPTIONS[id]||[])[idx];
+  if (val === undefined) return;
+  if (checked) MS_STATE[id].add(val); else MS_STATE[id].delete(val);
+  updateMsLabel(id);
+  renderAnalytics();
 }
 
 function toggleMsItem(id, val, checked) {
