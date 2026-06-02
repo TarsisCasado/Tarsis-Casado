@@ -3154,8 +3154,8 @@ function getAnalyticsData() {
       if (!(r.pctFipe >= lo && r.pctFipe < hi)) return false;
     }
     if (classF && (r.classificacao||'') !== classF) return false;
-    if (marcaF && (r.marca||'') !== marcaF) return false;
-    if (modeloF && !(r.modelo||'').toLowerCase().includes(modeloF)) return false;
+    if (marcaF && String(r.marca==null?'':r.marca).trim().replace(/\s+/g,' ') !== marcaF) return false;
+    if (modeloF && !String(r.modelo==null?'':r.modelo).toLowerCase().includes(modeloF)) return false;
     return true;
   });
 }
@@ -3172,13 +3172,14 @@ function populateAnalyticsFilterOptions(data) {
   populateMsDropdown('empresa', uniq(data.map(r=>r.empresaEquipe||r.empresa)));
   fill('an-dl-objetivo', uniq(data.map(r=>r.objetivo)));
   fill('an-dl-prec', uniq(data.map(r=>r.precificador)));
+  const normTxt = s => String(s==null?'':s).trim().replace(/\s+/g,' ');
   const marcaSel = document.getElementById('an-f-marca');
   if(marcaSel) {
-    const marcas = [...new Set((data||[]).map(r=>r.marca).filter(Boolean))].sort();
+    const marcas = [...new Set((data||[]).map(r=>normTxt(r.marca)).filter(Boolean))].sort();
     const cur = marcaSel.value;
-    marcaSel.innerHTML = '<option value="">Todas</option>' + marcas.map(m=>`<option value="${escHtml(m)}"${m===cur?'selected':''}>${escHtml(m)}</option>`).join('');
+    marcaSel.innerHTML = '<option value="">Todas</option>' + marcas.map(m=>`<option value="${escHtml(m)}"${m===cur?' selected':''}>${escHtml(m)}</option>`).join('');
   }
-  fill('an-dl-modelo', uniq((data||[]).map(r=>r.modelo)));
+  fill('an-dl-modelo', [...new Set((data||[]).map(r=>normTxt(r.modelo)).filter(Boolean))].sort());
 }
 
 function renderAnalytics() {
@@ -3537,7 +3538,7 @@ function renderAnVendedores(av, cp) {
 
 function renderAnModelos(av, cp) {
   const m = {};
-  const normMod = s => (s||'N/D').trim().replace(/\s+/g,' ');
+  const normMod = s => (String(s==null?'':s).trim().replace(/\s+/g,' ')) || 'N/D';
   av.forEach(r=>{ const k=normMod(r.modelo); if(!m[k])m[k]={av:0,cp:0}; m[k].av++; });
   cp.forEach(r=>{ const k=normMod(r.modelo); if(m[k])m[k].cp++; });
   const sorted = Object.entries(m).sort((a,b)=>b[1].av-a[1].av).slice(0,15);
@@ -3635,9 +3636,10 @@ function renderAnClassificacao(av, cp) {
           {label:'Ticket médio (R$ mil)',data:ticketData,type:'line',borderColor:'#8b5cf6',backgroundColor:'#8b5cf633',pointBackgroundColor:'#8b5cf6',tension:0.3,yAxisID:'y2',order:0}
         ]
       },
-      options:{responsive:true,plugins:{legend:{position:'bottom'}},scales:{
-        y:{title:{display:true,text:'%FIPE'},grid:{color:'rgba(255,255,255,0.05)'}},
-        y2:{position:'right',title:{display:true,text:'R$ mil'},grid:{display:false}}
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:chartTickColor(),font:{size:11},boxWidth:12}}},scales:{
+        y:{title:{display:true,text:'%FIPE',color:chartTickColor()},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:chartTickColor(),font:{size:10}}},
+        y2:{position:'right',title:{display:true,text:'R$ mil',color:chartTickColor()},grid:{display:false},ticks:{color:chartTickColor(),font:{size:10}}},
+        x:{ticks:{color:chartTickColor(),font:{size:11}},grid:{display:false}}
       }}
     });
   }
@@ -3755,19 +3757,22 @@ function viewFilteredInDetail(tipo) {
 
 function renderAnMarcas(av, cp) {
   const m = {};
-  av.forEach(r=>{ const k=(r.marca||'N/D').trim(); if(!m[k])m[k]={av:0,cp:0,fipes:[],tickets:[]}; m[k].av++; if(r.pctFipe!=null)m[k].fipes.push(r.pctFipe); });
-  cp.forEach(r=>{ const k=(r.marca||'N/D').trim(); if(m[k]){m[k].cp++; if(r.valorAv)m[k].tickets.push(r.valorAv);} });
+  const normMarca = s => (String(s==null?'':s).trim().replace(/\s+/g,' ')) || 'N/D';
+  av.forEach(r=>{ const k=normMarca(r.marca); if(!m[k])m[k]={av:0,cp:0,fipes:[],tickets:[]}; m[k].av++; if(r.pctFipe!=null)m[k].fipes.push(r.pctFipe); });
+  cp.forEach(r=>{ const k=normMarca(r.marca); if(m[k]){m[k].cp++; if(r.valorAv)m[k].tickets.push(r.valorAv);} });
   const sorted = Object.entries(m).sort((a,b)=>b[1].av-a[1].av).slice(0,12);
   const maxAv = Math.max(...sorted.map(([,v])=>v.av),1);
   const avg = arr=>arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:null;
+  const marcaAtiva = (document.getElementById('an-f-marca')?.value||'').trim();
 
   const el = document.getElementById('an-marca-bars');
   if(el) {
     el.innerHTML = sorted.map(([marca,v])=>{
       const pct = v.av?v.cp/v.av*100:0;
       const hClass = pct>50?'heat-high':pct>25?'heat-mid':pct>0?'heat-low':'heat-none';
-      return `<div class="fipe-band-row">
-        <div class="fipe-band-label" title="${escHtml(marca)}" style="font-weight:600">${escHtml(marca.length>13?marca.substring(0,12)+'…':marca)}</div>
+      const ativa = marca===marcaAtiva;
+      return `<div class="fipe-band-row" style="cursor:pointer;border-radius:6px;${ativa?'background:rgba(59,130,246,0.12);':''}padding:4px 6px" onclick="filtrarPorMarca('${marca.replace(/'/g,"\\'")}')" title="Clique para filtrar por ${escHtml(marca)}">
+        <div class="fipe-band-label" title="${escHtml(marca)}" style="font-weight:600">${ativa?'✓ ':''}${escHtml(marca.length>13?marca.substring(0,12)+'…':marca)}</div>
         <div class="fipe-band-bar-wrap">
           <div class="fipe-band-bar" style="width:${(v.av/maxAv*100).toFixed(0)}%;background:var(--blue);opacity:.5;max-width:100%"></div>
           <div class="fipe-band-bar" style="width:${(v.cp/maxAv*100).toFixed(0)}%;background:var(--green);max-width:100%"></div>
@@ -3792,12 +3797,21 @@ function renderAnMarcas(av, cp) {
           {label:'% Captação',data:capData,type:'line',borderColor:'#10b981',backgroundColor:'#10b98120',pointBackgroundColor:'#10b981',tension:0.3,yAxisID:'y2',order:0}
         ]
       },
-      options:{responsive:true,plugins:{legend:{position:'bottom'}},scales:{
-        y:{title:{display:true,text:'%FIPE'},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:chartTickColor()}},
-        y2:{position:'right',title:{display:true,text:'% Captação'},grid:{display:false},ticks:{color:chartTickColor()}}
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:chartTickColor(),font:{size:11},boxWidth:12}}},scales:{
+        y:{title:{display:true,text:'%FIPE',color:chartTickColor()},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:chartTickColor(),font:{size:10}}},
+        y2:{position:'right',title:{display:true,text:'% Captação',color:chartTickColor()},grid:{display:false},ticks:{color:chartTickColor(),font:{size:10}}},
+        x:{ticks:{color:chartTickColor(),font:{size:10}},grid:{display:false}}
       }}
     });
   }
+}
+
+function filtrarPorMarca(marca) {
+  const sel = document.getElementById('an-f-marca');
+  if (!sel) return;
+  // Toggle: se já está filtrando por essa marca, limpa
+  sel.value = (sel.value===marca) ? '' : marca;
+  renderAnalytics();
 }
 
 function renderAnAA(av, cp) {
@@ -3836,14 +3850,14 @@ function renderAnAA(av, cp) {
     CHARTS['chart-aa-comp']=new Chart(ctx1,{type:'bar',data:{labels:modStats.map(s=>s.mod),datasets:[
       {label:'AA Referência',data:modStats.map(s=>Math.round(s.avgAA)),backgroundColor:'rgba(100,116,139,0.5)'},
       {label:'Valor Avaliado',data:modStats.map(s=>Math.round(s.avgVal)),backgroundColor:'rgba(59,130,246,0.7)'}
-    ]},options:{responsive:true,plugins:{legend:{position:'bottom'}},scales:{y:{ticks:{callback:v=>'R$ '+v.toLocaleString('pt-BR'),color:chartTickColor()},grid:{color:'rgba(255,255,255,0.05)'}},x:{ticks:{color:chartTickColor()}}}}});
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:chartTickColor(),font:{size:11},boxWidth:12}}},scales:{y:{ticks:{callback:v=>'R$ '+v.toLocaleString('pt-BR'),color:chartTickColor(),font:{size:10}},grid:{color:'rgba(255,255,255,0.05)'}},x:{ticks:{color:chartTickColor(),font:{size:10}},grid:{display:false}}}}});
   }
 
   if(CHARTS['chart-aa-delta']){CHARTS['chart-aa-delta'].destroy();delete CHARTS['chart-aa-delta'];}
   const ctx2=document.getElementById('chart-aa-delta');
   if(ctx2&&modStats.length){
     const deltas=modStats.map(s=>+(s.avgVal-s.avgAA).toFixed(0));
-    CHARTS['chart-aa-delta']=new Chart(ctx2,{type:'bar',data:{labels:modStats.map(s=>s.mod),datasets:[{label:'Delta (R$)',data:deltas,backgroundColor:deltas.map(d=>d>=0?'rgba(16,185,129,0.7)':'rgba(239,68,68,0.7)')}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>(v>=0?'+':'')+v.toLocaleString('pt-BR'),color:chartTickColor()},grid:{color:'rgba(255,255,255,0.05)'}},x:{ticks:{color:chartTickColor()}}}}});
+    CHARTS['chart-aa-delta']=new Chart(ctx2,{type:'bar',data:{labels:modStats.map(s=>s.mod),datasets:[{label:'Delta (R$)',data:deltas,backgroundColor:deltas.map(d=>d>=0?'rgba(16,185,129,0.7)':'rgba(239,68,68,0.7)')}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>(v>=0?'+':'')+v.toLocaleString('pt-BR'),color:chartTickColor(),font:{size:10}},grid:{color:'rgba(255,255,255,0.05)'}},x:{ticks:{color:chartTickColor(),font:{size:10}},grid:{display:false}}}}});
   }
 }
 
