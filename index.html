@@ -309,7 +309,7 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
 .akpi{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px;position:relative;overflow:hidden;}
 .akpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--akpi-color,var(--accent));}
 .akpi .ak-label{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:6px;}
-.akpi .ak-val{font-family:'Syne',sans-serif;font-size:28px;font-weight:800;color:var(--text);line-height:1;}
+.akpi .ak-val{font-family:'Syne',sans-serif;font-size:clamp(16px,2.2vw,26px);font-weight:800;color:var(--text);line-height:1.1;word-break:break-word;overflow-wrap:anywhere;}
 .akpi .ak-sub{font-size:11px;color:var(--text3);margin-top:4px;}
 .fipe-band-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);}
 .fipe-band-row:last-child{border-bottom:none;}
@@ -336,6 +336,18 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
 .analytics-filters-grid label{display:block;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:5px;}
 .analytics-filters-grid input,.analytics-filters-grid select{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r2);padding:7px 10px;font-size:12px;color:var(--text);outline:none;font-family:'DM Sans',sans-serif;}
 .analytics-filters-grid input:focus,.analytics-filters-grid select:focus{border-color:var(--accent);}
+/* Multi-select dropdown */
+.ms-wrap{position:relative;width:100%;}
+.ms-trigger{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r2);padding:7px 10px;font-size:12px;color:var(--text);cursor:pointer;text-align:left;display:flex;justify-content:space-between;align-items:center;font-family:'DM Sans',sans-serif;box-sizing:border-box;}
+.ms-trigger:focus,.ms-trigger.open{border-color:var(--accent);outline:none;}
+.ms-dropdown{display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--card);border:1px solid var(--border);border-radius:var(--r2);z-index:999;max-height:200px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.4);}
+.ms-dropdown.open{display:block;}
+.ms-item{display:flex;align-items:center;gap:8px;padding:7px 12px;cursor:pointer;font-size:12px;color:var(--text2);}
+.ms-item:hover{background:var(--bg3);}
+.ms-item input[type=checkbox]{accent-color:var(--accent);width:14px;height:14px;cursor:pointer;flex-shrink:0;}
+.ms-item label{cursor:pointer;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ms-search{padding:6px 10px;border-bottom:1px solid var(--border);}
+.ms-search input{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:11px;color:var(--text);outline:none;box-sizing:border-box;}
 .insight-box{background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.25);border-radius:var(--r2);padding:12px 16px;font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:16px;}
 .insight-box strong{color:var(--blue2);}
 @media(max-width:900px){.analytics-kpi-grid{grid-template-columns:repeat(2,1fr);}}
@@ -803,7 +815,13 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
     <div class="analytics-filters-grid">
       <div><label>Data Inicial</label><input type="date" id="an-f-ini" onchange="renderAnalytics()"/></div>
       <div><label>Data Final</label><input type="date" id="an-f-fim" onchange="renderAnalytics()"/></div>
-      <div><label>Loja / Empresa</label><input type="text" id="an-f-empresa" list="an-dl-empresa" placeholder="Todas" oninput="renderAnalytics()"><datalist id="an-dl-empresa"></datalist></div>
+      <div><label>Loja / Empresa</label><div class="ms-wrap" id="ms-empresa-wrap">
+        <button class="ms-trigger" id="ms-empresa-btn" onclick="toggleMsDropdown('empresa')" type="button"><span id="ms-empresa-label">Todas</span><span>▾</span></button>
+        <div class="ms-dropdown" id="ms-empresa-drop">
+          <div class="ms-search"><input type="text" placeholder="Buscar loja..." oninput="filterMsItems('empresa',this.value)" id="ms-empresa-search"/></div>
+          <div id="ms-empresa-list"></div>
+        </div>
+      </div></div>
       <div><label>Tipo (VD/VN/VU)</label><select id="an-f-tipo" onchange="renderAnalytics()"><option value="">Todos</option><option value="VD">VD</option><option value="VN">VN</option><option value="VU">VU</option></select></div>
       <div><label>Objetivo</label><input type="text" id="an-f-objetivo" list="an-dl-objetivo" placeholder="Todos" oninput="renderAnalytics()"><datalist id="an-dl-objetivo"></datalist></div>
       <div><label>Precificador</label><input type="text" id="an-f-prec" list="an-dl-prec" placeholder="Todos" oninput="renderAnalytics()"><datalist id="an-dl-prec"></datalist></div>
@@ -2323,6 +2341,7 @@ function parseDate(val){
   const d=new Date(s);return isNaN(d)?null:d;
 }
 function fmtDate(d){if(!d)return'—';if(!(d instanceof Date))d=parseDate(d);if(!d||isNaN(d))return'—';return d.toLocaleDateString('pt-BR');}
+function fmtBRL(v){if(v==null||isNaN(v))return'—';return'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});}
 function dateStr(d){if(!d)return'';if(!(d instanceof Date))d=parseDate(d);if(!d||isNaN(d))return'';return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 function fmtDateForSheets(d){return dateStr(d);}
 function parseNumBR(val){
@@ -3011,10 +3030,75 @@ function showToast(msg,type='info'){
 // ============================================================
 const AN_SORT = { prec:{ col:'avaliados', asc:false }, vend:{ col:'avaliados', asc:false } };
 
+// ============================================================
+// MULTI-SELECT DROPDOWN
+// ============================================================
+const MS_STATE = {};
+
+function toggleMsDropdown(id) {
+  const drop = document.getElementById('ms-'+id+'-drop');
+  const btn = document.getElementById('ms-'+id+'-btn');
+  if (!drop) return;
+  const open = drop.classList.toggle('open');
+  if (btn) btn.classList.toggle('open', open);
+  if (open) {
+    const search = document.getElementById('ms-'+id+'-search');
+    if (search) search.focus();
+    const close = e => { if (!document.getElementById('ms-'+id+'-wrap')?.contains(e.target)) { drop.classList.remove('open'); if(btn)btn.classList.remove('open'); document.removeEventListener('click', close); } };
+    setTimeout(() => document.addEventListener('click', close), 0);
+  }
+}
+
+function populateMsDropdown(id, options) {
+  if (!MS_STATE[id]) MS_STATE[id] = new Set();
+  const list = document.getElementById('ms-'+id+'-list');
+  if (!list) return;
+  list.innerHTML = options.map(o => `<div class="ms-item" id="ms-${id}-item-${btoa(unescape(encodeURIComponent(o))).replace(/=/g,'')}">
+    <input type="checkbox" id="ms-${id}-cb-${btoa(unescape(encodeURIComponent(o))).replace(/=/g,'')}" ${MS_STATE[id].has(o)?'checked':''} onchange="toggleMsItem('${id}','${o.replace(/'/g,"\\'")}',this.checked)">
+    <label for="ms-${id}-cb-${btoa(unescape(encodeURIComponent(o))).replace(/=/g,'')}">${escHtml(o)}</label>
+  </div>`).join('');
+  updateMsLabel(id);
+}
+
+function toggleMsItem(id, val, checked) {
+  if (!MS_STATE[id]) MS_STATE[id] = new Set();
+  if (checked) MS_STATE[id].add(val); else MS_STATE[id].delete(val);
+  updateMsLabel(id);
+  renderAnalytics();
+}
+
+function getMsSelected(id) {
+  return MS_STATE[id] ? [...MS_STATE[id]] : [];
+}
+
+function clearMsSelected(id) {
+  if (MS_STATE[id]) MS_STATE[id].clear();
+  const list = document.getElementById('ms-'+id+'-list');
+  if (list) list.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = false);
+  updateMsLabel(id);
+}
+
+function updateMsLabel(id) {
+  const sel = getMsSelected(id);
+  const label = document.getElementById('ms-'+id+'-label');
+  if (!label) return;
+  label.textContent = sel.length === 0 ? 'Todas' : sel.length === 1 ? sel[0] : `${sel.length} lojas selecionadas`;
+}
+
+function filterMsItems(id, search) {
+  const list = document.getElementById('ms-'+id+'-list');
+  if (!list) return;
+  const s = search.toLowerCase();
+  list.querySelectorAll('.ms-item').forEach(item => {
+    const label = item.querySelector('label');
+    item.style.display = label && label.textContent.toLowerCase().includes(s) ? '' : 'none';
+  });
+}
+
 function getAnalyticsData() {
   const iniV = document.getElementById('an-f-ini')?.value || '';
   const fimV = document.getElementById('an-f-fim')?.value || '';
-  const empF = (document.getElementById('an-f-empresa')?.value||'').trim().toLowerCase();
+  const empF = getMsSelected('empresa');
   const tipoF = document.getElementById('an-f-tipo')?.value || '';
   const objF = (document.getElementById('an-f-objetivo')?.value||'').trim().toLowerCase();
   const precF = (document.getElementById('an-f-prec')?.value||'').trim().toLowerCase();
@@ -3028,7 +3112,7 @@ function getAnalyticsData() {
 
   return (STATE.avaliacoes||[]).filter(r => {
     if (ini || fim) { if (!inRange(r.dataAv,ini,fim) && !inRange(getCompraDate(r),ini,fim)) return false; }
-    if (empF && !normHdrEmpresa(r.empresaEquipe||r.empresa||'').includes(empF)) return false;
+    if (empF.length && !empF.includes(r.empresaEquipe||r.empresa||'')) return false;
     if (tipoF && (r.tipo||'') !== tipoF) return false;
     if (objF && !normHdrEmpresa(r.objetivo||'').includes(objF)) return false;
     if (precF && !normHdrEmpresa(r.precificador||'').includes(precF)) return false;
@@ -3044,14 +3128,15 @@ function getAnalyticsData() {
 }
 
 function clearAnalyticsFilters() {
-  ['an-f-ini','an-f-fim','an-f-empresa','an-f-tipo','an-f-objetivo','an-f-prec','an-f-fipe','an-f-class','an-f-marca','an-f-modelo'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['an-f-ini','an-f-fim','an-f-tipo','an-f-objetivo','an-f-prec','an-f-fipe','an-f-class','an-f-marca','an-f-modelo'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  clearMsSelected('empresa');
   renderAnalytics();
 }
 
 function populateAnalyticsFilterOptions(data) {
   const uniq = arr => [...new Set(arr.filter(Boolean).map(s=>s.toString().trim()))].sort();
   const fill = (id, vals) => { const dl=document.getElementById(id); if(dl) dl.innerHTML=vals.map(v=>`<option value="${escHtml(v)}"></option>`).join(''); };
-  fill('an-dl-empresa', uniq(data.map(r=>r.empresaEquipe||r.empresa)));
+  populateMsDropdown('empresa', uniq(data.map(r=>r.empresaEquipe||r.empresa)));
   fill('an-dl-objetivo', uniq(data.map(r=>r.objetivo)));
   fill('an-dl-prec', uniq(data.map(r=>r.precificador)));
   const marcaSel = document.getElementById('an-f-marca');
@@ -3622,10 +3707,10 @@ async function exportAnalyticsImage() {
 function viewFilteredInDetail(tipo) {
   const ini = document.getElementById('an-f-ini')?.value || '';
   const fim = document.getElementById('an-f-fim')?.value || '';
-  const emp = document.getElementById('an-f-empresa')?.value || '';
+  const emps = getMsSelected('empresa');
   if(ini && document.getElementById('f-data-ini')) document.getElementById('f-data-ini').value = ini;
   if(fim && document.getElementById('f-data-fim')) document.getElementById('f-data-fim').value = fim;
-  if(emp && document.getElementById('f-empresa')) document.getElementById('f-empresa').value = emp;
+  if(emps.length===1 && document.getElementById('f-empresa')) document.getElementById('f-empresa').value = emps[0];
   applyFilters();
   const tabName = tipo==='comprados'?'comprados':'tabela';
   const btn = document.querySelector(`.tab-btn[onclick*="'${tabName}'"]`);
