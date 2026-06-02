@@ -632,6 +632,7 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
         <th onclick="sortDetail('valorAv')">Vlr Av ↕</th>
         <th onclick="sortDetail('fipe')">FIPE ↕</th>
         <th>%FIPE</th><th>Placa</th><th>Marca</th><th>Modelo</th><th>KM</th>
+        <th onclick="sortDetail('classificacao')">Class. ↕</th>
         <th>Comprado</th>
       </tr></thead>
       <tbody id="detail-tbody"></tbody>
@@ -654,7 +655,7 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
     <table>
       <thead><tr>
         <th>Data Compra</th><th>Data Avaliação</th><th>Empresa Compra</th><th>Empresa Av.</th>
-        <th>Vendedor</th><th>Placa</th><th>Modelo</th><th>Objetivo</th><th>Valor Av.</th>
+        <th>Vendedor</th><th>Placa</th><th>Modelo</th><th>Objetivo</th><th>Class.</th><th>Valor Av.</th>
       </tr></thead>
       <tbody id="detail-comprados-tbody"></tbody>
     </table>
@@ -1619,8 +1620,8 @@ function normalizeAvFromSheets(r) {
     // Status
     status: getField(r, 'status', 'Status', 'Instancias', 'Instância'),
 
-    // Objetivo
-    objetivo: getField(r, 'objetivo', 'Objetivo', 'Classificação', 'Classificacao', 'Tipo Negócio'),
+    // Objetivo (tipo de negócio: VD/VN/VU)
+    objetivo: getField(r, 'objetivo', 'Objetivo', 'Tipo Negócio', 'Tipo de Negócio', 'TipoNegocio'),
 
     // Valores
     valorAv: parseNumBR(getField(r, 'valorAv', 'Valor da avaliação', 'Valor da Avaliação', 'Valor Avaliação', 'Valor')),
@@ -1635,8 +1636,24 @@ function normalizeAvFromSheets(r) {
     km: parseNumBR(getField(r, 'km', 'KM', 'Km', 'Quilometragem')),
     aa: parseNumBR(getField(r, 'aa', 'AA')),
     b2b: parseNumBR(getField(r, 'b2b', 'B2B')),
-    // Classificação A/B/C/D/E do veículo (pode vir como letra ou número 1-5)
-    classificacao: (()=>{ const v=String(getField(r,'classificacao','Classificação','classificacao','Classif','CLASSIF','Categoria','categoria','AA','aa')||'').trim().toUpperCase(); if(['A','B','C','D','E'].includes(v)) return v; const n=parseNumBR(v); if(n>=1&&n<=5) return ['A','B','C','D','E'][Math.round(n)-1]; return null; })(),
+    // Classificação A/B/C/D/E do veículo — tenta várias colunas possíveis da planilha AA
+    classificacao: (()=>{
+      const raw = getField(r,
+        'classificacao','Classificação','Classificacao','Classif','CLASSIF',
+        'Categoria','categoria','Classe','classe','Class',
+        'Nota AA','Nota_AA','NotaAA','ClassificacaoAA','Classificacao AA',
+        'AA Classificação','AA Classificacao','AA_Classif',
+        'Avaliação AA','Avaliacao AA','GrauAA','Grau AA'
+      );
+      const v = String(raw||'').trim().toUpperCase();
+      if(['A','B','C','D','E'].includes(v)) return v;
+      const n = parseNumBR(v);
+      if(n>=1&&n<=5) return ['A','B','C','D','E'][Math.round(n)-1];
+      // Fallback: usa o campo aa numérico se ele existir no range 1-5
+      const aaNum = parseNumBR(getField(r,'aa','AA'));
+      if(aaNum>=1&&aaNum<=5) return ['A','B','C','D','E'][Math.round(aaNum)-1];
+      return null;
+    })(),
 
     // Chassi/VIN do veículo avaliado (para vínculo alternativo com comprados)
     // Importante: na aba AVALIAÇÕES o cabeçalho do chassi costuma vir como VIN.
@@ -2512,10 +2529,12 @@ function renderDetailTable(){
   if(STATE.detailPage>pages)STATE.detailPage=pages;
   const rows=data.slice((STATE.detailPage-1)*STATE.detailPageSize,STATE.detailPage*STATE.detailPageSize);
   const tb=document.getElementById('detail-tbody');if(!tb)return;
-  if(!rows.length){tb.innerHTML='<tr><td colspan="15" style="text-align:center;padding:40px;color:var(--text3)">Nenhum avaliado</td></tr>';return;}
+  const classColors={A:'#10b981',B:'#3b82f6',C:'#f59e0b',D:'#f97316',E:'#ef4444'};
+  if(!rows.length){tb.innerHTML='<tr><td colspan="16" style="text-align:center;padding:40px;color:var(--text3)">Nenhum avaliado</td></tr>';return;}
   tb.innerHTML=rows.map(r=>{
     const fp=r.pctFipe?r.pctFipe.toFixed(1)+'%':'—',fc=r.pctFipe?(r.pctFipe<80?'fipe-low':r.pctFipe<95?'fipe-mid':'fipe-high'):'';
     const cb=r.comprado?'<span class="badge badge-green">Sim</span>':'<span class="badge badge-gray">Não</span>';
+    const cl=r.classificacao?`<span style="display:inline-block;width:20px;height:20px;line-height:20px;text-align:center;border-radius:4px;font-size:11px;font-weight:700;background:${classColors[r.classificacao]}22;color:${classColors[r.classificacao]}">${r.classificacao}</span>`:'—';
     return`<tr><td>${escHtml(r.idAv||'—')}</td><td>${fmtDate(r.dataAv)}</td><td>${escHtml(r.empresa||'—')}</td><td>${escHtml(r.vendedor||'—')}</td>
       <td>${escHtml(r.precificador||'—')}</td><td>${r.objetivo?`<span class="badge badge-${r.objetivo==='REPASSE'?'purple':'blue'}">${escHtml(r.objetivo)}</span>`:'—'}</td>
       <td>${r.tipo?`<span class="badge badge-gray">${escHtml(r.tipo)}</span>`:'—'}</td>
@@ -2524,6 +2543,7 @@ function renderDetailTable(){
       <td class="${fc}">${fp}</td><td>${escHtml(r.placa||'—')}</td>
       <td>${escHtml(r.marca||'—')}</td><td>${escHtml(r.modelo||'—')}</td>
       <td>${r.km?Number(r.km).toLocaleString('pt-BR'):'—'}</td>
+      <td>${cl}</td>
       <td>${cb}</td></tr>`;
   }).join('');
   renderPagination('detail-pagination',pages,STATE.detailPage,p=>{STATE.detailPage=p;renderDetailTable();},`${total} avaliados não comprados`);
@@ -2538,10 +2558,14 @@ function renderDetailCompradosTable(){
   if(STATE.detailCompradosPage>pages)STATE.detailCompradosPage=pages;
   const rows=data.slice((STATE.detailCompradosPage-1)*ps,STATE.detailCompradosPage*ps);
   const tb=document.getElementById('detail-comprados-tbody');if(!tb)return;
-  if(!rows.length){tb.innerHTML='<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text3)">Nenhum comprado</td></tr>';return;}
-  tb.innerHTML=rows.map(r=>`<tr><td>${fmtDate(getCompraDate(r))}</td><td>${fmtDate(r.dataAv)}</td><td>${escHtml(r.empresaCompraInput||'—')}</td><td>${escHtml(r.empresa||r.empresaEquipe||'—')}</td>
+  const clrC={A:'#10b981',B:'#3b82f6',C:'#f59e0b',D:'#f97316',E:'#ef4444'};
+  if(!rows.length){tb.innerHTML='<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--text3)">Nenhum comprado</td></tr>';return;}
+  tb.innerHTML=rows.map(r=>{
+    const cl=r.classificacao?`<span style="display:inline-block;width:20px;height:20px;line-height:20px;text-align:center;border-radius:4px;font-size:11px;font-weight:700;background:${clrC[r.classificacao]}22;color:${clrC[r.classificacao]}">${r.classificacao}</span>`:'—';
+    return`<tr><td>${fmtDate(getCompraDate(r))}</td><td>${fmtDate(r.dataAv)}</td><td>${escHtml(r.empresaCompraInput||'—')}</td><td>${escHtml(r.empresa||r.empresaEquipe||'—')}</td>
     <td>${escHtml(r.vendedor||'—')}</td><td>${escHtml(r.placa||'—')}</td><td>${escHtml(r.modelo||'—')}</td><td>${escHtml(r.objetivo||'—')}</td>
-    <td>${r.valorAv?'R$ '+Number(r.valorAv).toLocaleString('pt-BR'):'—'}</td></tr>`).join('');
+    <td>${cl}</td><td>${r.valorAv?'R$ '+Number(r.valorAv).toLocaleString('pt-BR'):'—'}</td></tr>`;
+  }).join('');
   renderPagination('detail-comprados-pagination',pages,STATE.detailCompradosPage,p=>{STATE.detailCompradosPage=p;renderDetailCompradosTable();},`${total} comprados`);
 }
 
