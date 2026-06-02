@@ -836,6 +836,9 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
     </div>
   </div>
 
+  <!-- DIAGNÓSTICO -->
+  <div id="an-diag" style="display:none;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:var(--r2);padding:14px 18px;font-size:13px;color:var(--accent2);margin-bottom:16px;line-height:1.6;"></div>
+
   <!-- KPIs RÁPIDOS -->
   <p class="section-title">Visão Geral do Filtro</p>
   <div class="analytics-kpi-grid mb-24" id="an-kpis"></div>
@@ -1729,11 +1732,15 @@ async function loadDataFromSheets(forceRefresh) {
     } catch(ce) { console.warn('Cache save failed:', ce); }
     if (!STATE._filtersInitialized) {
       populateFilters(true); STATE._filtersInitialized = true;
-      // Sync default dates to analytics filters too
-      const ini = document.getElementById('f-data-ini')?.value;
-      const fim = document.getElementById('f-data-fim')?.value;
-      if (ini && document.getElementById('an-f-ini')) document.getElementById('an-f-ini').value = ini;
-      if (fim && document.getElementById('an-f-fim')) document.getElementById('an-f-fim').value = fim;
+      // Analytics usa o intervalo REAL dos dados (não o mês atual do dashboard),
+      // assim a aba já abre mostrando todo o histórico disponível.
+      const datas = (STATE.avaliacoes||[]).map(r=>r.dataAv).filter(d=>d instanceof Date && !isNaN(d));
+      if (datas.length) {
+        const minD = new Date(Math.min(...datas.map(d=>d.getTime())));
+        const maxD = new Date(Math.max(...datas.map(d=>d.getTime())));
+        if (document.getElementById('an-f-ini')) document.getElementById('an-f-ini').value = dateStr(minD);
+        if (document.getElementById('an-f-fim')) document.getElementById('an-f-fim').value = dateStr(maxD);
+      }
     } else { populateFilters(false); }
     applyFilters();
     updateStatusBar();
@@ -3169,6 +3176,25 @@ function renderAnalytics() {
   const cp = data.filter(r=>r.comprado);
 
   populateAnalyticsFilterOptions(STATE.avaliacoes||[]);
+
+  // --- Diagnóstico: explica quando o filtro zera os resultados ---
+  const diagEl = document.getElementById('an-diag');
+  if (diagEl) {
+    const totalBase = (STATE.avaliacoes||[]).length;
+    if (totalBase === 0) {
+      diagEl.style.display = '';
+      diagEl.innerHTML = '⚠️ <strong>Nenhuma avaliação carregada.</strong> Importe ou conecte a planilha na aba inicial para ver as análises.';
+    } else if (av.length === 0) {
+      const iniV = document.getElementById('an-f-ini')?.value || '';
+      const fimV = document.getElementById('an-f-fim')?.value || '';
+      diagEl.style.display = '';
+      diagEl.innerHTML = `⚠️ <strong>${totalBase.toLocaleString('pt-BR')} avaliações na base</strong>, mas <strong>0 passam nos filtros atuais</strong>`
+        + (iniV||fimV ? ` (período ${iniV||'…'} → ${fimV||'…'})` : '')
+        + `. <button class="btn btn-primary" style="font-size:12px;padding:4px 12px;margin-left:8px" onclick="clearAnalyticsFilters()">🗓️ Limpar filtros e ver tudo</button>`;
+    } else {
+      diagEl.style.display = 'none';
+    }
+  }
 
   // --- KPIs rápidos ---
   const fipes = av.filter(r=>r.pctFipe!=null).map(r=>r.pctFipe);
