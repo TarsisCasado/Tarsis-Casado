@@ -3840,9 +3840,9 @@ function renderAnAA(av, cp) {
   }
 
   const byMod = {};
-  withAA.forEach(r=>{ const k=(r.modelo||'N/D').trim(); if(!byMod[k])byMod[k]={aa:[],val:[]}; byMod[k].aa.push(r.aa); byMod[k].val.push(r.valorAv); });
+  withAA.forEach(r=>{ const k=(String(r.modelo==null?'':r.modelo).trim().replace(/\s+/g,' '))||'N/D'; if(!byMod[k])byMod[k]={aa:[],val:[]}; byMod[k].aa.push(r.aa); byMod[k].val.push(r.valorAv); });
   const avg2 = arr=>arr.reduce((a,b)=>a+b,0)/arr.length;
-  const modStats = Object.entries(byMod).filter(([,v])=>v.aa.length>=2).map(([k,v])=>({mod:k,avgAA:avg2(v.aa),avgVal:avg2(v.val),n:v.aa.length})).sort((a,b)=>b.n-a.n).slice(0,10);
+  const modStats = Object.entries(byMod).filter(([,v])=>v.aa.length>=1).map(([k,v])=>({mod:k,avgAA:avg2(v.aa),avgVal:avg2(v.val),n:v.aa.length})).sort((a,b)=>b.n-a.n).slice(0,10);
 
   if(CHARTS['chart-aa-comp']){CHARTS['chart-aa-comp'].destroy();delete CHARTS['chart-aa-comp'];}
   const ctx1=document.getElementById('chart-aa-comp');
