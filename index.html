@@ -354,6 +354,35 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
 .ai-suggestion-btn{background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:6px 14px;font-size:12px;color:var(--text2);cursor:pointer;transition:var(--transition);}
 .ai-suggestion-btn:hover{border-color:var(--accent);color:var(--accent);}
 .ai-key-setup{background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.25);border-radius:var(--r);padding:16px;margin-bottom:16px;}
+/* Section collapse/expand */
+.an-section { margin-bottom: 24px; }
+.an-section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; cursor:pointer; user-select:none; }
+.an-section-header .section-title { margin:0; }
+.an-section-toggle { background:none; border:1px solid var(--border); border-radius:6px; padding:4px 10px; color:var(--text3); font-size:12px; cursor:pointer; display:flex; align-items:center; gap:4px; }
+.an-section-toggle:hover { background:var(--bg3); color:var(--text); }
+.an-section-body { transition: none; }
+.an-section-body.collapsed { display:none; }
+.an-section-explain { font-size:12px; color:var(--text3); background:var(--bg3); border-left:3px solid var(--accent); padding:8px 12px; border-radius:0 6px 6px 0; margin-bottom:12px; line-height:1.6; }
+/* Export buttons */
+.an-export-bar { display:flex; gap:6px; margin-bottom:16px; flex-wrap:wrap; }
+.an-export-bar .btn { font-size:11px; padding:5px 10px; }
+/* Modelo filter */
+.an-f-modelo-wrap { position:relative; }
+/* Brand select */
+#an-f-marca { background:var(--bg3); border:1px solid var(--border); border-radius:var(--r2); padding:8px 12px; color:var(--text); font-family:'DM Sans',sans-serif; width:100%; }
+/* Tooltip expand */
+.an-expandable { cursor:pointer; border-bottom:1px dashed var(--text3); }
+.an-expand-panel { display:none; background:var(--bg3); border-radius:8px; padding:12px; margin-top:8px; font-size:13px; color:var(--text2); line-height:1.7; }
+.an-expand-panel.open { display:block; }
+/* AA comparison */
+.aa-comp-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px; margin-top:12px; }
+.aa-comp-card { background:var(--bg3); border-radius:10px; padding:12px 14px; border:1px solid var(--border); }
+.aa-comp-card .label { font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:.8px; }
+.aa-comp-card .val { font-size:18px; font-weight:700; color:var(--accent); margin:4px 0 2px; }
+.aa-comp-card .sub { font-size:11px; color:var(--text3); }
+.aa-comp-card .delta { font-size:12px; font-weight:600; }
+.aa-comp-card .delta.pos { color:var(--green2); }
+.aa-comp-card .delta.neg { color:var(--red2); }
 </style>
 </head>
 <body>
@@ -759,7 +788,11 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
 <div id="tab-analytics" class="tab-content">
   <div class="section-header">
     <h2>Análise Avançada — Cruzamento de Dados</h2>
-    <div style="display:flex;gap:8px">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button class="btn btn-ghost" style="font-size:12px" onclick="exportAnalyticsPDF()">📄 PDF Completo</button>
+      <button class="btn btn-ghost" style="font-size:12px" onclick="exportAnalyticsImage()">📷 Imagem</button>
+      <button class="btn btn-ghost" style="font-size:12px" onclick="viewFilteredInDetail('avaliados')">📋 Ver Avaliados</button>
+      <button class="btn btn-ghost" style="font-size:12px" onclick="viewFilteredInDetail('comprados')">📋 Ver Comprados</button>
       <button class="btn btn-ghost" onclick="renderAnalytics()">🔄 Atualizar</button>
     </div>
   </div>
@@ -776,6 +809,8 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
       <div><label>Precificador</label><input type="text" id="an-f-prec" list="an-dl-prec" placeholder="Todos" oninput="renderAnalytics()"><datalist id="an-dl-prec"></datalist></div>
       <div><label>Faixa %FIPE</label><select id="an-f-fipe" onchange="renderAnalytics()"><option value="">Todas</option><option value="0-70">&lt; 70%</option><option value="70-80">70–80%</option><option value="80-90">80–90%</option><option value="90-100">90–100%</option><option value="100-999">&gt; 100%</option></select></div>
       <div><label>Classificação (A–E)</label><select id="an-f-class" onchange="renderAnalytics()"><option value="">Todas</option><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option><option value="E">E</option></select></div>
+      <div><label>Marca</label><select id="an-f-marca" onchange="renderAnalytics()"><option value="">Todas</option></select></div>
+      <div><label>Modelo</label><input type="text" id="an-f-modelo" list="an-dl-modelo" placeholder="Todos" oninput="renderAnalytics()"><datalist id="an-dl-modelo"></datalist></div>
       <div style="display:flex;align-items:flex-end;gap:6px">
         <button class="btn btn-ghost" style="font-size:12px;padding:7px 14px" onclick="clearAnalyticsFilters()">✕ Limpar</button>
         <button class="btn btn-primary" style="font-size:12px;padding:7px 14px" onclick="renderAnalytics()">🔍 Aplicar</button>
@@ -791,130 +826,283 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
   <div class="insight-box" id="an-insight" style="display:none"></div>
 
   <!-- SEÇÃO 1: OBJETIVO x RESULTADO -->
-  <p class="section-title">Por Objetivo (Categoria)</p>
-  <div class="grid-2 mb-24">
-    <div class="chart-card">
-      <h3>Captação por Objetivo</h3>
-      <p>Avaliados vs Comprados — taxa de conversão por categoria</p>
-      <div id="an-obj-bars"></div>
+  <div class="an-section" id="an-sec-obj">
+    <div class="an-section-header" onclick="toggleAnSection('obj')">
+      <p class="section-title" style="margin:0">Por Objetivo (Categoria)</p>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionImage('an-sec-obj','Por Objetivo (Categoria)')">📷</button>
+        <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionWhatsApp('an-sec-obj','Por Objetivo (Categoria)')">💬</button>
+        <button class="an-section-toggle" id="an-sec-obj-btn">▼</button>
+      </div>
     </div>
-    <div class="chart-card">
-      <h3>Ticket Médio por Objetivo</h3>
-      <p>Valor médio avaliado e % FIPE médio por categoria</p>
-      <div id="an-obj-ticket"></div>
+    <div class="an-section-explain">Compara quantos veículos foram avaliados vs efetivamente comprados por tipo de negócio. Clique nas barras para filtrar automaticamente.</div>
+    <div class="an-section-body" id="an-sec-obj-body">
+      <div class="grid-2 mb-24">
+        <div class="chart-card">
+          <h3>Captação por Objetivo</h3>
+          <p>Avaliados vs Comprados — taxa de conversão por categoria</p>
+          <div id="an-obj-bars"></div>
+        </div>
+        <div class="chart-card">
+          <h3>Ticket Médio por Objetivo</h3>
+          <p>Valor médio avaliado e % FIPE médio por categoria</p>
+          <div id="an-obj-ticket"></div>
+        </div>
+      </div>
     </div>
   </div>
 
   <!-- SEÇÃO 2: FIPE x CAPTAÇÃO -->
-  <p class="section-title">Correlação % FIPE × Captação</p>
-  <div class="grid-2 mb-24">
-    <div class="chart-card">
-      <h3>Faixa de % FIPE vs Taxa de Captação</h3>
-      <p>Em qual faixa de preço (em relação à FIPE) mais compramos?</p>
-      <div id="an-fipe-captacao"></div>
+  <div class="an-section" id="an-sec-fipe">
+    <div class="an-section-header" onclick="toggleAnSection('fipe')">
+      <p class="section-title" style="margin:0">Correlação % FIPE × Captação</p>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionImage('an-sec-fipe','Correlação % FIPE × Captação')">📷</button>
+        <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionWhatsApp('an-sec-fipe','Correlação % FIPE × Captação')">💬</button>
+        <button class="an-section-toggle" id="an-sec-fipe-btn">▼</button>
+      </div>
     </div>
-    <div class="chart-card">
-      <h3>Distribuição de Avaliações por % FIPE</h3>
-      <p>Volume e captação — gráfico de barras empilhadas</p>
-      <div class="chart-wrap compact"><canvas id="chart-fipe-dist" height="160"></canvas></div>
+    <div class="an-section-explain">Mostra em qual faixa de precificação (em relação à tabela FIPE) há maior taxa de conversão. Ideal para calibrar a estratégia de oferta.</div>
+    <div class="an-section-body" id="an-sec-fipe-body">
+      <div class="grid-2 mb-24">
+        <div class="chart-card">
+          <h3>Faixa de % FIPE vs Taxa de Captação</h3>
+          <p>Em qual faixa de preço (em relação à FIPE) mais compramos?</p>
+          <div id="an-fipe-captacao"></div>
+        </div>
+        <div class="chart-card">
+          <h3>Distribuição de Avaliações por % FIPE</h3>
+          <p>Volume e captação — gráfico de barras empilhadas</p>
+          <div class="chart-wrap compact"><canvas id="chart-fipe-dist" height="160"></canvas></div>
+        </div>
+      </div>
     </div>
   </div>
 
   <!-- SEÇÃO 3: PERFORMANCE PRECIFICADORES -->
-  <p class="section-title">Performance dos Precificadores (Avaliadores)</p>
-  <div class="insight-box" id="an-prec-insight" style="display:none"></div>
-  <div class="card mb-24" style="overflow:auto">
-    <table class="perf-table" id="an-prec-table">
-      <thead><tr>
-        <th onclick="sortAnalyticsTable('prec','nome')">Precificador ↕</th>
-        <th onclick="sortAnalyticsTable('prec','avaliados')">Avaliados ↕</th>
-        <th onclick="sortAnalyticsTable('prec','comprados')">Comprados ↕</th>
-        <th onclick="sortAnalyticsTable('prec','captacao')">% Captação ↕</th>
-        <th onclick="sortAnalyticsTable('prec','avgFipe')">%FIPE Médio ↕</th>
-        <th onclick="sortAnalyticsTable('prec','avgValor')">Ticket Médio ↕</th>
-        <th>Índice Eficiência</th>
-      </tr></thead>
-      <tbody id="an-prec-tbody"></tbody>
-    </table>
+  <div class="an-section" id="an-sec-prec">
+    <div class="an-section-header" onclick="toggleAnSection('prec')">
+      <p class="section-title" style="margin:0">Performance dos Precificadores</p>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionImage('an-sec-prec','Performance dos Precificadores')">📷</button>
+        <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionWhatsApp('an-sec-prec','Performance dos Precificadores')">💬</button>
+        <button class="an-section-toggle" id="an-sec-prec-btn">▼</button>
+      </div>
+    </div>
+    <div class="an-section-explain">Ranking dos avaliadores por volume, taxa de captação e eficiência de precificação. Clique no cabeçalho para ordenar.</div>
+    <div class="an-section-body" id="an-sec-prec-body">
+      <div class="insight-box" id="an-prec-insight" style="display:none"></div>
+      <div class="card mb-24" style="overflow:auto">
+        <table class="perf-table" id="an-prec-table">
+          <thead><tr>
+            <th onclick="sortAnalyticsTable('prec','nome')">Precificador ↕</th>
+            <th onclick="sortAnalyticsTable('prec','avaliados')">Avaliados ↕</th>
+            <th onclick="sortAnalyticsTable('prec','comprados')">Comprados ↕</th>
+            <th onclick="sortAnalyticsTable('prec','captacao')">% Captação ↕</th>
+            <th onclick="sortAnalyticsTable('prec','avgFipe')">%FIPE Médio ↕</th>
+            <th onclick="sortAnalyticsTable('prec','avgValor')">Ticket Médio ↕</th>
+            <th>Índice Eficiência</th>
+          </tr></thead>
+          <tbody id="an-prec-tbody"></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <!-- SEÇÃO 4: TIPO VD/VN/VU (BUG FIX) -->
-  <p class="section-title">Análise por Tipo de Equipe (VD / VN / VU)</p>
-  <div id="an-tipo-warning" style="display:none;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:var(--r2);padding:12px 16px;font-size:13px;color:var(--accent2);margin-bottom:16px;"></div>
-  <div class="grid-2 mb-24">
-    <div class="chart-card">
-      <h3>Volume por Tipo</h3>
-      <p>Avaliados e comprados por tipo de vendedor</p>
-      <div id="an-tipo-bars"></div>
+  <div class="an-section" id="an-sec-tipo">
+    <div class="an-section-header" onclick="toggleAnSection('tipo')">
+      <p class="section-title" style="margin:0">Análise por Tipo de Equipe (VD / VN / VU)</p>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionImage('an-sec-tipo','Análise por Tipo de Equipe (VD / VN / VU)')">📷</button>
+        <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionWhatsApp('an-sec-tipo','Análise por Tipo de Equipe (VD / VN / VU)')">💬</button>
+        <button class="an-section-toggle" id="an-sec-tipo-btn">▼</button>
+      </div>
     </div>
-    <div class="chart-card">
-      <h3>%FIPE Médio e Captação por Tipo</h3>
-      <p>Comparativo de eficiência entre VD, VN e VU</p>
-      <div class="chart-wrap compact"><canvas id="chart-tipo-comp" height="160"></canvas></div>
+    <div class="an-section-explain">Compara performance entre vendedores de veículos Usados (VU), Novos (VN) e Diretos (VD). O total pode não fechar se houver vendedores sem tipo cadastrado.</div>
+    <div class="an-section-body" id="an-sec-tipo-body">
+      <div id="an-tipo-warning" style="display:none;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:var(--r2);padding:12px 16px;font-size:13px;color:var(--accent2);margin-bottom:16px;"></div>
+      <div class="grid-2 mb-24">
+        <div class="chart-card">
+          <h3>Volume por Tipo</h3>
+          <p>Avaliados e comprados por tipo de vendedor</p>
+          <div id="an-tipo-bars"></div>
+        </div>
+        <div class="chart-card">
+          <h3>%FIPE Médio e Captação por Tipo</h3>
+          <p>Comparativo de eficiência entre VD, VN e VU</p>
+          <div class="chart-wrap compact"><canvas id="chart-tipo-comp" height="160"></canvas></div>
+        </div>
+      </div>
     </div>
   </div>
 
   <!-- SEÇÃO 5: PERFORMANCE VENDEDORES -->
-  <p class="section-title">Performance dos Vendedores</p>
-  <div class="card mb-24" style="overflow:auto">
-    <table class="perf-table" id="an-vend-table">
-      <thead><tr>
-        <th onclick="sortAnalyticsTable('vend','nome')">Vendedor ↕</th>
-        <th onclick="sortAnalyticsTable('vend','tipo')">Tipo ↕</th>
-        <th onclick="sortAnalyticsTable('vend','empresa')">Loja ↕</th>
-        <th onclick="sortAnalyticsTable('vend','avaliados')">Avaliados ↕</th>
-        <th onclick="sortAnalyticsTable('vend','comprados')">Comprados ↕</th>
-        <th onclick="sortAnalyticsTable('vend','captacao')">% Captação ↕</th>
-        <th onclick="sortAnalyticsTable('vend','avgFipe')">%FIPE Médio ↕</th>
-        <th>Nível</th>
-      </tr></thead>
-      <tbody id="an-vend-tbody"></tbody>
-    </table>
+  <div class="an-section" id="an-sec-vend">
+    <div class="an-section-header" onclick="toggleAnSection('vend')">
+      <p class="section-title" style="margin:0">Performance dos Vendedores</p>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionImage('an-sec-vend','Performance dos Vendedores')">📷</button>
+        <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionWhatsApp('an-sec-vend','Performance dos Vendedores')">💬</button>
+        <button class="an-section-toggle" id="an-sec-vend-btn">▼</button>
+      </div>
+    </div>
+    <div class="an-section-explain">Ranking detalhado por vendedor com captação, ticket médio e dias médios até a compra. Mínimo de avaliações para aparecer no ranking.</div>
+    <div class="an-section-body" id="an-sec-vend-body">
+      <div class="card mb-24" style="overflow:auto">
+        <table class="perf-table" id="an-vend-table">
+          <thead><tr>
+            <th onclick="sortAnalyticsTable('vend','nome')">Vendedor ↕</th>
+            <th onclick="sortAnalyticsTable('vend','tipo')">Tipo ↕</th>
+            <th onclick="sortAnalyticsTable('vend','empresa')">Loja ↕</th>
+            <th onclick="sortAnalyticsTable('vend','avaliados')">Avaliados ↕</th>
+            <th onclick="sortAnalyticsTable('vend','comprados')">Comprados ↕</th>
+            <th onclick="sortAnalyticsTable('vend','captacao')">% Captação ↕</th>
+            <th onclick="sortAnalyticsTable('vend','avgFipe')">%FIPE Médio ↕</th>
+            <th onclick="sortAnalyticsTable('vend','avgDias')">Dias p/ Compra ↕</th>
+            <th>Nível</th>
+          </tr></thead>
+          <tbody id="an-vend-tbody"></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <!-- SEÇÃO 6: TOP MODELOS -->
-  <p class="section-title">Análise por Modelo</p>
-  <div class="grid-2 mb-24">
-    <div class="chart-card">
-      <h3>Top 15 Modelos — Avaliados vs Comprados</h3>
-      <p>Captação por modelo</p>
-      <div id="an-modelo-bars"></div>
+  <div class="an-section" id="an-sec-mod">
+    <div class="an-section-header" onclick="toggleAnSection('mod')">
+      <p class="section-title" style="margin:0">Análise por Modelo</p>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionImage('an-sec-mod','Análise por Modelo')">📷</button>
+        <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionWhatsApp('an-sec-mod','Análise por Modelo')">💬</button>
+        <button class="an-section-toggle" id="an-sec-mod-btn">▼</button>
+      </div>
     </div>
-    <div class="chart-card">
-      <h3>Modelos com Maior e Menor Captação</h3>
-      <p>Mínimo 3 avaliações para aparecer no ranking</p>
-      <div id="an-modelo-captacao"></div>
+    <div class="an-section-explain">Top modelos por volume avaliado, com taxa de captação. Identifica quais modelos têm maior ou menor eficiência de compra.</div>
+    <div class="an-section-body" id="an-sec-mod-body">
+      <div class="grid-2 mb-24">
+        <div class="chart-card">
+          <h3>Top 15 Modelos — Avaliados vs Comprados</h3>
+          <p>Captação por modelo</p>
+          <div id="an-modelo-bars"></div>
+        </div>
+        <div class="chart-card">
+          <h3>Modelos com Maior e Menor Captação</h3>
+          <p>Mínimo 3 avaliações para aparecer no ranking</p>
+          <div id="an-modelo-captacao"></div>
+        </div>
+      </div>
     </div>
   </div>
+
+<!-- SEÇÃO MARCA: ANÁLISE POR MARCA -->
+<div class="an-section" id="an-sec-marca">
+  <div class="an-section-header" onclick="toggleAnSection('marca')">
+    <p class="section-title" style="margin:0">Análise por Marca</p>
+    <div style="display:flex;gap:6px;align-items:center">
+      <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionImage('an-sec-marca','Análise por Marca')">📷</button>
+      <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionWhatsApp('an-sec-marca','Análise por Marca')">💬</button>
+      <button class="an-section-toggle" id="an-sec-marca-btn">▼</button>
+    </div>
+  </div>
+  <div class="an-section-explain">Comparativo entre marcas: volume avaliado, comprado, %FIPE médio e ticket médio. Agrupa todos os modelos de cada fabricante.</div>
+  <div class="an-section-body" id="an-sec-marca-body">
+    <div class="grid-2 mb-24">
+      <div class="chart-card">
+        <h3>Top Marcas — Avaliados vs Comprados</h3>
+        <p>Captação por fabricante</p>
+        <div id="an-marca-bars"></div>
+      </div>
+      <div class="chart-card">
+        <h3>%FIPE Médio por Marca</h3>
+        <p>Ticket médio e eficiência de precificação por fabricante</p>
+        <div class="chart-wrap compact"><canvas id="chart-marca-comp" height="160"></canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
 
   <!-- SEÇÃO 7: CLASSIFICAÇÃO A/B/C/D/E -->
-  <p class="section-title">Análise por Classificação do Veículo (A–E)</p>
-  <div id="an-class-aviso" style="display:none;background:rgba(100,116,139,0.1);border:1px solid var(--border);border-radius:var(--r2);padding:12px 16px;font-size:13px;color:var(--text3);margin-bottom:16px;"></div>
-  <div class="grid-2 mb-24">
-    <div class="chart-card">
-      <h3>Captação por Classificação</h3>
-      <p>Volume avaliado e comprado por categoria A/B/C/D/E</p>
-      <div id="an-class-bars"></div>
+  <div class="an-section" id="an-sec-class">
+    <div class="an-section-header" onclick="toggleAnSection('class')">
+      <p class="section-title" style="margin:0">Análise por Classificação (A–E)</p>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionImage('an-sec-class','Análise por Classificação (A–E)')">📷</button>
+        <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionWhatsApp('an-sec-class','Análise por Classificação (A–E)')">💬</button>
+        <button class="an-section-toggle" id="an-sec-class-btn">▼</button>
+      </div>
     </div>
-    <div class="chart-card">
-      <h3>%FIPE Médio e Ticket por Classificação</h3>
-      <p>Comparativo de valor ofertado por categoria</p>
-      <div class="chart-wrap compact"><canvas id="chart-class-comp" height="160"></canvas></div>
+    <div class="an-section-explain">Distribuição de avaliações por nota de qualidade do veículo (A=melhor, E=pior). Revela quais classificações têm maior captação e valor médio ofertado.</div>
+    <div class="an-section-body" id="an-sec-class-body">
+      <div id="an-class-aviso" style="display:none;background:rgba(100,116,139,0.1);border:1px solid var(--border);border-radius:var(--r2);padding:12px 16px;font-size:13px;color:var(--text3);margin-bottom:16px;"></div>
+      <div class="grid-2 mb-24">
+        <div class="chart-card">
+          <h3>Captação por Classificação</h3>
+          <p>Volume avaliado e comprado por categoria A/B/C/D/E</p>
+          <div id="an-class-bars"></div>
+        </div>
+        <div class="chart-card">
+          <h3>%FIPE Médio e Ticket por Classificação</h3>
+          <p>Comparativo de valor ofertado por categoria</p>
+          <div class="chart-wrap compact"><canvas id="chart-class-comp" height="160"></canvas></div>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- SEÇÃO 9: ANÁLISE TEMPORAL -->
-  <p class="section-title">Métricas Temporais</p>
-  <div class="grid-2 mb-24">
-    <div class="chart-card">
-      <h3>Avaliações por Dia da Semana</h3>
-      <p>Distribuição do volume por dia</p>
-      <div class="chart-wrap compact"><canvas id="chart-dia-semana" height="160"></canvas></div>
+<!-- SEÇÃO AA: COMPARATIVO AA -->
+<div class="an-section" id="an-sec-aa">
+  <div class="an-section-header" onclick="toggleAnSection('aa')">
+    <p class="section-title" style="margin:0">Comparativo AA — Valor Pago vs Mercado</p>
+    <div style="display:flex;gap:6px;align-items:center">
+      <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionImage('an-sec-aa','Comparativo AA')">📷</button>
+      <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionWhatsApp('an-sec-aa','Comparativo AA')">💬</button>
+      <button class="an-section-toggle" id="an-sec-aa-btn">▼</button>
     </div>
-    <div class="chart-card">
-      <h3>Tempo Médio Avaliação → Compra</h3>
-      <p>Distribuição em dias entre avaliação e compra (comprados)</p>
-      <div class="chart-wrap compact"><canvas id="chart-tempo-compra" height="160"></canvas></div>
+  </div>
+  <div class="an-section-explain">Cruza o valor médio pago pelo AA (coluna 'AA' da planilha de comprados) com o valor avaliado. Identifica se estamos comprando acima ou abaixo da referência de mercado AA.</div>
+  <div class="an-section-body" id="an-sec-aa-body">
+    <div id="an-aa-aviso" style="display:none;background:rgba(100,116,139,0.1);border:1px solid var(--border);border-radius:var(--r2);padding:12px 16px;font-size:13px;color:var(--text3);margin-bottom:16px;"></div>
+    <div class="aa-comp-grid" id="an-aa-cards"></div>
+    <div class="grid-2 mb-24" style="margin-top:16px">
+      <div class="chart-card">
+        <h3>Valor AA vs Valor Avaliado — por Modelo</h3>
+        <p>Top modelos: quanto o AA referencia vs quanto avaliamos</p>
+        <div class="chart-wrap compact"><canvas id="chart-aa-comp" height="180"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>Delta AA (Avaliado − AA Ref.) por Faixa</h3>
+        <p>Positivo = avaliamos acima do AA; Negativo = abaixo</p>
+        <div class="chart-wrap compact"><canvas id="chart-aa-delta" height="180"></canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+  <!-- SEÇÃO 9: ANÁLISE TEMPORAL -->
+  <div class="an-section" id="an-sec-tempo">
+    <div class="an-section-header" onclick="toggleAnSection('tempo')">
+      <p class="section-title" style="margin:0">Métricas Temporais</p>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionImage('an-sec-tempo','Métricas Temporais')">📷</button>
+        <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionWhatsApp('an-sec-tempo','Métricas Temporais')">💬</button>
+        <button class="an-section-toggle" id="an-sec-tempo-btn">▼</button>
+      </div>
+    </div>
+    <div class="an-section-explain">Distribuição de avaliações por dia da semana e tempo médio entre avaliação e compra efetiva.</div>
+    <div class="an-section-body" id="an-sec-tempo-body">
+      <div class="grid-2 mb-24">
+        <div class="chart-card">
+          <h3>Avaliações por Dia da Semana</h3>
+          <p>Distribuição do volume por dia</p>
+          <div class="chart-wrap compact"><canvas id="chart-dia-semana" height="160"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>Tempo Médio Avaliação → Compra</h3>
+          <p>Distribuição em dias entre avaliação e compra (comprados)</p>
+          <div class="chart-wrap compact"><canvas id="chart-tempo-compra" height="160"></canvas></div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -2832,6 +3020,8 @@ function getAnalyticsData() {
   const precF = (document.getElementById('an-f-prec')?.value||'').trim().toLowerCase();
   const fipeFx = document.getElementById('an-f-fipe')?.value || '';
   const classF = document.getElementById('an-f-class')?.value || '';
+  const marcaF = (document.getElementById('an-f-marca')?.value||'').trim();
+  const modeloF = (document.getElementById('an-f-modelo')?.value||'').trim().toLowerCase();
 
   const ini = iniV ? new Date(iniV+'T00:00:00') : null;
   const fim = fimV ? new Date(fimV+'T23:59:59') : null;
@@ -2847,12 +3037,14 @@ function getAnalyticsData() {
       if (!(r.pctFipe >= lo && r.pctFipe < hi)) return false;
     }
     if (classF && (r.classificacao||'') !== classF) return false;
+    if (marcaF && (r.marca||'') !== marcaF) return false;
+    if (modeloF && !(r.modelo||'').toLowerCase().includes(modeloF)) return false;
     return true;
   });
 }
 
 function clearAnalyticsFilters() {
-  ['an-f-ini','an-f-fim','an-f-empresa','an-f-tipo','an-f-objetivo','an-f-prec','an-f-fipe','an-f-class'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['an-f-ini','an-f-fim','an-f-empresa','an-f-tipo','an-f-objetivo','an-f-prec','an-f-fipe','an-f-class','an-f-marca','an-f-modelo'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   renderAnalytics();
 }
 
@@ -2862,6 +3054,13 @@ function populateAnalyticsFilterOptions(data) {
   fill('an-dl-empresa', uniq(data.map(r=>r.empresaEquipe||r.empresa)));
   fill('an-dl-objetivo', uniq(data.map(r=>r.objetivo)));
   fill('an-dl-prec', uniq(data.map(r=>r.precificador)));
+  const marcaSel = document.getElementById('an-f-marca');
+  if(marcaSel) {
+    const marcas = [...new Set((data||[]).map(r=>r.marca).filter(Boolean))].sort();
+    const cur = marcaSel.value;
+    marcaSel.innerHTML = '<option value="">Todas</option>' + marcas.map(m=>`<option value="${escHtml(m)}"${m===cur?'selected':''}>${escHtml(m)}</option>`).join('');
+  }
+  fill('an-dl-modelo', uniq((data||[]).map(r=>r.modelo)));
 }
 
 function renderAnalytics() {
@@ -2911,6 +3110,12 @@ function renderAnalytics() {
 
   // --- Classificação A/B/C/D/E ---
   renderAnClassificacao(av, cp);
+
+  // --- AA ---
+  renderAnAA(av, cp);
+
+  // --- Marcas ---
+  renderAnMarcas(av, cp);
 
   // --- Temporal ---
   renderAnTemporal(av, cp);
@@ -3156,15 +3361,20 @@ function buildVendStats(av, cp) {
   const m = {};
   av.forEach(r => {
     const v = r.vendedor||'N/D';
-    if (!m[v]) m[v]={nome:v,tipo:r.tipo||'—',empresa:r.empresaEquipe||r.empresa||'—',avaliados:0,comprados:0,sumFipe:0,nFipe:0,melhorados:0};
+    if (!m[v]) m[v]={nome:v,tipo:r.tipo||'—',empresa:r.empresaEquipe||r.empresa||'—',avaliados:0,comprados:0,sumFipe:0,nFipe:0,melhorados:0,diasList:[]};
     m[v].avaliados++;
     if (r.pctFipe!=null){m[v].sumFipe+=r.pctFipe;m[v].nFipe++;}
     if (r.melhorado==='Sim') m[v].melhorados++;
+    if (r.comprado && r.dataAv) {
+      const dc = getCompraDate(r);
+      if (dc) { const dias = Math.round((dc - r.dataAv)/(1000*86400)); if(dias>=0) m[v].diasList.push(dias); }
+    }
   });
   cp.forEach(r => { const v=r.vendedor||'N/D'; if(m[v]) m[v].comprados++; });
   return Object.values(m).map(v=>({...v,
     captacao:v.avaliados?v.comprados/v.avaliados*100:0,
-    avgFipe:v.nFipe?v.sumFipe/v.nFipe:null
+    avgFipe:v.nFipe?v.sumFipe/v.nFipe:null,
+    avgDias:v.diasList.length?v.diasList.reduce((a,b)=>a+b,0)/v.diasList.length:null
   }));
 }
 
@@ -3184,7 +3394,7 @@ function renderAnVendedores(av, cp) {
   const tipoCores = {'VD':'#3b82f6','VN':'#f59e0b','VU':'#10b981','—':'#64748b'};
   const tb = document.getElementById('an-vend-tbody');
   if (!tb) return;
-  if (!stats.length) { tb.innerHTML='<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--text3)">Sem dados de vendedor.</td></tr>'; return; }
+  if (!stats.length) { tb.innerHTML='<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--text3)">Sem dados de vendedor.</td></tr>'; return; }
   tb.innerHTML = stats.map(s=>{
     const capClass = s.captacao>50?'heat-high':s.captacao>25?'heat-mid':s.captacao>0?'heat-low':'heat-none';
     const fClass = s.avgFipe!=null?(s.avgFipe<80?'fipe-low':s.avgFipe<95?'fipe-mid':'fipe-high'):'';
@@ -3198,6 +3408,7 @@ function renderAnVendedores(av, cp) {
       <td>${s.comprados}</td>
       <td><span class="${capClass} heat-cell">${s.captacao.toFixed(1)}%</span></td>
       <td class="${fClass}">${s.avgFipe!=null?s.avgFipe.toFixed(1)+'%':'—'}</td>
+      <td style="font-size:12px">${s.avgDias!=null?s.avgDias.toFixed(1)+' d':'—'}</td>
       <td>${nivel}</td>
     </tr>`;
   }).join('');
@@ -3205,8 +3416,9 @@ function renderAnVendedores(av, cp) {
 
 function renderAnModelos(av, cp) {
   const m = {};
-  av.forEach(r=>{ const k=r.modelo||'N/D'; if(!m[k])m[k]={av:0,cp:0}; m[k].av++; });
-  cp.forEach(r=>{ const k=r.modelo||'N/D'; if(m[k])m[k].cp++; });
+  const normMod = s => (s||'N/D').trim().replace(/\s+/g,' ');
+  av.forEach(r=>{ const k=normMod(r.modelo); if(!m[k])m[k]={av:0,cp:0}; m[k].av++; });
+  cp.forEach(r=>{ const k=normMod(r.modelo); if(m[k])m[k].cp++; });
   const sorted = Object.entries(m).sort((a,b)=>b[1].av-a[1].av).slice(0,15);
   const maxAv = Math.max(...sorted.map(([,v])=>v.av),1);
 
@@ -3252,8 +3464,8 @@ function renderAnClassificacao(av, cp) {
 
   const stats = {};
   classes.forEach(c=>{ stats[c]={av:0,cp:0,fipes:[],tickets:[]}; });
-  av.forEach(r=>{ if(!r.classificacao) return; const s=stats[r.classificacao]; if(!s) return; s.av++; if(r.fipePct!=null) s.fipes.push(r.fipePct); });
-  cp.forEach(r=>{ if(!r.classificacao) return; const s=stats[r.classificacao]; if(!s) return; s.cp++; if(r.valorCompra) s.tickets.push(r.valorCompra); });
+  av.forEach(r=>{ if(!r.classificacao) return; const s=stats[r.classificacao]; if(!s) return; s.av++; if(r.pctFipe!=null) s.fipes.push(r.pctFipe); });
+  cp.forEach(r=>{ if(!r.classificacao) return; const s=stats[r.classificacao]; if(!s) return; s.cp++; if(r.valorAv) s.tickets.push(r.valorAv); });
 
   const avg = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null;
 
@@ -3339,6 +3551,178 @@ function renderAnTemporal(av, cp) {
       data:{ labels:bands2.map(b=>b.l), datasets:[{label:'Compras',data:contagens,backgroundColor:'rgba(16,185,129,0.6)',borderColor:'#10b981',borderWidth:1}]},
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:chartGridColor()},ticks:{color:chartTickColor(),font:{size:10}}},y:{grid:{color:chartGridColor()},ticks:{color:chartTickColor()},beginAtZero:true}}}
     });
+  }
+}
+
+function toggleAnSection(id) {
+  const body = document.getElementById('an-sec-'+id+'-body');
+  const btn = document.getElementById('an-sec-'+id+'-btn');
+  if (!body) return;
+  const collapsed = body.classList.toggle('collapsed');
+  if (btn) btn.textContent = collapsed ? '▶' : '▼';
+}
+
+async function exportSectionImage(sectionId, title) {
+  const el = document.getElementById(sectionId);
+  if (!el) return;
+  showToast('Gerando imagem...', 'info');
+  try {
+    const canvas = await html2canvas(el, { backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--bg2').trim() || '#1e293b', scale: 2, useCORS: true, logging: false });
+    const link = document.createElement('a');
+    link.download = (title||'analise').replace(/\s+/g,'_') + '.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    showToast('Imagem salva!', 'success');
+  } catch(e) { showToast('Erro ao gerar imagem: '+e.message, 'error'); }
+}
+
+async function exportSectionWhatsApp(sectionId, title) {
+  const el = document.getElementById(sectionId);
+  if (!el) return;
+  showToast('Preparando para WhatsApp...', 'info');
+  try {
+    const canvas = await html2canvas(el, { backgroundColor: '#1e293b', scale: 1.5, useCORS: true, logging: false });
+    canvas.toBlob(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url;
+      a.download = (title||'analise').replace(/\s+/g,'_')+'_whatsapp.jpg';
+      a.click(); setTimeout(()=>URL.revokeObjectURL(url),2000);
+      showToast('Imagem otimizada para WhatsApp salva!', 'success');
+    }, 'image/jpeg', 0.85);
+  } catch(e) { showToast('Erro: '+e.message, 'error'); }
+}
+
+async function exportAnalyticsPDF() {
+  showToast('Gerando PDF completo... aguarde', 'info');
+  try {
+    const el = document.getElementById('tab-analytics');
+    const canvas = await html2canvas(el, { backgroundColor: '#1e293b', scale: 1.5, useCORS: true, logging: false });
+    const imgData = canvas.toDataURL('image/jpeg', 0.85);
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [canvas.width/1.5, canvas.height/1.5] });
+    pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width/1.5, canvas.height/1.5);
+    pdf.save('analise_carmais_' + new Date().toISOString().slice(0,10) + '.pdf');
+    showToast('PDF salvo!', 'success');
+  } catch(e) { showToast('Erro ao gerar PDF: '+e.message, 'error'); }
+}
+
+async function exportAnalyticsImage() {
+  showToast('Gerando imagem da análise...', 'info');
+  try {
+    const el = document.getElementById('tab-analytics');
+    const canvas = await html2canvas(el, { backgroundColor: '#1e293b', scale: 1.5, useCORS: true, logging: false });
+    const link = document.createElement('a');
+    link.download = 'analise_carmais_' + new Date().toISOString().slice(0,10) + '.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    showToast('Imagem salva!', 'success');
+  } catch(e) { showToast('Erro: '+e.message, 'error'); }
+}
+
+function viewFilteredInDetail(tipo) {
+  const ini = document.getElementById('an-f-ini')?.value || '';
+  const fim = document.getElementById('an-f-fim')?.value || '';
+  const emp = document.getElementById('an-f-empresa')?.value || '';
+  if(ini && document.getElementById('f-data-ini')) document.getElementById('f-data-ini').value = ini;
+  if(fim && document.getElementById('f-data-fim')) document.getElementById('f-data-fim').value = fim;
+  if(emp && document.getElementById('f-empresa')) document.getElementById('f-empresa').value = emp;
+  applyFilters();
+  const tabName = tipo==='comprados'?'comprados':'tabela';
+  const btn = document.querySelector(`.tab-btn[onclick*="'${tabName}'"]`);
+  switchTab(tabName, btn);
+}
+
+function renderAnMarcas(av, cp) {
+  const m = {};
+  av.forEach(r=>{ const k=(r.marca||'N/D').trim(); if(!m[k])m[k]={av:0,cp:0,fipes:[],tickets:[]}; m[k].av++; if(r.pctFipe!=null)m[k].fipes.push(r.pctFipe); });
+  cp.forEach(r=>{ const k=(r.marca||'N/D').trim(); if(m[k]){m[k].cp++; if(r.valorAv)m[k].tickets.push(r.valorAv);} });
+  const sorted = Object.entries(m).sort((a,b)=>b[1].av-a[1].av).slice(0,12);
+  const maxAv = Math.max(...sorted.map(([,v])=>v.av),1);
+  const avg = arr=>arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:null;
+
+  const el = document.getElementById('an-marca-bars');
+  if(el) {
+    el.innerHTML = sorted.map(([marca,v])=>{
+      const pct = v.av?v.cp/v.av*100:0;
+      const hClass = pct>50?'heat-high':pct>25?'heat-mid':pct>0?'heat-low':'heat-none';
+      return `<div class="fipe-band-row">
+        <div class="fipe-band-label" title="${escHtml(marca)}" style="font-weight:600">${escHtml(marca.length>13?marca.substring(0,12)+'…':marca)}</div>
+        <div class="fipe-band-bar-wrap">
+          <div class="fipe-band-bar" style="width:${(v.av/maxAv*100).toFixed(0)}%;background:var(--blue);opacity:.5;max-width:100%"></div>
+          <div class="fipe-band-bar" style="width:${(v.cp/maxAv*100).toFixed(0)}%;background:var(--green);max-width:100%"></div>
+        </div>
+        <div class="fipe-band-stats"><span class="${hClass} heat-cell">${pct.toFixed(0)}%</span><br><span style="color:var(--text3);font-size:11px">${v.av} av / ${v.cp} cp</span></div>
+      </div>`;
+    }).join('') || '<div class="no-data">Sem dados de marca.</div>';
+  }
+
+  if(CHARTS['chart-marca-comp']){CHARTS['chart-marca-comp'].destroy();delete CHARTS['chart-marca-comp'];}
+  const ctx = document.getElementById('chart-marca-comp');
+  if(ctx && sorted.length) {
+    const labels = sorted.map(([k])=>k);
+    const fipeData = sorted.map(([,v])=>{ const a=avg(v.fipes); return a!=null?+a.toFixed(1):null; });
+    const capData = sorted.map(([,v])=>v.av?+(v.cp/v.av*100).toFixed(1):0);
+    CHARTS['chart-marca-comp'] = new Chart(ctx, {
+      type:'bar',
+      data:{
+        labels,
+        datasets:[
+          {label:'%FIPE médio',data:fipeData,backgroundColor:'rgba(59,130,246,0.6)',yAxisID:'y',order:1},
+          {label:'% Captação',data:capData,type:'line',borderColor:'#10b981',backgroundColor:'#10b98120',pointBackgroundColor:'#10b981',tension:0.3,yAxisID:'y2',order:0}
+        ]
+      },
+      options:{responsive:true,plugins:{legend:{position:'bottom'}},scales:{
+        y:{title:{display:true,text:'%FIPE'},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:chartTickColor()}},
+        y2:{position:'right',title:{display:true,text:'% Captação'},grid:{display:false},ticks:{color:chartTickColor()}}
+      }}
+    });
+  }
+}
+
+function renderAnAA(av, cp) {
+  const aviso = document.getElementById('an-aa-aviso');
+  const cardsEl = document.getElementById('an-aa-cards');
+  const hasAA = av.some(r=>r.aa && r.aa>0);
+  if(aviso){ aviso.style.display=hasAA?'none':''; aviso.textContent='Coluna "AA" não encontrada ou sem valores. Verifique se a planilha de avaliações possui a coluna AA com o valor de referência.'; }
+  if(!hasAA){ if(cardsEl)cardsEl.innerHTML='<div class="no-data">Sem dados AA.</div>'; ['chart-aa-comp','chart-aa-delta'].forEach(id=>{if(CHARTS[id]){CHARTS[id].destroy();delete CHARTS[id];}}); return; }
+
+  const withAA = av.filter(r=>r.aa>0&&r.valorAv>0);
+  const totalAv = withAA.length;
+  const sumAA = withAA.reduce((s,r)=>s+r.aa,0);
+  const sumValor = withAA.reduce((s,r)=>s+r.valorAv,0);
+  const avgAA = totalAv?sumAA/totalAv:0;
+  const avgValor = totalAv?sumValor/totalAv:0;
+  const delta = avgValor - avgAA;
+  const deltaPct = avgAA?(delta/avgAA*100):0;
+
+  if(cardsEl){
+    cardsEl.innerHTML=`
+      <div class="aa-comp-card"><div class="label">Ref. AA Médio</div><div class="val">${fmtBRL(avgAA)}</div><div class="sub">${totalAv} avaliações com AA</div></div>
+      <div class="aa-comp-card"><div class="label">Valor Avaliado Médio</div><div class="val">${fmtBRL(avgValor)}</div><div class="sub">Oferta média praticada</div></div>
+      <div class="aa-comp-card"><div class="label">Delta (Avaliado − AA)</div><div class="val ${delta>=0?'pos':'neg'}">${delta>=0?'+':''}${fmtBRL(delta)}</div><div class="sub delta ${delta>=0?'pos':'neg'}">${deltaPct>=0?'+':''}${deltaPct.toFixed(1)}% em relação ao AA</div></div>
+      <div class="aa-comp-card"><div class="label">Comprados com AA</div><div class="val">${cp.filter(r=>r.aa>0).length}</div><div class="sub">de ${cp.length} total comprados</div></div>
+    `;
+  }
+
+  const byMod = {};
+  withAA.forEach(r=>{ const k=(r.modelo||'N/D').trim(); if(!byMod[k])byMod[k]={aa:[],val:[]}; byMod[k].aa.push(r.aa); byMod[k].val.push(r.valorAv); });
+  const avg2 = arr=>arr.reduce((a,b)=>a+b,0)/arr.length;
+  const modStats = Object.entries(byMod).filter(([,v])=>v.aa.length>=2).map(([k,v])=>({mod:k,avgAA:avg2(v.aa),avgVal:avg2(v.val),n:v.aa.length})).sort((a,b)=>b.n-a.n).slice(0,10);
+
+  if(CHARTS['chart-aa-comp']){CHARTS['chart-aa-comp'].destroy();delete CHARTS['chart-aa-comp'];}
+  const ctx1=document.getElementById('chart-aa-comp');
+  if(ctx1&&modStats.length){
+    CHARTS['chart-aa-comp']=new Chart(ctx1,{type:'bar',data:{labels:modStats.map(s=>s.mod),datasets:[
+      {label:'AA Referência',data:modStats.map(s=>Math.round(s.avgAA)),backgroundColor:'rgba(100,116,139,0.5)'},
+      {label:'Valor Avaliado',data:modStats.map(s=>Math.round(s.avgVal)),backgroundColor:'rgba(59,130,246,0.7)'}
+    ]},options:{responsive:true,plugins:{legend:{position:'bottom'}},scales:{y:{ticks:{callback:v=>'R$ '+v.toLocaleString('pt-BR'),color:chartTickColor()},grid:{color:'rgba(255,255,255,0.05)'}},x:{ticks:{color:chartTickColor()}}}}});
+  }
+
+  if(CHARTS['chart-aa-delta']){CHARTS['chart-aa-delta'].destroy();delete CHARTS['chart-aa-delta'];}
+  const ctx2=document.getElementById('chart-aa-delta');
+  if(ctx2&&modStats.length){
+    const deltas=modStats.map(s=>+(s.avgVal-s.avgAA).toFixed(0));
+    CHARTS['chart-aa-delta']=new Chart(ctx2,{type:'bar',data:{labels:modStats.map(s=>s.mod),datasets:[{label:'Delta (R$)',data:deltas,backgroundColor:deltas.map(d=>d>=0?'rgba(16,185,129,0.7)':'rgba(239,68,68,0.7)')}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>(v>=0?'+':'')+v.toLocaleString('pt-BR'),color:chartTickColor()},grid:{color:'rgba(255,255,255,0.05)'}},x:{ticks:{color:chartTickColor()}}}}});
   }
 }
 
