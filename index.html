@@ -1655,7 +1655,10 @@ async function loadDataFromSheets(forceRefresh) {
         STATE.comprador = cached.data.comprador || [];
         crossJoin();
         applyCompradorSheetData(STATE.avaliacoes, STATE.comprador);
-        if (!STATE._filtersInitialized) { populateFilters(true); STATE._filtersInitialized = true; }
+        if (!STATE._filtersInitialized) {
+          populateFilters(true); STATE._filtersInitialized = true;
+          initAnalyticsDates();
+        }
         applyFilters();
         updateStatusBar();
         const bar = document.getElementById('data-status-bar');
@@ -1732,15 +1735,7 @@ async function loadDataFromSheets(forceRefresh) {
     } catch(ce) { console.warn('Cache save failed:', ce); }
     if (!STATE._filtersInitialized) {
       populateFilters(true); STATE._filtersInitialized = true;
-      // Analytics usa o intervalo REAL dos dados (não o mês atual do dashboard),
-      // assim a aba já abre mostrando todo o histórico disponível.
-      const datas = (STATE.avaliacoes||[]).map(r=>r.dataAv).filter(d=>d instanceof Date && !isNaN(d));
-      if (datas.length) {
-        const minD = new Date(Math.min(...datas.map(d=>d.getTime())));
-        const maxD = new Date(Math.max(...datas.map(d=>d.getTime())));
-        if (document.getElementById('an-f-ini')) document.getElementById('an-f-ini').value = dateStr(minD);
-        if (document.getElementById('an-f-fim')) document.getElementById('an-f-fim').value = dateStr(maxD);
-      }
+      initAnalyticsDates();
     } else { populateFilters(false); }
     applyFilters();
     updateStatusBar();
@@ -3038,6 +3033,22 @@ function showToast(msg,type='info'){
 const AN_SORT = { prec:{ col:'avaliados', asc:false }, vend:{ col:'avaliados', asc:false } };
 
 // ============================================================
+// ANALYTICS HELPERS
+// ============================================================
+function initAnalyticsDates() {
+  // Inicializa os filtros de data do analytics com o intervalo REAL dos dados.
+  // Nunca copia o mês atual do dashboard — isso cortaria dados de outros meses.
+  const datas = (STATE.avaliacoes||[]).map(r=>r.dataAv).filter(d=>d instanceof Date && !isNaN(d));
+  if (!datas.length) return;
+  const minD = new Date(Math.min(...datas.map(d=>d.getTime())));
+  const maxD = new Date(Math.max(...datas.map(d=>d.getTime())));
+  const ini = document.getElementById('an-f-ini');
+  const fim = document.getElementById('an-f-fim');
+  if (ini) ini.value = dateStr(minD);
+  if (fim) fim.value = dateStr(maxD);
+}
+
+// ============================================================
 // MULTI-SELECT DROPDOWN
 // ============================================================
 const MS_STATE = {};
@@ -3219,32 +3230,16 @@ function renderAnalytics() {
   // --- Por Objetivo ---
   renderAnObjetivo(av, cp);
 
-  // --- FIPE x Captação ---
-  renderAnFipeCaptacao(av, cp);
-
-  // --- Precificadores ---
-  renderAnPrecificadores(av, cp);
-
-  // --- Tipo VD/VN/VU ---
-  renderAnTipo(av, cp);
-
-  // --- Vendedores ---
-  renderAnVendedores(av, cp);
-
-  // --- Modelos ---
-  renderAnModelos(av, cp);
-
-  // --- Classificação A/B/C/D/E ---
-  renderAnClassificacao(av, cp);
-
-  // --- AA ---
-  renderAnAA(av, cp);
-
-  // --- Marcas ---
-  renderAnMarcas(av, cp);
-
-  // --- Temporal ---
-  renderAnTemporal(av, cp);
+  const safeRender = (fn, name) => { try { fn(av, cp); } catch(e) { console.error('[analytics] Erro em '+name+':', e); } };
+  safeRender(renderAnFipeCaptacao, 'FipeCaptacao');
+  safeRender(renderAnPrecificadores, 'Precificadores');
+  safeRender(renderAnTipo, 'Tipo');
+  safeRender(renderAnVendedores, 'Vendedores');
+  safeRender(renderAnModelos, 'Modelos');
+  safeRender(renderAnClassificacao, 'Classificacao');
+  safeRender(renderAnAA, 'AA');
+  safeRender(renderAnMarcas, 'Marcas');
+  safeRender(renderAnTemporal, 'Temporal');
 }
 
 function renderAnInsight(av, cp) {
