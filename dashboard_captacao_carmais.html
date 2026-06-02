@@ -304,6 +304,42 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
   @page{size:A4 landscape;margin:8mm;}
 }
 
+/* ANALYTICS */
+.analytics-kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;margin-bottom:20px;}
+.akpi{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px;position:relative;overflow:hidden;}
+.akpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--akpi-color,var(--accent));}
+.akpi .ak-label{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:6px;}
+.akpi .ak-val{font-family:'Syne',sans-serif;font-size:28px;font-weight:800;color:var(--text);line-height:1;}
+.akpi .ak-sub{font-size:11px;color:var(--text3);margin-top:4px;}
+.fipe-band-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);}
+.fipe-band-row:last-child{border-bottom:none;}
+.fipe-band-label{font-size:12px;font-weight:700;color:var(--text2);width:90px;flex-shrink:0;}
+.fipe-band-bar-wrap{flex:1;display:flex;flex-direction:column;gap:3px;}
+.fipe-band-bar{height:8px;border-radius:4px;transition:width .6s;}
+.fipe-band-stats{font-size:11px;color:var(--text3);white-space:nowrap;text-align:right;width:120px;flex-shrink:0;}
+.perf-table{width:100%;border-collapse:collapse;font-size:13px;}
+.perf-table thead th{padding:10px 12px;text-align:left;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text3);border-bottom:1px solid var(--border);background:var(--bg2);cursor:pointer;white-space:nowrap;}
+.perf-table thead th:hover{color:var(--text);}
+.perf-table tbody tr{border-bottom:1px solid var(--border);transition:background .15s;}
+.perf-table tbody tr:hover{background:rgba(255,255,255,0.02);}
+.perf-table tbody td{padding:9px 12px;color:var(--text2);white-space:nowrap;}
+.perf-score{display:inline-flex;align-items:center;gap:6px;}
+.perf-bar-mini{height:6px;width:60px;background:var(--border);border-radius:3px;overflow:hidden;display:inline-block;vertical-align:middle;}
+.perf-bar-mini-fill{height:100%;border-radius:3px;}
+.heat-cell{display:inline-block;padding:4px 8px;border-radius:4px;font-weight:700;font-size:12px;}
+.heat-high{background:rgba(16,185,129,0.18);color:var(--green2);}
+.heat-mid{background:rgba(245,158,11,0.18);color:var(--accent2);}
+.heat-low{background:rgba(239,68,68,0.18);color:var(--red2);}
+.heat-none{background:rgba(100,116,139,0.12);color:var(--text3);}
+.analytics-filters{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:20px;}
+.analytics-filters-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;align-items:end;}
+.analytics-filters-grid label{display:block;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:5px;}
+.analytics-filters-grid input,.analytics-filters-grid select{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r2);padding:7px 10px;font-size:12px;color:var(--text);outline:none;font-family:'DM Sans',sans-serif;}
+.analytics-filters-grid input:focus,.analytics-filters-grid select:focus{border-color:var(--accent);}
+.insight-box{background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.25);border-radius:var(--r2);padding:12px 16px;font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:16px;}
+.insight-box strong{color:var(--blue2);}
+@media(max-width:900px){.analytics-kpi-grid{grid-template-columns:repeat(2,1fr);}}
+
 /* AI CHAT */
 .ai-chat-container{display:flex;flex-direction:column;height:calc(100vh - 260px);min-height:400px;max-height:700px;}
 .ai-chat-messages{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r) var(--r) 0 0;}
@@ -376,6 +412,7 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
   <button class="tab-btn master-only" onclick="switchTab('config-script',this)">⚙️ Config Script</button>
   <button class="tab-btn master-only" onclick="switchTab('historico',this)">📜 Histórico</button>
   <button class="tab-btn master-only" onclick="switchTab('alertas',this)">🔔 Alertas</button>
+  <button class="tab-btn" onclick="switchTab('analytics',this)">📈 Análise Avançada</button>
   <button class="tab-btn" onclick="switchTab('ia',this)">🤖 IA</button>
 </nav>
 
@@ -719,6 +756,156 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
       <th>Placa</th><th>Empresa</th><th>Campo</th><th>Val. Anterior</th><th>Val. Novo</th><th>Observação</th>
     </tr></thead>
     <tbody id="historico-tbody"></tbody></table>
+  </div>
+</div>
+
+<!-- TAB: ANALYTICS -->
+<div id="tab-analytics" class="tab-content">
+  <div class="section-header">
+    <h2>Análise Avançada — Cruzamento de Dados</h2>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost" onclick="renderAnalytics()">🔄 Atualizar</button>
+    </div>
+  </div>
+
+  <!-- FILTROS ANALYTICS -->
+  <div class="analytics-filters mb-24">
+    <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:10px;">Filtros desta análise</div>
+    <div class="analytics-filters-grid">
+      <div><label>Data Inicial</label><input type="date" id="an-f-ini" onchange="renderAnalytics()"/></div>
+      <div><label>Data Final</label><input type="date" id="an-f-fim" onchange="renderAnalytics()"/></div>
+      <div><label>Loja / Empresa</label><input type="text" id="an-f-empresa" list="an-dl-empresa" placeholder="Todas" oninput="renderAnalytics()"><datalist id="an-dl-empresa"></datalist></div>
+      <div><label>Tipo (VD/VN/VU)</label><select id="an-f-tipo" onchange="renderAnalytics()"><option value="">Todos</option><option value="VD">VD</option><option value="VN">VN</option><option value="VU">VU</option></select></div>
+      <div><label>Objetivo</label><input type="text" id="an-f-objetivo" list="an-dl-objetivo" placeholder="Todos" oninput="renderAnalytics()"><datalist id="an-dl-objetivo"></datalist></div>
+      <div><label>Precificador</label><input type="text" id="an-f-prec" list="an-dl-prec" placeholder="Todos" oninput="renderAnalytics()"><datalist id="an-dl-prec"></datalist></div>
+      <div><label>Faixa %FIPE</label><select id="an-f-fipe" onchange="renderAnalytics()"><option value="">Todas</option><option value="0-70">&lt; 70%</option><option value="70-80">70–80%</option><option value="80-90">80–90%</option><option value="90-100">90–100%</option><option value="100-999">&gt; 100%</option></select></div>
+      <div style="display:flex;align-items:flex-end;gap:6px">
+        <button class="btn btn-ghost" style="font-size:12px;padding:7px 14px" onclick="clearAnalyticsFilters()">✕ Limpar</button>
+        <button class="btn btn-primary" style="font-size:12px;padding:7px 14px" onclick="renderAnalytics()">🔍 Aplicar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPIs RÁPIDOS -->
+  <p class="section-title">Visão Geral do Filtro</p>
+  <div class="analytics-kpi-grid mb-24" id="an-kpis"></div>
+
+  <!-- INSIGHT AUTOMÁTICO -->
+  <div class="insight-box" id="an-insight" style="display:none"></div>
+
+  <!-- SEÇÃO 1: OBJETIVO x RESULTADO -->
+  <p class="section-title">Por Objetivo (Categoria)</p>
+  <div class="grid-2 mb-24">
+    <div class="chart-card">
+      <h3>Captação por Objetivo</h3>
+      <p>Avaliados vs Comprados — taxa de conversão por categoria</p>
+      <div id="an-obj-bars"></div>
+    </div>
+    <div class="chart-card">
+      <h3>Ticket Médio por Objetivo</h3>
+      <p>Valor médio avaliado e % FIPE médio por categoria</p>
+      <div id="an-obj-ticket"></div>
+    </div>
+  </div>
+
+  <!-- SEÇÃO 2: FIPE x CAPTAÇÃO -->
+  <p class="section-title">Correlação % FIPE × Captação</p>
+  <div class="grid-2 mb-24">
+    <div class="chart-card">
+      <h3>Faixa de % FIPE vs Taxa de Captação</h3>
+      <p>Em qual faixa de preço (em relação à FIPE) mais compramos?</p>
+      <div id="an-fipe-captacao"></div>
+    </div>
+    <div class="chart-card">
+      <h3>Distribuição de Avaliações por % FIPE</h3>
+      <p>Volume e captação — gráfico de barras empilhadas</p>
+      <div class="chart-wrap compact"><canvas id="chart-fipe-dist" height="160"></canvas></div>
+    </div>
+  </div>
+
+  <!-- SEÇÃO 3: PERFORMANCE PRECIFICADORES -->
+  <p class="section-title">Performance dos Precificadores (Avaliadores)</p>
+  <div class="insight-box" id="an-prec-insight" style="display:none"></div>
+  <div class="card mb-24" style="overflow:auto">
+    <table class="perf-table" id="an-prec-table">
+      <thead><tr>
+        <th onclick="sortAnalyticsTable('prec','nome')">Precificador ↕</th>
+        <th onclick="sortAnalyticsTable('prec','avaliados')">Avaliados ↕</th>
+        <th onclick="sortAnalyticsTable('prec','comprados')">Comprados ↕</th>
+        <th onclick="sortAnalyticsTable('prec','captacao')">% Captação ↕</th>
+        <th onclick="sortAnalyticsTable('prec','avgFipe')">%FIPE Médio ↕</th>
+        <th onclick="sortAnalyticsTable('prec','avgValor')">Ticket Médio ↕</th>
+        <th onclick="sortAnalyticsTable('prec','melhorados')">Melhorados ↕</th>
+        <th onclick="sortAnalyticsTable('prec','pctMelhora')">% Melhora ↕</th>
+        <th>Índice Eficiência</th>
+      </tr></thead>
+      <tbody id="an-prec-tbody"></tbody>
+    </table>
+  </div>
+
+  <!-- SEÇÃO 4: TIPO VD/VN/VU (BUG FIX) -->
+  <p class="section-title">Análise por Tipo de Equipe (VD / VN / VU)</p>
+  <div id="an-tipo-warning" style="display:none;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:var(--r2);padding:12px 16px;font-size:13px;color:var(--accent2);margin-bottom:16px;"></div>
+  <div class="grid-2 mb-24">
+    <div class="chart-card">
+      <h3>Volume por Tipo</h3>
+      <p>Avaliados e comprados por tipo de vendedor</p>
+      <div id="an-tipo-bars"></div>
+    </div>
+    <div class="chart-card">
+      <h3>%FIPE Médio e Captação por Tipo</h3>
+      <p>Comparativo de eficiência entre VD, VN e VU</p>
+      <div class="chart-wrap compact"><canvas id="chart-tipo-comp" height="160"></canvas></div>
+    </div>
+  </div>
+
+  <!-- SEÇÃO 5: PERFORMANCE VENDEDORES -->
+  <p class="section-title">Performance dos Vendedores</p>
+  <div class="card mb-24" style="overflow:auto">
+    <table class="perf-table" id="an-vend-table">
+      <thead><tr>
+        <th onclick="sortAnalyticsTable('vend','nome')">Vendedor ↕</th>
+        <th onclick="sortAnalyticsTable('vend','tipo')">Tipo ↕</th>
+        <th onclick="sortAnalyticsTable('vend','empresa')">Loja ↕</th>
+        <th onclick="sortAnalyticsTable('vend','avaliados')">Avaliados ↕</th>
+        <th onclick="sortAnalyticsTable('vend','comprados')">Comprados ↕</th>
+        <th onclick="sortAnalyticsTable('vend','captacao')">% Captação ↕</th>
+        <th onclick="sortAnalyticsTable('vend','avgFipe')">%FIPE Médio ↕</th>
+        <th onclick="sortAnalyticsTable('vend','melhorados')">Melhorados ↕</th>
+        <th>Nível</th>
+      </tr></thead>
+      <tbody id="an-vend-tbody"></tbody>
+    </table>
+  </div>
+
+  <!-- SEÇÃO 6: TOP MODELOS -->
+  <p class="section-title">Análise por Modelo</p>
+  <div class="grid-2 mb-24">
+    <div class="chart-card">
+      <h3>Top 15 Modelos — Avaliados vs Comprados</h3>
+      <p>Captação por modelo</p>
+      <div id="an-modelo-bars"></div>
+    </div>
+    <div class="chart-card">
+      <h3>Modelos com Maior e Menor Captação</h3>
+      <p>Mínimo 3 avaliações para aparecer no ranking</p>
+      <div id="an-modelo-captacao"></div>
+    </div>
+  </div>
+
+  <!-- SEÇÃO 7: ANÁLISE TEMPORAL -->
+  <p class="section-title">Métricas Temporais</p>
+  <div class="grid-2 mb-24">
+    <div class="chart-card">
+      <h3>Avaliações por Dia da Semana</h3>
+      <p>Distribuição do volume por dia</p>
+      <div class="chart-wrap compact"><canvas id="chart-dia-semana" height="160"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Tempo Médio Avaliação → Compra</h3>
+      <p>Distribuição em dias entre avaliação e compra (comprados)</p>
+      <div class="chart-wrap compact"><canvas id="chart-tempo-compra" height="160"></canvas></div>
+    </div>
   </div>
 </div>
 
@@ -1324,7 +1511,14 @@ async function loadDataFromSheets(forceRefresh) {
         comprador: STATE.comprador
       });
     } catch(ce) { console.warn('Cache save failed:', ce); }
-    if (!STATE._filtersInitialized) { populateFilters(true); STATE._filtersInitialized = true; } else { populateFilters(false); }
+    if (!STATE._filtersInitialized) {
+      populateFilters(true); STATE._filtersInitialized = true;
+      // Sync default dates to analytics filters too
+      const ini = document.getElementById('f-data-ini')?.value;
+      const fim = document.getElementById('f-data-fim')?.value;
+      if (ini && document.getElementById('an-f-ini')) document.getElementById('an-f-ini').value = ini;
+      if (fim && document.getElementById('an-f-fim')) document.getElementById('an-f-fim').value = fim;
+    } else { populateFilters(false); }
     applyFilters();
     updateStatusBar();
     showDiagnostico(diag);
@@ -2075,6 +2269,7 @@ function switchTab(name,btn){
   if(name==='comprador-vis')renderCompradorVis();
   if(name==='usuarios'){loadUsuarios();loadCompradores();}
   if(name==='historico')loadHistorico();
+  if(name==='analytics')renderAnalytics();
   if(name==='ia')initAIKeyUI();
   if(name==='alertas'){
     const cfg=JSON.parse(localStorage.getItem('carmais_alert_config')||'{}');
@@ -2265,8 +2460,9 @@ function renderDashboard(){
   const pm2={};av.forEach(r=>{if(r.precificador)pm2[r.precificador]=(pm2[r.precificador]||0)+1;});
   renderRanking('rank-precificador',Object.entries(pm2).sort((a,b)=>b[1]-a[1]),'#f59e0b');
   renderDoughnut('chart-objetivo',Object.keys(om),Object.values(om));
-  const tm2={};av.forEach(r=>{if(r.tipo)tm2[r.tipo]=(tm2[r.tipo]||0)+1;});
-  renderDoughnut('chart-tipo',Object.keys(tm2),Object.values(tm2),['#3b82f6','#f59e0b','#10b981','#8b5cf6','#ef4444']);
+  // BUG FIX: inclui vendedores sem equipe cadastrada como "Sem Tipo" para não perder contagem
+  const tm2={};av.forEach(r=>{const t=r.tipo||'Sem Tipo';tm2[t]=(tm2[t]||0)+1;});
+  renderDoughnut('chart-tipo',Object.keys(tm2),Object.values(tm2),['#3b82f6','#f59e0b','#10b981','#8b5cf6','#ef4444','#64748b']);
 }
 
 // CHARTS
@@ -2588,6 +2784,461 @@ function showToast(msg,type='info'){
   t.innerHTML=`<span>${ic[type]}</span><span>${escHtml(msg)}</span>`;
   c.appendChild(t);
   setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity 0.3s';setTimeout(()=>t.remove(),400);},3500);
+}
+
+// ============================================================
+// ANALYTICS TAB
+// ============================================================
+const AN_SORT = { prec:{ col:'avaliados', asc:false }, vend:{ col:'avaliados', asc:false } };
+
+function getAnalyticsData() {
+  const iniV = document.getElementById('an-f-ini')?.value || '';
+  const fimV = document.getElementById('an-f-fim')?.value || '';
+  const empF = (document.getElementById('an-f-empresa')?.value||'').trim().toLowerCase();
+  const tipoF = document.getElementById('an-f-tipo')?.value || '';
+  const objF = (document.getElementById('an-f-objetivo')?.value||'').trim().toLowerCase();
+  const precF = (document.getElementById('an-f-prec')?.value||'').trim().toLowerCase();
+  const fipeFx = document.getElementById('an-f-fipe')?.value || '';
+
+  const ini = iniV ? new Date(iniV+'T00:00:00') : null;
+  const fim = fimV ? new Date(fimV+'T23:59:59') : null;
+
+  return (STATE.avaliacoes||[]).filter(r => {
+    if (ini || fim) { if (!inRange(r.dataAv,ini,fim) && !inRange(getCompraDate(r),ini,fim)) return false; }
+    if (empF && !normHdrEmpresa(r.empresaEquipe||r.empresa||'').includes(empF)) return false;
+    if (tipoF && (r.tipo||'') !== tipoF) return false;
+    if (objF && !normHdrEmpresa(r.objetivo||'').includes(objF)) return false;
+    if (precF && !normHdrEmpresa(r.precificador||'').includes(precF)) return false;
+    if (fipeFx && r.pctFipe != null) {
+      const [lo,hi] = fipeFx.split('-').map(Number);
+      if (!(r.pctFipe >= lo && r.pctFipe < hi)) return false;
+    }
+    return true;
+  });
+}
+
+function clearAnalyticsFilters() {
+  ['an-f-ini','an-f-fim','an-f-empresa','an-f-tipo','an-f-objetivo','an-f-prec','an-f-fipe'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  renderAnalytics();
+}
+
+function populateAnalyticsFilterOptions(data) {
+  const uniq = arr => [...new Set(arr.filter(Boolean).map(s=>s.toString().trim()))].sort();
+  const fill = (id, vals) => { const dl=document.getElementById(id); if(dl) dl.innerHTML=vals.map(v=>`<option value="${escHtml(v)}"></option>`).join(''); };
+  fill('an-dl-empresa', uniq(data.map(r=>r.empresaEquipe||r.empresa)));
+  fill('an-dl-objetivo', uniq(data.map(r=>r.objetivo)));
+  fill('an-dl-prec', uniq(data.map(r=>r.precificador)));
+}
+
+function renderAnalytics() {
+  const data = getAnalyticsData();
+  const av = data;
+  const cp = data.filter(r=>r.comprado);
+  const mel = data.filter(r=>r.melhorado==='Sim');
+
+  populateAnalyticsFilterOptions(STATE.avaliacoes||[]);
+
+  // --- KPIs rápidos ---
+  const fipes = av.filter(r=>r.pctFipe!=null).map(r=>r.pctFipe);
+  const avgFipe = fipes.length ? (fipes.reduce((s,v)=>s+v,0)/fipes.length) : null;
+  const valores = av.filter(r=>r.valorAv).map(r=>r.valorAv);
+  const avgValor = valores.length ? (valores.reduce((s,v)=>s+v,0)/valores.length) : null;
+  const tempoDias = cp.filter(r=>r.dataAv&&r.dataCompraInput).map(r=>diffDays(r.dataAv,r.dataCompraInput)).filter(d=>d!=null&&d>=0&&d<=365);
+  const avgTempo = tempoDias.length ? Math.round(tempoDias.reduce((s,v)=>s+v,0)/tempoDias.length) : null;
+  const kpiEl = document.getElementById('an-kpis');
+  if (kpiEl) kpiEl.innerHTML = [
+    ['--blue','Total Avaliados',av.length.toLocaleString('pt-BR'),'no período filtrado'],
+    ['--green','Total Comprados',cp.length.toLocaleString('pt-BR'),'vinculados'],
+    ['--accent','% Captação',av.length?(cp.length/av.length*100).toFixed(1)+'%':'—','comprado / avaliado'],
+    ['--purple','%FIPE Médio',avgFipe!=null?avgFipe.toFixed(1)+'%':'—','valor / FIPE'],
+    ['--blue2','Ticket Médio',avgValor!=null?'R$ '+Math.round(avgValor).toLocaleString('pt-BR'):'—','valor avaliação'],
+    ['--red','Melhorados',mel.length.toLocaleString('pt-BR'),cp.length?(mel.filter(r=>r.comprado).length/cp.length*100).toFixed(1)+'% dos comprados':''],
+    ['--green2','⌀ Dias Av→Compra',avgTempo!=null?avgTempo+'d':'—','média dos comprados'],
+  ].map(([c,l,v,s])=>`<div class="akpi" style="--akpi-color:var(${c})"><div class="ak-label">${l}</div><div class="ak-val">${v}</div><div class="ak-sub">${s}</div></div>`).join('');
+
+  // --- Insight automático ---
+  renderAnInsight(av, cp, avgFipe);
+
+  // --- Por Objetivo ---
+  renderAnObjetivo(av, cp);
+
+  // --- FIPE x Captação ---
+  renderAnFipeCaptacao(av, cp);
+
+  // --- Precificadores ---
+  renderAnPrecificadores(av, cp);
+
+  // --- Tipo VD/VN/VU ---
+  renderAnTipo(av, cp);
+
+  // --- Vendedores ---
+  renderAnVendedores(av, cp);
+
+  // --- Modelos ---
+  renderAnModelos(av, cp);
+
+  // --- Temporal ---
+  renderAnTemporal(av, cp);
+}
+
+function renderAnInsight(av, cp) {
+  const el = document.getElementById('an-insight');
+  if (!el) return;
+  const insights = [];
+  const captacao = av.length ? cp.length/av.length*100 : 0;
+  if (captacao > 50) insights.push(`✅ Taxa de captação <strong>${captacao.toFixed(1)}%</strong> — excelente performance no período.`);
+  else if (captacao < 20) insights.push(`⚠️ Taxa de captação baixa: <strong>${captacao.toFixed(1)}%</strong>. Verifique se o %FIPE está adequado à demanda.`);
+
+  // Fipe insight
+  const fipeAltas = av.filter(r=>r.pctFipe!=null&&r.pctFipe>100);
+  if (fipeAltas.length/Math.max(av.length,1) > 0.3) {
+    insights.push(`💡 <strong>${fipeAltas.length} avaliações</strong> (${(fipeAltas.length/av.length*100).toFixed(0)}%) estão acima de 100% da FIPE — risco de oferta acima do mercado.`);
+  }
+  const fipeBaixas = av.filter(r=>r.pctFipe!=null&&r.pctFipe<75);
+  const compradosBaixos = fipeBaixas.filter(r=>r.comprado);
+  if (fipeBaixas.length && compradosBaixos.length/fipeBaixas.length > 0.6) {
+    insights.push(`📉 Avaliações abaixo de 75% da FIPE têm captação de <strong>${(compradosBaixos.length/fipeBaixas.length*100).toFixed(0)}%</strong> — preço baixo está convertendo bem.`);
+  }
+  // Sem tipo
+  const semTipo = av.filter(r=>!r.tipo);
+  if (semTipo.length > 0) {
+    insights.push(`⚠️ <strong>${semTipo.length} avaliações</strong> sem tipo de equipe (VD/VN/VU) — esses vendedores não estão cadastrados na aba Equipes.`);
+  }
+  if (!insights.length) { el.style.display='none'; return; }
+  el.style.display = 'block';
+  el.innerHTML = '💡 <strong>Insights automáticos:</strong><br>' + insights.join('<br>');
+}
+
+function renderAnObjetivo(av, cp) {
+  // Captação por objetivo
+  const objs = {};
+  av.forEach(r => { const o=r.objetivo||'N/D'; if(!objs[o]) objs[o]={av:0,cp:0,sumValor:0,sumFipe:0,nFipe:0}; objs[o].av++; if(r.valorAv){objs[o].sumValor+=r.valorAv;} if(r.pctFipe!=null){objs[o].sumFipe+=r.pctFipe;objs[o].nFipe++;} });
+  cp.forEach(r => { const o=r.objetivo||'N/D'; if(objs[o]) objs[o].cp++; });
+  const sorted = Object.entries(objs).sort((a,b)=>b[1].av-a[1].av);
+
+  const barsEl = document.getElementById('an-obj-bars');
+  if (barsEl) {
+    const maxAv = Math.max(...sorted.map(([,v])=>v.av),1);
+    barsEl.innerHTML = sorted.map(([o,v])=>{
+      const pct = v.av>0?(v.cp/v.av*100):0;
+      const heatClass = pct>50?'heat-high':pct>25?'heat-mid':pct>0?'heat-low':'heat-none';
+      return `<div class="fipe-band-row">
+        <div class="fipe-band-label" title="${escHtml(o)}">${escHtml(o.length>14?o.substring(0,13)+'…':o)}</div>
+        <div class="fipe-band-bar-wrap">
+          <div class="fipe-band-bar" style="width:${(v.av/maxAv*100).toFixed(0)}%;background:var(--blue);opacity:.7;max-width:100%"></div>
+          <div class="fipe-band-bar" style="width:${(v.cp/maxAv*100).toFixed(0)}%;background:var(--green);max-width:100%"></div>
+        </div>
+        <div class="fipe-band-stats"><span class="${heatClass} heat-cell">${pct.toFixed(1)}%</span><br><span style="color:var(--text3)">${v.av} av / ${v.cp} cp</span></div>
+      </div>`;
+    }).join('') || '<div class="no-data">Sem dados de objetivo.</div>';
+  }
+
+  const ticketEl = document.getElementById('an-obj-ticket');
+  if (ticketEl) {
+    ticketEl.innerHTML = sorted.map(([o,v])=>{
+      const avgV = v.sumValor>0&&v.av>0?Math.round(v.sumValor/v.av):null;
+      const avgF = v.nFipe>0?(v.sumFipe/v.nFipe):null;
+      const fClass = avgF!=null?(avgF<80?'fipe-low':avgF<95?'fipe-mid':'fipe-high'):'';
+      return `<div class="fipe-band-row">
+        <div class="fipe-band-label">${escHtml(o.length>14?o.substring(0,13)+'…':o)}</div>
+        <div class="fipe-band-bar-wrap">
+          <div style="font-size:13px;font-weight:600;color:var(--text)">${avgV?'R$ '+avgV.toLocaleString('pt-BR'):'—'}</div>
+          <div style="font-size:11px;color:var(--text3)">ticket médio</div>
+        </div>
+        <div class="fipe-band-stats"><span class="${fClass}" style="font-weight:700">${avgF!=null?avgF.toFixed(1)+'%':' — '}</span><br><span style="font-size:11px;color:var(--text3)">%FIPE médio</span></div>
+      </div>`;
+    }).join('') || '<div class="no-data">Sem dados.</div>';
+  }
+}
+
+function renderAnFipeCaptacao(av, cp) {
+  const bands = [
+    { label:'< 70%', lo:0, hi:70, color:'#ef4444' },
+    { label:'70–80%', lo:70, hi:80, color:'#f97316' },
+    { label:'80–90%', lo:80, hi:90, color:'#f59e0b' },
+    { label:'90–100%', lo:90, hi:100, color:'#10b981' },
+    { label:'> 100%', lo:100, hi:9999, color:'#3b82f6' },
+  ];
+  const stats = bands.map(b => {
+    const bavs = av.filter(r=>r.pctFipe!=null&&r.pctFipe>=b.lo&&r.pctFipe<b.hi);
+    const bcps = bavs.filter(r=>r.comprado);
+    return { ...b, av:bavs.length, cp:bcps.length, pct:bavs.length?(bcps.length/bavs.length*100):0 };
+  });
+  const maxAv = Math.max(...stats.map(s=>s.av),1);
+
+  const barsEl = document.getElementById('an-fipe-captacao');
+  if (barsEl) {
+    barsEl.innerHTML = stats.map(s=>{
+      const heatClass = s.pct>50?'heat-high':s.pct>25?'heat-mid':s.pct>0?'heat-low':'heat-none';
+      return `<div class="fipe-band-row">
+        <div class="fipe-band-label">${s.label}</div>
+        <div class="fipe-band-bar-wrap">
+          <div class="fipe-band-bar" style="width:${Math.max(2,s.av/maxAv*100).toFixed(0)}%;background:${s.color};opacity:.5;max-width:100%"></div>
+          <div class="fipe-band-bar" style="width:${Math.max(0,s.cp/maxAv*100).toFixed(0)}%;background:${s.color};max-width:100%"></div>
+        </div>
+        <div class="fipe-band-stats"><span class="${heatClass} heat-cell">${s.pct.toFixed(1)}%</span><br><span style="color:var(--text3)">${s.av} av / ${s.cp} cp</span></div>
+      </div>`;
+    }).join('');
+  }
+
+  // Bar chart
+  const ctx = document.getElementById('chart-fipe-dist');
+  if (ctx) {
+    if (CHARTS['chart-fipe-dist']) CHARTS['chart-fipe-dist'].destroy();
+    CHARTS['chart-fipe-dist'] = new Chart(ctx, {
+      type:'bar',
+      data:{ labels:stats.map(s=>s.label), datasets:[
+        {label:'Avaliados',data:stats.map(s=>s.av),backgroundColor:'rgba(59,130,246,0.4)',borderColor:'#3b82f6',borderWidth:1},
+        {label:'Comprados',data:stats.map(s=>s.cp),backgroundColor:'rgba(16,185,129,0.6)',borderColor:'#10b981',borderWidth:1}
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:chartTickColor()}}},scales:{x:{stacked:false,grid:{color:chartGridColor()},ticks:{color:chartTickColor()}},y:{grid:{color:chartGridColor()},ticks:{color:chartTickColor()},beginAtZero:true}}}
+    });
+  }
+}
+
+function buildPrecStats(av, cp) {
+  const m = {};
+  av.forEach(r => {
+    const p = r.precificador||'Sem Precificador';
+    if (!m[p]) m[p] = { nome:p, avaliados:0, comprados:0, sumFipe:0, nFipe:0, sumValor:0, nValor:0, melhorados:0 };
+    m[p].avaliados++;
+    if (r.pctFipe!=null){ m[p].sumFipe+=r.pctFipe; m[p].nFipe++; }
+    if (r.valorAv){ m[p].sumValor+=r.valorAv; m[p].nValor++; }
+    if (r.melhorado==='Sim') m[p].melhorados++;
+  });
+  cp.forEach(r => { const p=r.precificador||'Sem Precificador'; if(m[p]) m[p].comprados++; });
+  return Object.values(m).map(v=>({...v,
+    captacao: v.avaliados?v.comprados/v.avaliados*100:0,
+    avgFipe: v.nFipe?v.sumFipe/v.nFipe:null,
+    avgValor: v.nValor?v.sumValor/v.nValor:null,
+    pctMelhora: v.comprados?v.melhorados/v.comprados*100:0,
+    // Efficiency index: captacao ponderada pelo FIPE (abaixo do mercado + alta captação = bom)
+    eficiencia: v.avaliados>=3 ? (v.comprados/v.avaliados*100) * (v.nFipe?Math.max(0,105-v.sumFipe/v.nFipe)/25:1) : null
+  }));
+}
+
+function renderAnPrecificadores(av, cp) {
+  let stats = buildPrecStats(av, cp);
+  const { col, asc } = AN_SORT.prec;
+  stats.sort((a,b)=>{const va=a[col]??-1,vb=b[col]??-1;return asc?va-vb:vb-va;});
+  const maxAv = Math.max(...stats.map(s=>s.avaliados),1);
+  const maxEf = Math.max(...stats.map(s=>s.eficiencia??0),1);
+
+  // Insight
+  const top = stats.filter(s=>s.avaliados>=5).sort((a,b)=>b.captacao-a.captacao)[0];
+  const bot = stats.filter(s=>s.avaliados>=5).sort((a,b)=>a.captacao-b.captacao)[0];
+  const ins = document.getElementById('an-prec-insight');
+  if (ins && top && bot && top.nome!==bot.nome) {
+    ins.style.display='block';
+    ins.innerHTML=`💡 <strong>${escHtml(top.nome)}</strong> lidera em captação com <strong>${top.captacao.toFixed(1)}%</strong> (${top.comprados}/${top.avaliados}). <strong>${escHtml(bot.nome)}</strong> tem menor captação: <strong>${bot.captacao.toFixed(1)}%</strong> — pode indicar oportunidade de alinhamento no %FIPE ofertado.`;
+  } else if (ins) ins.style.display='none';
+
+  const tb = document.getElementById('an-prec-tbody');
+  if (!tb) return;
+  if (!stats.length) { tb.innerHTML='<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--text3)">Sem dados de precificador.</td></tr>'; return; }
+  tb.innerHTML = stats.map(s=>{
+    const capClass = s.captacao>50?'heat-high':s.captacao>25?'heat-mid':s.captacao>0?'heat-low':'heat-none';
+    const fClass = s.avgFipe!=null?(s.avgFipe<80?'fipe-low':s.avgFipe<95?'fipe-mid':'fipe-high'):'';
+    const efPct = s.eficiencia!=null?Math.min(100,s.eficiencia/maxEf*100):0;
+    const efColor = efPct>60?'var(--green)':efPct>30?'var(--accent)':'var(--red)';
+    const barW = Math.round(s.avaliados/maxAv*60);
+    return `<tr>
+      <td style="font-weight:600;color:var(--text)">${escHtml(s.nome)}</td>
+      <td><span class="perf-score">${s.avaliados}<span class="perf-bar-mini"><span class="perf-bar-mini-fill" style="width:${barW}%;background:var(--blue)"></span></span></span></td>
+      <td>${s.comprados}</td>
+      <td><span class="${capClass} heat-cell">${s.captacao.toFixed(1)}%</span></td>
+      <td class="${fClass}">${s.avgFipe!=null?s.avgFipe.toFixed(1)+'%':'—'}</td>
+      <td>${s.avgValor!=null?'R$ '+Math.round(s.avgValor).toLocaleString('pt-BR'):'—'}</td>
+      <td>${s.melhorados}</td>
+      <td>${s.pctMelhora>0?s.pctMelhora.toFixed(1)+'%':'—'}</td>
+      <td>${s.eficiencia!=null?`<span class="perf-bar-mini"><span class="perf-bar-mini-fill" style="width:${efPct.toFixed(0)}%;background:${efColor}"></span></span> ${s.eficiencia.toFixed(0)}`:'<span style="color:var(--text3);font-size:11px">min 3 av</span>'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderAnTipo(av, cp) {
+  const m = {};
+  av.forEach(r => {
+    const t = r.tipo||'Sem Tipo';
+    if (!m[t]) m[t]={tipo:t,av:0,cp:0,sumFipe:0,nFipe:0};
+    m[t].av++;
+    if (r.pctFipe!=null){m[t].sumFipe+=r.pctFipe;m[t].nFipe++;}
+  });
+  cp.forEach(r => { const t=r.tipo||'Sem Tipo'; if(m[t]) m[t].cp++; });
+  const stats = Object.values(m).sort((a,b)=>b.av-a.av);
+  const semTipo = stats.find(s=>s.tipo==='Sem Tipo');
+  const totalAv = av.length;
+
+  // Warning panel
+  const warn = document.getElementById('an-tipo-warning');
+  if (warn) {
+    if (semTipo && semTipo.av > 0) {
+      warn.style.display = 'block';
+      warn.innerHTML = `⚠️ <strong>${semTipo.av} avaliações</strong> (${(semTipo.av/totalAv*100).toFixed(1)}% do total) pertencem a vendedores <strong>sem cadastro na aba Equipes</strong>. Por isso a soma VD+VN+VU não fecha com o total. Importe a planilha de Equipes completa para corrigir.`;
+    } else { warn.style.display='none'; }
+  }
+
+  const colors = {'VD':'#3b82f6','VN':'#f59e0b','VU':'#10b981','Sem Tipo':'#64748b'};
+  const maxAv = Math.max(...stats.map(s=>s.av),1);
+  const barsEl = document.getElementById('an-tipo-bars');
+  if (barsEl) {
+    barsEl.innerHTML = stats.map(s=>{
+      const pct = s.av?s.cp/s.av*100:0;
+      const heatClass = pct>50?'heat-high':pct>25?'heat-mid':pct>0?'heat-low':'heat-none';
+      const col = colors[s.tipo]||'#8b5cf6';
+      return `<div class="fipe-band-row">
+        <div class="fipe-band-label"><span class="badge" style="background:${col}22;color:${col}">${escHtml(s.tipo)}</span></div>
+        <div class="fipe-band-bar-wrap">
+          <div class="fipe-band-bar" style="width:${(s.av/maxAv*100).toFixed(0)}%;background:${col};opacity:.5;max-width:100%"></div>
+          <div class="fipe-band-bar" style="width:${(s.cp/maxAv*100).toFixed(0)}%;background:${col};max-width:100%"></div>
+        </div>
+        <div class="fipe-band-stats"><span class="${heatClass} heat-cell">${pct.toFixed(1)}%</span><br><span style="color:var(--text3)">${s.av} av / ${s.cp} cp</span></div>
+      </div>`;
+    }).join('');
+  }
+
+  // Chart comparison
+  const ctx = document.getElementById('chart-tipo-comp');
+  if (ctx) {
+    if (CHARTS['chart-tipo-comp']) CHARTS['chart-tipo-comp'].destroy();
+    const tiposOrdem = stats.map(s=>s.tipo);
+    CHARTS['chart-tipo-comp'] = new Chart(ctx, {
+      type:'bar',
+      data:{ labels:tiposOrdem, datasets:[
+        {label:'% Captação',data:stats.map(s=>s.av?+(s.cp/s.av*100).toFixed(1):0),backgroundColor:'rgba(16,185,129,0.6)',borderColor:'#10b981',borderWidth:1,yAxisID:'y1'},
+        {label:'%FIPE Médio',data:stats.map(s=>s.nFipe?+(s.sumFipe/s.nFipe).toFixed(1):0),backgroundColor:'rgba(245,158,11,0.4)',borderColor:'#f59e0b',borderWidth:1,yAxisID:'y2'}
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:chartTickColor()}}},
+        scales:{
+          x:{grid:{color:chartGridColor()},ticks:{color:chartTickColor()}},
+          y1:{position:'left',grid:{color:chartGridColor()},ticks:{color:'#10b981',callback:v=>v+'%'},beginAtZero:true},
+          y2:{position:'right',grid:{drawOnChartArea:false},ticks:{color:'#f59e0b',callback:v=>v+'%'},beginAtZero:true}
+        }
+      }
+    });
+  }
+}
+
+function buildVendStats(av, cp) {
+  const m = {};
+  av.forEach(r => {
+    const v = r.vendedor||'N/D';
+    if (!m[v]) m[v]={nome:v,tipo:r.tipo||'—',empresa:r.empresaEquipe||r.empresa||'—',avaliados:0,comprados:0,sumFipe:0,nFipe:0,melhorados:0};
+    m[v].avaliados++;
+    if (r.pctFipe!=null){m[v].sumFipe+=r.pctFipe;m[v].nFipe++;}
+    if (r.melhorado==='Sim') m[v].melhorados++;
+  });
+  cp.forEach(r => { const v=r.vendedor||'N/D'; if(m[v]) m[v].comprados++; });
+  return Object.values(m).map(v=>({...v,
+    captacao:v.avaliados?v.comprados/v.avaliados*100:0,
+    avgFipe:v.nFipe?v.sumFipe/v.nFipe:null
+  }));
+}
+
+function sortAnalyticsTable(table, col) {
+  if (AN_SORT[table].col===col) AN_SORT[table].asc=!AN_SORT[table].asc;
+  else { AN_SORT[table].col=col; AN_SORT[table].asc=false; }
+  const data = getAnalyticsData();
+  if (table==='prec') renderAnPrecificadores(data, data.filter(r=>r.comprado));
+  if (table==='vend') renderAnVendedores(data, data.filter(r=>r.comprado));
+}
+
+function renderAnVendedores(av, cp) {
+  let stats = buildVendStats(av, cp);
+  const { col, asc } = AN_SORT.vend;
+  stats.sort((a,b)=>{const va=a[col]??-1,vb=b[col]??-1;return typeof va==='string'?(asc?va.localeCompare(vb):vb.localeCompare(va)):(asc?va-vb:vb-va);});
+  const maxAv = Math.max(...stats.map(s=>s.avaliados),1);
+  const tipoCores = {'VD':'#3b82f6','VN':'#f59e0b','VU':'#10b981','—':'#64748b'};
+  const tb = document.getElementById('an-vend-tbody');
+  if (!tb) return;
+  if (!stats.length) { tb.innerHTML='<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--text3)">Sem dados de vendedor.</td></tr>'; return; }
+  tb.innerHTML = stats.map(s=>{
+    const capClass = s.captacao>50?'heat-high':s.captacao>25?'heat-mid':s.captacao>0?'heat-low':'heat-none';
+    const fClass = s.avgFipe!=null?(s.avgFipe<80?'fipe-low':s.avgFipe<95?'fipe-mid':'fipe-high'):'';
+    const col2 = tipoCores[s.tipo]||'#8b5cf6';
+    const nivel = s.avaliados<3?'—':s.captacao>=50?'🏆 Excelente':s.captacao>=30?'✅ Bom':s.captacao>=15?'⚠️ Regular':'🔴 Baixo';
+    return `<tr>
+      <td style="font-weight:600;color:var(--text)">${escHtml(s.nome)}</td>
+      <td><span class="badge" style="background:${col2}22;color:${col2}">${escHtml(s.tipo)}</span></td>
+      <td style="font-size:12px;color:var(--text3)">${escHtml(s.empresa.length>20?s.empresa.substring(0,19)+'…':s.empresa)}</td>
+      <td><span class="perf-score">${s.avaliados}<span class="perf-bar-mini"><span class="perf-bar-mini-fill" style="width:${Math.round(s.avaliados/maxAv*60)}%;background:var(--blue)"></span></span></span></td>
+      <td>${s.comprados}</td>
+      <td><span class="${capClass} heat-cell">${s.captacao.toFixed(1)}%</span></td>
+      <td class="${fClass}">${s.avgFipe!=null?s.avgFipe.toFixed(1)+'%':'—'}</td>
+      <td>${s.melhorados}</td>
+      <td>${nivel}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderAnModelos(av, cp) {
+  const m = {};
+  av.forEach(r=>{ const k=r.modelo||'N/D'; if(!m[k])m[k]={av:0,cp:0}; m[k].av++; });
+  cp.forEach(r=>{ const k=r.modelo||'N/D'; if(m[k])m[k].cp++; });
+  const sorted = Object.entries(m).sort((a,b)=>b[1].av-a[1].av).slice(0,15);
+  const maxAv = Math.max(...sorted.map(([,v])=>v.av),1);
+
+  const el = document.getElementById('an-modelo-bars');
+  if (el) {
+    el.innerHTML = sorted.map(([mod,v])=>{
+      const pct = v.av?v.cp/v.av*100:0;
+      const hClass = pct>50?'heat-high':pct>25?'heat-mid':pct>0?'heat-low':'heat-none';
+      return `<div class="fipe-band-row">
+        <div class="fipe-band-label" title="${escHtml(mod)}">${escHtml(mod.length>14?mod.substring(0,13)+'…':mod)}</div>
+        <div class="fipe-band-bar-wrap">
+          <div class="fipe-band-bar" style="width:${(v.av/maxAv*100).toFixed(0)}%;background:var(--blue);opacity:.5;max-width:100%"></div>
+          <div class="fipe-band-bar" style="width:${(v.cp/maxAv*100).toFixed(0)}%;background:var(--green);max-width:100%"></div>
+        </div>
+        <div class="fipe-band-stats"><span class="${hClass} heat-cell">${pct.toFixed(0)}%</span><br><span style="color:var(--text3)">${v.av} av / ${v.cp} cp</span></div>
+      </div>`;
+    }).join('') || '<div class="no-data">Sem dados.</div>';
+  }
+
+  // Captação extrema
+  const comMin3 = Object.entries(m).filter(([,v])=>v.av>=3).map(([mod,v])=>({mod,av:v.av,cp:v.cp,pct:v.av?v.cp/v.av*100:0}));
+  const melhores = [...comMin3].sort((a,b)=>b.pct-a.pct).slice(0,5);
+  const piores = [...comMin3].sort((a,b)=>a.pct-b.pct).slice(0,5);
+  const el2 = document.getElementById('an-modelo-captacao');
+  if (el2) {
+    el2.innerHTML = `
+      <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--green2);margin-bottom:6px;">🏆 Maior captação</div>
+      ${melhores.map(s=>`<div class="fipe-band-row" style="padding:6px 0"><div class="fipe-band-label" title="${escHtml(s.mod)}">${escHtml(s.mod.length>14?s.mod.substring(0,13)+'…':s.mod)}</div><div style="flex:1"></div><div><span class="heat-high heat-cell">${s.pct.toFixed(0)}%</span> <span style="font-size:11px;color:var(--text3)">${s.cp}/${s.av}</span></div></div>`).join('')}
+      <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--red2);margin-top:14px;margin-bottom:6px;">⚠️ Menor captação</div>
+      ${piores.map(s=>`<div class="fipe-band-row" style="padding:6px 0"><div class="fipe-band-label" title="${escHtml(s.mod)}">${escHtml(s.mod.length>14?s.mod.substring(0,13)+'…':s.mod)}</div><div style="flex:1"></div><div><span class="heat-low heat-cell">${s.pct.toFixed(0)}%</span> <span style="font-size:11px;color:var(--text3)">${s.cp}/${s.av}</span></div></div>`).join('')}
+      ${!comMin3.length?'<div class="no-data">Min. 3 avaliações por modelo.</div>':''}`;
+  }
+}
+
+function renderAnTemporal(av, cp) {
+  // Dia da semana
+  const dias = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  const diasAv = Array(7).fill(0);
+  av.forEach(r=>{ if(r.dataAv) diasAv[r.dataAv.getDay()]++; });
+
+  const ctxSem = document.getElementById('chart-dia-semana');
+  if (ctxSem) {
+    if (CHARTS['chart-dia-semana']) CHARTS['chart-dia-semana'].destroy();
+    CHARTS['chart-dia-semana'] = new Chart(ctxSem, {
+      type:'bar',
+      data:{ labels:dias, datasets:[{label:'Avaliações',data:diasAv,backgroundColor:diasAv.map((_,i)=>i===0||i===6?'rgba(100,116,139,0.5)':'rgba(59,130,246,0.6)'),borderColor:diasAv.map((_,i)=>i===0||i===6?'#64748b':'#3b82f6'),borderWidth:1}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:chartGridColor()},ticks:{color:chartTickColor()}},y:{grid:{color:chartGridColor()},ticks:{color:chartTickColor()},beginAtZero:true}}}
+    });
+  }
+
+  // Tempo avaliação → compra
+  const tempos = cp.filter(r=>r.dataAv&&r.dataCompraInput).map(r=>diffDays(r.dataAv,r.dataCompraInput)).filter(d=>d!=null&&d>=0&&d<=90);
+  const bands2 = [{l:'Mesmo dia',lo:0,hi:1},{l:'1–3 dias',lo:1,hi:4},{l:'4–7 dias',lo:4,hi:8},{l:'1–2 sem',lo:8,hi:15},{l:'2–4 sem',lo:15,hi:29},{l:'>1 mês',lo:29,hi:91}];
+  const contagens = bands2.map(b=>tempos.filter(d=>d>=b.lo&&d<b.hi).length);
+
+  const ctxT = document.getElementById('chart-tempo-compra');
+  if (ctxT) {
+    if (CHARTS['chart-tempo-compra']) CHARTS['chart-tempo-compra'].destroy();
+    CHARTS['chart-tempo-compra'] = new Chart(ctxT, {
+      type:'bar',
+      data:{ labels:bands2.map(b=>b.l), datasets:[{label:'Compras',data:contagens,backgroundColor:'rgba(16,185,129,0.6)',borderColor:'#10b981',borderWidth:1}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:chartGridColor()},ticks:{color:chartTickColor(),font:{size:10}}},y:{grid:{color:chartGridColor()},ticks:{color:chartTickColor()},beginAtZero:true}}}
+    });
+  }
 }
 
 // ============================================================
