@@ -449,6 +449,7 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
   <button class="tab-btn" onclick="switchTab('tabela',this)">🗂️ Detalhe Avaliados</button>
   <button class="tab-btn" onclick="switchTab('tabela-comprados',this)">✅ Detalhe Comprados</button>
   <button class="tab-btn" onclick="switchTab('comprador-vis',this)">🏷️ Visão Comprador</button>
+  <button class="tab-btn" onclick="switchTab('custo-negocio',this)">💸 Custo do Negócio</button>
   <button class="tab-btn master-only" onclick="switchTab('usuarios',this)">👤 Usuários</button>
   <button class="tab-btn master-only" onclick="switchTab('config-script',this)">⚙️ Config Script</button>
   <button class="tab-btn master-only" onclick="switchTab('historico',this)">📜 Histórico</button>
@@ -722,6 +723,67 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
         <table><thead><tr><th>Placa</th><th>Modelo</th><th>Loja</th><th>Vendedor</th><th>Valor Avaliado</th><th>Valor Melhorado</th><th>Data Av</th><th>Data Melhoria</th><th>Comprado</th><th>Comprador</th></tr></thead>
         <tbody id="cv-placas-tbody"></tbody></table>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB: CUSTO DO NEGOCIO -->
+<div id="tab-custo-negocio" class="tab-content">
+  <div class="section-header">
+    <h2>💸 Custo do Negócio</h2>
+    <span class="badge" style="background:rgba(245,158,11,.15);color:var(--accent)">Dados de exemplo (mock)</span>
+  </div>
+  <div style="font-size:13px;color:var(--text3);margin-bottom:16px">Simulador do custo de carregamento do estoque. Ajuste os parâmetros e o giro-alvo para ver o impacto no custo financeiro e no capital imobilizado.</div>
+
+  <!-- PARAMETROS -->
+  <div class="comprador-filter-panel">
+    <div class="comprador-filter-grid">
+      <div><label>% no Floor Plan</label><input type="number" id="cn-pct-floor" min="0" max="100" step="1" oninput="cnOnParamChange()"></div>
+      <div><label>% Capital Próprio</label><input type="number" id="cn-pct-proprio" disabled></div>
+      <div><label>Taxa Floor Plan (%/mês)</label><input type="number" id="cn-taxa-floor" min="0" step="0.01" oninput="cnOnParamChange()"></div>
+      <div><label>Taxa Capital Próprio (%/mês)</label><input type="number" id="cn-taxa-proprio" min="0" step="0.01" oninput="cnOnParamChange()"></div>
+      <div><button class="btn btn-primary" onclick="cnSaveParams()">💾 Salvar parâmetros</button></div>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <p class="section-title">Indicadores do Estoque</p>
+  <div class="grid-5 mb-24">
+    <div class="metric-card" style="--accent-color:var(--blue)"><div class="label">Capital Parado</div><div class="value" id="cn-kpi-capital">—</div><div class="sub" id="cn-kpi-unidades">— unidades</div><div class="icon">🏦</div></div>
+    <div class="metric-card" style="--accent-color:var(--purple)"><div class="label">Dias Médios (pond.)</div><div class="value" id="cn-kpi-dias">—</div><div class="sub">por valor em estoque</div><div class="icon">📅</div></div>
+    <div class="metric-card" style="--accent-color:var(--accent)"><div class="label">Custo Financeiro / mês</div><div class="value" id="cn-kpi-mes">—</div><div class="sub">taxa mista aplicada</div><div class="icon">💸</div></div>
+    <div class="metric-card" style="--accent-color:var(--green)"><div class="label">Custo Acumulado</div><div class="value" id="cn-kpi-acum">—</div><div class="sub">até hoje</div><div class="icon">🧮</div></div>
+    <div class="metric-card" style="--accent-color:var(--red)"><div class="label">Custo Estoque 90+ dias</div><div class="value" id="cn-kpi-90">—</div><div class="sub" id="cn-kpi-90-sub">— unidades</div><div class="icon">⚠️</div></div>
+  </div>
+
+  <!-- SIMULADOR -->
+  <p class="section-title">Simulador por Giro-Alvo</p>
+  <div class="chart-card" style="margin-bottom:24px">
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:18px">
+      <span style="font-size:13px;color:var(--text2);font-weight:700">Dias-alvo de giro:</span>
+      <input type="range" id="cn-slider" min="15" max="120" step="1" style="flex:1;min-width:240px;accent-color:var(--accent)" oninput="cnRenderSim()">
+      <span id="cn-slider-val" style="font-size:20px;font-weight:800;color:var(--accent);min-width:70px;text-align:right">— d</span>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="data-table" style="width:100%">
+        <thead><tr><th>Indicador</th><th style="text-align:right">Atual</th><th style="text-align:right">Simulado</th><th style="text-align:right">Diferença</th></tr></thead>
+        <tbody id="cn-sim-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- AGING + TABELA -->
+  <p class="section-title">Estoque por Faixa de Idade (aging)</p>
+  <div class="grid-4 mb-24" id="cn-aging"></div>
+
+  <div class="chart-card">
+    <h3 style="margin-bottom:4px">Detalhe do Estoque</h3>
+    <p style="font-size:12px;color:var(--text3);margin-bottom:14px">Ordenado por dias parados (encalhados no topo). Custo acumulado por veículo até hoje.</p>
+    <div style="overflow-x:auto">
+      <table class="data-table" style="width:100%">
+        <thead><tr><th>Modelo</th><th style="text-align:right">Dias</th><th style="text-align:right">Valor</th><th style="text-align:right">Custo Floor Plan</th><th style="text-align:right">Custo Próprio</th><th style="text-align:right">Custo Total</th></tr></thead>
+        <tbody id="cn-detail-tbody"></tbody>
+      </table>
     </div>
   </div>
 </div>
@@ -2504,6 +2566,7 @@ function switchTab(name,btn){
   if(name==='tabela')renderDetailTable();
   if(name==='tabela-comprados')renderDetailCompradosTable();
   if(name==='comprador-vis')renderCompradorVis();
+  if(name==='custo-negocio')cnInit();
   if(name==='usuarios'){loadUsuarios();loadCompradores();}
   if(name==='historico')loadHistorico();
   if(name==='analytics')renderAnalytics();
@@ -4183,6 +4246,230 @@ document.addEventListener('DOMContentLoaded',()=>{
   document.addEventListener('click',closeAllMultiSelects);
   document.querySelectorAll('.multi-select-dropdown').forEach(dd=>dd.addEventListener('click',e=>e.stopPropagation()));
 });
+
+// ============================================================
+// CUSTO DO NEGÓCIO — Simulador de custo de carregamento do estoque
+// ============================================================
+const CN_PARAMS_KEY = 'carmais_custo_params';
+const CN_DEFAULTS = { pctFloor:70, taxaFloor:1.20, taxaProprio:0.90 };
+
+// ---- FONTE DE DADOS DO ESTOQUE ------------------------------------------
+// Por enquanto usa dados de exemplo (mock). Para plugar a fonte real,
+// basta esta função retornar [{modelo, valor, dias}] a partir de
+// STATE.comprados (dias = hoje - dataCompra) ou de uma planilha de estoque.
+function cnGetEstoque(){
+  return CN_MOCK_ESTOQUE;
+}
+const CN_MOCK_ESTOQUE = [
+  {modelo:'Onix 1.0 LT',           valor:62900,  dias:12},
+  {modelo:'HB20 Sense 1.0',        valor:58500,  dias:8},
+  {modelo:'Kwid Zen 1.0',          valor:48900,  dias:21},
+  {modelo:'Polo Track 1.0',        valor:74900,  dias:5},
+  {modelo:'Argo Drive 1.0',        valor:61500,  dias:34},
+  {modelo:'Mobi Like 1.0',         valor:52900,  dias:18},
+  {modelo:'Renegade Sport T270',   valor:118900, dias:47},
+  {modelo:'Compass Longitude',     valor:159900, dias:63},
+  {modelo:'Corolla XEi 2.0',       valor:142900, dias:29},
+  {modelo:'Civic EXL',             valor:138500, dias:71},
+  {modelo:'Tracker Premier',       valor:129900, dias:41},
+  {modelo:'Creta Comfort',         valor:124900, dias:9},
+  {modelo:'T-Cross Comfortline',   valor:132900, dias:55},
+  {modelo:'Nivus Highline',        valor:139900, dias:88},
+  {modelo:'Pulse Audace',          valor:115900, dias:26},
+  {modelo:'Fastback Limited',      valor:142900, dias:103},
+  {modelo:'Kicks SV',              valor:118900, dias:38},
+  {modelo:'HR-V EX',               valor:148900, dias:17},
+  {modelo:'Hilux SRV 4x4',         valor:289900, dias:94},
+  {modelo:'S10 LTZ 4x4',           valor:268900, dias:122},
+  {modelo:'Ranger XLS',            valor:241900, dias:58},
+  {modelo:'Toro Volcano',          valor:179900, dias:44},
+  {modelo:'Strada Volcano',        valor:118900, dias:13},
+  {modelo:'Saveiro Robust',        valor:99900,  dias:67},
+  {modelo:'Gol 1.0',               valor:54900,  dias:142},
+  {modelo:'Voyage 1.6',            valor:62900,  dias:91},
+  {modelo:'Cronos Drive 1.3',      valor:74900,  dias:31},
+  {modelo:'Versa Sense',           valor:89900,  dias:24},
+  {modelo:'City Sedan EX',         valor:121900, dias:49},
+  {modelo:'Virtus Highline',       valor:124900, dias:16},
+  {modelo:'Corolla Cross XRE',     valor:179900, dias:36},
+  {modelo:'Taos Comfortline',      valor:169900, dias:77},
+  {modelo:'Tiguan Allspace',       valor:229900, dias:111},
+  {modelo:'Sportage LX',           valor:158900, dias:62},
+  {modelo:'Tucson GLS',            valor:152900, dias:19},
+  {modelo:'Duster Iconic',         valor:112900, dias:53},
+  {modelo:'Spin LTZ',              valor:124900, dias:84},
+  {modelo:'Yaris XL Plus',         valor:94900,  dias:11},
+  {modelo:'Bronco Sport',          valor:259900, dias:97},
+  {modelo:'Commander Overland',    valor:289900, dias:42}
+];
+
+function cnFmt(v){
+  if(!isFinite(v)) v=0;
+  return 'R$ '+Math.round(v).toLocaleString('pt-BR');
+}
+function cnFmtCompact(v){
+  if(!isFinite(v)) v=0;
+  const a=Math.abs(v);
+  if(a>=1e6) return 'R$ '+(v/1e6).toLocaleString('pt-BR',{maximumFractionDigits:2})+' mi';
+  if(a>=1e3) return 'R$ '+(v/1e3).toLocaleString('pt-BR',{maximumFractionDigits:1})+' mil';
+  return 'R$ '+Math.round(v).toLocaleString('pt-BR');
+}
+
+function cnGetParams(){
+  const saved = loadJsonLocal(CN_PARAMS_KEY, null);
+  const p = saved ? {...CN_DEFAULTS, ...saved} : {...CN_DEFAULTS};
+  p.pctFloor = Math.min(100, Math.max(0, Number(p.pctFloor)||0));
+  return p;
+}
+
+// Taxa mensal mista (fração por mês) a partir dos parâmetros
+function cnBlendedMonthly(p){
+  const fFloor = (p.pctFloor/100) * (p.taxaFloor/100);
+  const fProprio = ((100-p.pctFloor)/100) * (p.taxaProprio/100);
+  return { fFloor, fProprio, total:fFloor+fProprio };
+}
+
+function cnInit(){
+  const p = cnGetParams();
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v;};
+  set('cn-pct-floor', p.pctFloor);
+  set('cn-pct-proprio', (100-p.pctFloor));
+  set('cn-taxa-floor', p.taxaFloor);
+  set('cn-taxa-proprio', p.taxaProprio);
+  // inicializa slider no giro médio atual
+  const m = cnMetrics(p);
+  const slider = document.getElementById('cn-slider');
+  if(slider) slider.value = Math.round(m.diasMedios)||45;
+  cnRenderAll();
+}
+
+function cnOnParamChange(){
+  const pct = Math.min(100, Math.max(0, Number(document.getElementById('cn-pct-floor').value)||0));
+  document.getElementById('cn-pct-proprio').value = (100-pct);
+  cnRenderAll();
+}
+
+function cnSaveParams(){
+  const p = {
+    pctFloor: Math.min(100, Math.max(0, Number(document.getElementById('cn-pct-floor').value)||0)),
+    taxaFloor: Number(document.getElementById('cn-taxa-floor').value)||0,
+    taxaProprio: Number(document.getElementById('cn-taxa-proprio').value)||0
+  };
+  saveJsonLocal(CN_PARAMS_KEY, p);
+  const btn=event&&event.target; if(btn){const t=btn.textContent;btn.textContent='✅ Salvo';setTimeout(()=>btn.textContent=t,1500);}
+}
+
+// parâmetros atuais lidos da tela (não exigem salvar para simular)
+function cnCurrentParams(){
+  const pct = Math.min(100, Math.max(0, Number(document.getElementById('cn-pct-floor').value)||0));
+  return {
+    pctFloor: pct,
+    taxaFloor: Number(document.getElementById('cn-taxa-floor').value)||0,
+    taxaProprio: Number(document.getElementById('cn-taxa-proprio').value)||0
+  };
+}
+
+function cnMetrics(p){
+  const est = cnGetEstoque();
+  const capital = est.reduce((s,v)=>s+v.valor,0);
+  const diasPond = capital>0 ? est.reduce((s,v)=>s+v.valor*v.dias,0)/capital : 0;
+  const blend = cnBlendedMonthly(p);
+  const custoMes = capital * blend.total;
+  const custoAcum = est.reduce((s,v)=>s + v.valor*(v.dias/30)*blend.total, 0);
+  const e90 = est.filter(v=>v.dias>=90);
+  const custo90 = e90.reduce((s,v)=>s + v.valor*(v.dias/30)*blend.total, 0);
+  return {est, capital, diasMedios:diasPond, custoMes, custoAcum, e90, custo90, blend};
+}
+
+function cnRenderAll(){
+  const p = cnCurrentParams();
+  const m = cnMetrics(p);
+  document.getElementById('cn-kpi-capital').textContent = cnFmtCompact(m.capital);
+  document.getElementById('cn-kpi-unidades').textContent = m.est.length+' unidades';
+  document.getElementById('cn-kpi-dias').textContent = Math.round(m.diasMedios)+' dias';
+  document.getElementById('cn-kpi-mes').textContent = cnFmtCompact(m.custoMes);
+  document.getElementById('cn-kpi-acum').textContent = cnFmtCompact(m.custoAcum);
+  document.getElementById('cn-kpi-90').textContent = cnFmtCompact(m.custo90);
+  document.getElementById('cn-kpi-90-sub').textContent = m.e90.length+' unidades';
+  cnRenderAging(m);
+  cnRenderDetail(p, m);
+  cnRenderSim();
+}
+
+function cnRenderAging(m){
+  const faixas = [
+    {lbl:'0–30 dias', cor:'var(--green)', min:0, max:30},
+    {lbl:'31–60 dias', cor:'var(--blue)', min:31, max:60},
+    {lbl:'61–90 dias', cor:'var(--accent)', min:61, max:90},
+    {lbl:'90+ dias', cor:'var(--red)', min:91, max:1e9}
+  ];
+  const html = faixas.map(f=>{
+    const itens = m.est.filter(v=>v.dias>=f.min && v.dias<=f.max);
+    const val = itens.reduce((s,v)=>s+v.valor,0);
+    return `<div class="metric-card" style="--accent-color:${f.cor}">
+      <div class="label">${f.lbl}</div>
+      <div class="value">${itens.length} <span style="font-size:14px;color:var(--text3)">un</span></div>
+      <div class="sub">${cnFmtCompact(val)}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('cn-aging').innerHTML = html;
+}
+
+function cnRenderDetail(p, m){
+  const blend = m.blend;
+  const rows = [...m.est].sort((a,b)=>b.dias-a.dias).map(v=>{
+    const cFloor = v.valor*(v.dias/30)*blend.fFloor;
+    const cProp  = v.valor*(v.dias/30)*blend.fProprio;
+    const tot = cFloor+cProp;
+    const alerta = v.dias>=90 ? 'color:var(--red);font-weight:700' : '';
+    return `<tr>
+      <td>${v.modelo}</td>
+      <td style="text-align:right;${alerta}">${v.dias}${v.dias>=90?' 🔴':''}</td>
+      <td style="text-align:right">${cnFmt(v.valor)}</td>
+      <td style="text-align:right">${cnFmt(cFloor)}</td>
+      <td style="text-align:right">${cnFmt(cProp)}</td>
+      <td style="text-align:right;font-weight:700">${cnFmt(tot)}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('cn-detail-tbody').innerHTML = rows;
+}
+
+function cnRenderSim(){
+  const p = cnCurrentParams();
+  const m = cnMetrics(p);
+  const slider = document.getElementById('cn-slider');
+  const alvo = Number(slider.value)||Math.round(m.diasMedios);
+  document.getElementById('cn-slider-val').textContent = alvo+' d';
+
+  const atual = m.diasMedios||1;
+  const custoFloorAtual = m.capital*(atual/30)*m.blend.fFloor;
+  const custoPropAtual  = m.capital*(atual/30)*m.blend.fProprio;
+  const custoFloorSim   = m.capital*(alvo/30)*m.blend.fFloor;
+  const custoPropSim    = m.capital*(alvo/30)*m.blend.fProprio;
+  const totAtual = custoFloorAtual+custoPropAtual;
+  const totSim   = custoFloorSim+custoPropSim;
+  const capLiberado = m.capital * (1 - Math.min(alvo,atual)/atual);
+
+  const diff=(a,b)=>{
+    const d=b-a;
+    const cor = d<0?'var(--green)':d>0?'var(--red)':'var(--text3)';
+    const sinal = d<0?'▼ ':d>0?'▲ +':'';
+    return `<span style="color:${cor};font-weight:700">${sinal}${cnFmt(Math.abs(d))}</span>`;
+  };
+  const row=(lbl,a,b,strong)=>`<tr${strong?' style="border-top:1px solid var(--border2)"':''}>
+    <td${strong?' style="font-weight:800"':''}>${lbl}</td>
+    <td style="text-align:right">${cnFmt(a)}</td>
+    <td style="text-align:right">${cnFmt(b)}</td>
+    <td style="text-align:right">${diff(a,b)}</td></tr>`;
+
+  let html = '';
+  html += `<tr><td>Giro médio</td><td style="text-align:right">${Math.round(atual)} dias</td><td style="text-align:right">${alvo} dias</td><td style="text-align:right"><span style="color:${alvo<atual?'var(--green)':'var(--text3)'};font-weight:700">${alvo<atual?'▼ ':''}${Math.round(Math.abs(alvo-atual))} dias</span></td></tr>`;
+  html += row('Custo Floor Plan', custoFloorAtual, custoFloorSim);
+  html += row('Custo Capital Próprio', custoPropAtual, custoPropSim);
+  html += row('Custo Total (acumulado)', totAtual, totSim, true);
+  html += `<tr><td style="font-weight:800;color:var(--green)">Capital liberado</td><td colspan="3" style="text-align:right;font-weight:800;color:var(--green)">+ ${cnFmt(capLiberado)}</td></tr>`;
+  document.getElementById('cn-sim-tbody').innerHTML = html;
+}
 </script>
 </body>
 </html>
