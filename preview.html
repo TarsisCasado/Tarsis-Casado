@@ -317,6 +317,8 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
 .ai-card-title{font-family:'Syne',sans-serif;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--accent);margin-bottom:6px;display:flex;align-items:center;gap:8px;}
 .ai-card-text{font-size:14px;color:var(--text);line-height:1.45;}
 .ai-mini-note{font-size:12px;color:var(--text3);margin-top:6px;}
+.ai-section{background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:10px;padding:10px 13px;margin-bottom:8px;font-size:14px;color:var(--text);line-height:1.45;}
+.ai-section strong{display:block;font-family:'Syne',sans-serif;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--accent);margin-bottom:4px;}
 .ai-msg.assistant.compact{padding:14px;background:transparent;border:none;box-shadow:none;max-width:760px;}
 .ai-msg.assistant.plain{white-space:pre-wrap;}
 .ai-chat-input-row{display:flex;gap:8px;padding:12px;background:var(--card);border:1px solid var(--border);border-top:none;border-radius:0 0 var(--r) var(--r);}
@@ -809,21 +811,20 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
     <div style="font-size:11px;color:var(--text3);margin-top:8px;">Obtenha sua chave em Google AI Studio → API Keys. Se um modelo estiver sobrecarregado, o dashboard tenta automaticamente outro modelo.</div>
   </div>
   <p style="font-size:13px;color:var(--text3);margin-bottom:12px;">Faça perguntas em linguagem natural sobre os dados filtrados do dashboard. O Copiloto Carmais responde com visão gerencial e plano de ação:</p>
-  <div class="ai-suggestions">
-    <button class="ai-suggestion-btn" onclick="sendAIMessage('Faça uma leitura gerencial do período: o que aconteceu, por que importa e o que fazer agora.')">📋 Leitura gerencial</button>
-    <button class="ai-suggestion-btn" onclick="sendAIMessage('Quais lojas estão com baixa captação e qual plano de ação por prioridade?')">📊 Captação por loja</button>
-    <button class="ai-suggestion-btn" onclick="sendAIMessage('Quais vendedores precisam de atenção e o que o gestor deve cobrar?')">🏆 Vendedores atenção</button>
-    <button class="ai-suggestion-btn" onclick="sendAIMessage('Analise os compradores de usados e indique oportunidades de atuação.')">🏷️ Compradores</button>
-    <button class="ai-suggestion-btn" onclick="sendAIMessage('Quais placas melhoradas merecem acompanhamento e qual próximo passo?')">🔑 Placas melhoradas</button>
-    <button class="ai-suggestion-btn" onclick="sendAIMessage('Faça um resumo curto para WhatsApp com resultado, alerta e ação.')">📲 Resumo WhatsApp</button>
-    <button class="ai-suggestion-btn" onclick="sendAIMessage('Monte um plano de ação diário para aumentar a captação.')">✅ Plano de ação</button>
+  <div class="ai-suggestions ai-quick-actions">
+    <button class="ai-suggestion-btn" onclick="perguntaRapidaIA('Faça um resumo executivo do período selecionado.')">📋 Resumo executivo</button>
+    <button class="ai-suggestion-btn" onclick="perguntaRapidaIA('Quais lojas precisam de atenção?')">📊 Lojas em atenção</button>
+    <button class="ai-suggestion-btn" onclick="perguntaRapidaIA('Quais vendedores estão abaixo da média?')">🏆 Vendedores abaixo da média</button>
+    <button class="ai-suggestion-btn" onclick="perguntaRapidaIA('Quais placas melhoradas ainda não viraram negócio fechado?')">🔑 Placas melhoradas</button>
+    <button class="ai-suggestion-btn" onclick="perguntaRapidaIA('Onde temos oportunidade de aumentar a conversão?')">📈 Aumentar conversão</button>
+    <button class="ai-suggestion-btn" onclick="perguntaRapidaIA('Quais oportunidades ainda estão pendentes e merecem ação imediata?')">⚡ Oportunidades pendentes</button>
   </div>
   <div class="ai-chat-container">
     <div class="ai-chat-messages" id="ai-chat-messages">
       <div class="ai-msg assistant">Olá! Sou o Copiloto Carmais. Pergunte sobre captação, lojas, vendedores, compradores ou plano de ação. Vou responder curto, visual e direto.</div>
     </div>
     <div class="ai-chat-input-row">
-      <input class="ai-chat-input-field" id="ai-chat-input" type="text" placeholder="Ex: O que aconteceu, por que importa e o que fazer agora?" onkeydown="if(event.key==='Enter')sendAIMessage();"/>
+      <input class="ai-chat-input-field" id="ai-chat-input" type="text" placeholder="Ex: Faça um resumo executivo do período e o que devo olhar hoje." onkeydown="if(event.key==='Enter')perguntarAoCopiloto();"/>
       <button class="btn btn-primary" onclick="sendAIMessage()" id="ai-send-btn">Enviar</button>
       <button class="btn btn-ghost" onclick="clearAIChat()" title="Limpar conversa">🗑️</button>
     </div>
@@ -2736,51 +2737,60 @@ function initGeminiModelUI() {
 }
 
 
-const COPILOTO_CARMAIS_PROMPT = `
-Você é o Copiloto Carmais, agente de análise do Dashboard Seminovos Analytics do Grupo Carmais.
+const PROMPT_COPILOTO_CARMAIS = `
+Você é o Copiloto Carmais, um agente de inteligência comercial do Relatório de Avaliações de Seminovos do Grupo Carmais.
 
-Perfil:
-- Misture visão de diretoria, gestão e operação.
-- Fale como um copiloto gerencial: direto, útil e orientado a ação.
-- Postura moderadamente firme: aponte gargalos sem agressividade.
+Você analisa avaliações de veículos, compras realizadas, conversão por loja, conversão por vendedor, placas melhoradas, valores avaliados, valores melhorados, compradores responsáveis e negócios fechados.
 
-Regras de resposta curta:
-- Responda curto por padrão.
-- Use no máximo 3 blocos.
-- Cada bloco deve ter no máximo 2 frases.
-- Só detalhe mais se o usuário pedir: detalhar, análise completa, aprofundar ou explicar melhor.
-- Não use markdown.
-- Não use **, ##, tabelas longas ou listas extensas.
-- Não use emojis em excesso. No máximo 1 emoji quando fizer sentido.
-- Não faça introdução longa.
+Seu objetivo é transformar dados em leitura gerencial simples, direta e acionável.
 
-Formato padrão obrigatório:
-O que aconteceu:
-[diagnóstico curto]
+Tom de voz:
+- Executivo
+- Curto
+- Claro
+- Prático
+- Sem enrolação
+- Sem excesso de markdown
+- Linguagem de diretor comercial, não de robô genérico
 
-Por que importa:
-[impacto gerencial curto]
+Regras:
+1. Use apenas os dados enviados pelo sistema.
+2. Não invente números, nomes, placas, lojas, vendedores ou compradores.
+3. Quando não houver dados suficientes, informe claramente: "Não tenho dados suficientes para essa análise."
+4. Responda sempre em português do Brasil.
+5. Sempre destaque o principal ponto de atenção.
+6. Sempre sugira uma ação prática.
+7. Evite respostas com mais de 12 linhas.
+8. Não use muitos asteriscos, negrito, ## ou tabelas longas.
+9. Não responda como robô genérico.
+10. Priorize conversão, volume, lojas abaixo da média, vendedores abaixo da média, placas melhoradas sem fechamento e oportunidades perdidas.
+11. Quando o usuário pedir resumo, entregue uma leitura de diretoria.
+12. Quando houver bom desempenho, destaque o que deve ser mantido.
+13. Quando houver baixa conversão, indique uma ação comercial prática.
+14. Se houver filtros aplicados, considere apenas o período/filtro atual.
+15. Não diga que é uma IA.
 
-O que fazer agora:
-[ação prática, quem deve agir e prioridade]
+A conversão é calculada como compras / avaliações * 100.
 
-Quando a pergunta for simples, responda em até 4 linhas.
-Quando for resumo para WhatsApp, entregue texto curto, pronto para copiar e colar, sem markdown.
-Quando for plano de ação, use no máximo 5 ações, cada uma curta.
+Formato padrão obrigatório das respostas:
 
-Temas que você deve analisar quando houver dados:
-- Avaliações, compras, captação, lojas, vendedores, compradores, placas melhoradas, modelos, FIPE, oportunidades comerciais, ranking e plano de ação diário.
+Resumo:
+[leitura objetiva]
 
-Regras obrigatórias de segurança dos dados:
-- Responda sempre em português do Brasil.
-- Use somente os dados enviados pelo dashboard.
-- Nunca invente números, nomes, placas, lojas, vendedores, compradores ou valores.
-- Nunca estime margem, FIPE, preço ou volume se o dado não estiver no contexto.
-- Se faltar informação, diga: Esse dado não está disponível no dashboard atual.
-- Se a pergunta pedir ranking, use apenas os rankings enviados.
-- Se houver filtros aplicados, considere apenas o período/filtro atual.
-- Não diga que é uma IA.
+Ponto de atenção:
+[principal problema ou oportunidade]
+
+Leitura gerencial:
+[o que isso significa para o negócio]
+
+Ação recomendada:
+[ação prática para executar]
+
+Responda seguindo exatamente esse formato, com no máximo 2 frases curtas por bloco.
 `;
+
+// Alias mantido para compatibilidade com o restante do código.
+const COPILOTO_CARMAIS_PROMPT = PROMPT_COPILOTO_CARMAIS;
 
 
 function saveGeminiKey(key) {
@@ -2921,6 +2931,135 @@ ${JSON.stringify(sample)}
 `;
 }
 
+// ------------------------------------------------------------
+// COPILOTO CARMAIS — leitura flexível de campos + resumo estruturado
+// Busca um valor entre vários nomes de campo possíveis (o sistema
+// pode usar nomenclaturas diferentes para o mesmo dado).
+// ------------------------------------------------------------
+function getValorCampo(item, possiveisCampos) {
+  for (const campo of possiveisCampos) {
+    if (item && item[campo] !== undefined && item[campo] !== null && item[campo] !== '') {
+      return item[campo];
+    }
+  }
+  return '';
+}
+
+const CAMPOS = {
+  placa:['placa','Placa','PLACA'],
+  loja:['empresaEquipe','empresa','loja','Loja','Empresa','EMPRESA','nomeLoja','nome_loja'],
+  vendedor:['vendedor','Vendedor','vendedorNome','nomeVendedor','Nome do Vendedor'],
+  valorAvaliado:['valorAv','valorAvaliado','valor_avaliado','Valor Avaliado','valor','Valor'],
+  valorMelhorado:['valorMelhorado','valor_melhorado','Valor Melhorado'],
+  melhorado:['melhorado','Melhorado'],
+  comprador:['compradorNome','comprador','Comprador'],
+  modelo:['modelo','Modelo','MODELO'],
+  data:['dataAv','data','Data','dataAvaliacao','Data Avaliação','dataCompra','Data Compra']
+};
+
+// Calcula ranking por um campo (loja ou vendedor) com avaliações,
+// compras e conversão. Ordena da maior conversão para a menor.
+function montarRankingPorCampo(avaliacoes, comprados, campo) {
+  const possiveis = CAMPOS[campo] || [campo];
+  const mapa = {};
+  (avaliacoes || []).forEach(item => {
+    const nome = getValorCampo(item, possiveis) || 'N/D';
+    if (!mapa[nome]) mapa[nome] = { nome, avaliacoes:0, compras:0 };
+    mapa[nome].avaliacoes++;
+  });
+  (comprados || []).forEach(item => {
+    const nome = getValorCampo(item, possiveis) || 'N/D';
+    if (!mapa[nome]) mapa[nome] = { nome, avaliacoes:0, compras:0 };
+    mapa[nome].compras++;
+  });
+  return Object.values(mapa).map(r => ({
+    nome:r.nome,
+    avaliacoes:r.avaliacoes,
+    compras:r.compras,
+    conversao: r.avaliacoes > 0 ? +((r.compras / r.avaliacoes) * 100).toFixed(1) : 0
+  })).sort((a,b) => (b.compras - a.compras) || (b.conversao - a.conversao));
+}
+
+// Monta um objeto resumido e enxuto com os dados ATUAIS do dashboard,
+// respeitando os filtros aplicados (usa STATE.filtered quando existe).
+function montarResumoRelatorioParaIA() {
+  // Respeita os filtros aplicados: STATE.filtered já é o recorte ativo.
+  const avaliacoes = (STATE.filtered && STATE.filtered.length ? STATE.filtered : STATE.avaliacoes) || [];
+  const comprados = avaliacoes.filter(r => !!r.comprado);
+  const melhoradas = avaliacoes.filter(r => getValorCampo(r, CAMPOS.melhorado) === 'Sim');
+
+  const totalAvaliacoes = avaliacoes.length;
+  const totalComprados = comprados.length;
+  const conversaoGeral = totalAvaliacoes > 0 ? +((totalComprados / totalAvaliacoes) * 100).toFixed(1) : 0;
+
+  const rankingLojas = montarRankingPorCampo(avaliacoes, comprados, 'loja').slice(0, 10);
+  const rankingVendedores = montarRankingPorCampo(avaliacoes, comprados, 'vendedor').slice(0, 10);
+
+  const placasMelhoradas = melhoradas.slice(0, 20).map(r => ({
+    placa:getValorCampo(r, CAMPOS.placa) || 'N/D',
+    modelo:getValorCampo(r, CAMPOS.modelo) || 'N/D',
+    loja:getValorCampo(r, CAMPOS.loja) || 'N/D',
+    vendedor:getValorCampo(r, CAMPOS.vendedor) || 'N/D',
+    valorAvaliado:safeMoney(getValorCampo(r, CAMPOS.valorAvaliado)),
+    valorMelhorado:safeMoney(getValorCampo(r, CAMPOS.valorMelhorado)),
+    negocioFechado:r.comprado ? 'Sim' : 'Não'
+  }));
+
+  // Oportunidades pendentes: avaliações ainda não compradas (foco em melhoradas sem fechamento).
+  const oportunidadesPendentes = avaliacoes
+    .filter(r => !r.comprado)
+    .sort((a,b) => (getValorCampo(b, CAMPOS.melhorado) === 'Sim' ? 1 : 0) - (getValorCampo(a, CAMPOS.melhorado) === 'Sim' ? 1 : 0))
+    .slice(0, 20)
+    .map(r => ({
+      placa:getValorCampo(r, CAMPOS.placa) || 'N/D',
+      modelo:getValorCampo(r, CAMPOS.modelo) || 'N/D',
+      loja:getValorCampo(r, CAMPOS.loja) || 'N/D',
+      vendedor:getValorCampo(r, CAMPOS.vendedor) || 'N/D',
+      melhorado:getValorCampo(r, CAMPOS.melhorado) || 'Não',
+      valorAvaliado:safeMoney(getValorCampo(r, CAMPOS.valorAvaliado))
+    }));
+
+  const f = (typeof STATE !== 'undefined' && STATE.filtros) ? STATE.filtros : {};
+  return {
+    filtrosAplicados:{
+      loja:f.loja || 'Todas',
+      vendedor:f.vendedor || 'Todos',
+      periodoInicio:f.dataInicio || f.periodoInicio || 'N/D',
+      periodoFim:f.dataFim || f.periodoFim || 'N/D',
+      melhorado:f.melhorado || 'Todos',
+      negocioFechado:f.comprado || f.negocioFechado || 'Todos',
+      comprador:f.comprador || 'Todos'
+    },
+    indicadoresGerais:{
+      totalAvaliacoes,
+      totalComprados,
+      conversaoGeral:conversaoGeral + '%',
+      totalPlacasMelhoradas:melhoradas.length,
+      negociosFechados:totalComprados,
+      avaliacoesNaoCompradas:totalAvaliacoes - totalComprados
+    },
+    rankingLojas,
+    rankingVendedores,
+    placasMelhoradas,
+    oportunidadesPendentes
+  };
+}
+
+// Limpa excesso de markdown e separa visualmente os 4 blocos da resposta.
+function formatarRespostaIA(texto) {
+  if (!texto) return '';
+  let resposta = String(texto).replace(/\*\*/g, '').replace(/\*/g, '').trim();
+  resposta = resposta
+    .replace(/Resumo:/gi, "<div class='ai-section'><strong>Resumo:</strong><br>")
+    .replace(/Ponto de atenção:/gi, "</div><div class='ai-section'><strong>Ponto de atenção:</strong><br>")
+    .replace(/Leitura gerencial:/gi, "</div><div class='ai-section'><strong>Leitura gerencial:</strong><br>")
+    .replace(/Ação recomendada:/gi, "</div><div class='ai-section'><strong>Ação recomendada:</strong><br>");
+  resposta += '</div>';
+  // Remove um div de abertura órfão, se a resposta não começar por "Resumo".
+  resposta = resposta.replace(/^<\/div>/, '');
+  return resposta;
+}
+
 async function callGeminiWithFallback(apiKey, payload) {
   let lastError = null;
   const models = GEMINI_FALLBACK_MODELS;
@@ -2985,13 +3124,16 @@ async function sendAIMessage(text) {
 
   try {
     const ctx = prepareAIContext();
+    // Resumo estruturado e enxuto (respeita filtros, limita volume) enviado junto ao contexto.
+    let resumoRelatorio = {};
+    try { resumoRelatorio = montarResumoRelatorioParaIA(); } catch(err) { resumoRelatorio = {}; }
     AI_HISTORY.push({ role:'user', content:msg });
 
     const recentHistory = AI_HISTORY.slice(-6).map((m, idx, arr) => ({
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{
         text: (m.role === 'user' && idx === arr.length - 1)
-          ? `${ctx}\n\nPERGUNTA DO USUÁRIO, RESPONDA CURTO, SEM MARKDOWN E COM BASE EXCLUSIVA NO CONTEXTO ACIMA:\n${m.content}`
+          ? `${ctx}\n\nRESUMO ESTRUTURADO DO RELATÓRIO (JSON):\n${JSON.stringify(resumoRelatorio, null, 2)}\n\nPERGUNTA DO USUÁRIO, RESPONDA CURTO, SEM MARKDOWN, NO FORMATO PADRÃO (Resumo / Ponto de atenção / Leitura gerencial / Ação recomendada) E COM BASE EXCLUSIVA NOS DADOS ACIMA:\n${m.content}`
           : m.content
       }]
     }));
@@ -3000,9 +3142,9 @@ async function sendAIMessage(text) {
       systemInstruction:{ parts:[{ text:COPILOTO_CARMAIS_PROMPT }] },
       contents: recentHistory,
       generationConfig:{
-        temperature:0.2,
+        temperature:0.3,
         topP:0.8,
-        maxOutputTokens:900
+        maxOutputTokens:600
       }
     };
 
@@ -3039,14 +3181,19 @@ function cleanAIText(text) {
 
 function extractAISections(text) {
   const cleaned = cleanAIText(text);
-  const labels = ['O que aconteceu', 'Por que importa', 'O que fazer agora'];
+  // Formato padrão atual + compatibilidade com o formato antigo.
+  const labels = /Resumo\s*:/i.test(cleaned)
+    ? ['Resumo', 'Ponto de atenção', 'Leitura gerencial', 'Ação recomendada']
+    : ['O que aconteceu', 'Por que importa', 'O que fazer agora'];
   const sections = [];
 
+  const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   labels.forEach((label, idx) => {
     const next = labels[idx + 1];
+    const lbl = esc(label);
     const pattern = next
-      ? new RegExp(label + '\s*:?\s*([\s\S]*?)(?=' + next + '\s*:?)', 'i')
-      : new RegExp(label + '\s*:?\s*([\s\S]*)', 'i');
+      ? new RegExp(lbl + '\\s*:?\\s*([\\s\\S]*?)(?=' + esc(next) + '\\s*:?)', 'i')
+      : new RegExp(lbl + '\\s*:?\\s*([\\s\\S]*)', 'i');
     const match = cleaned.match(pattern);
     if (match && match[1]) {
       sections.push({ title: label, text: match[1].trim().replace(/^[-–•\s]+/gm, '').trim() });
@@ -3061,6 +3208,10 @@ function renderAICompactCards(text) {
   if (sections.length < 2) return null;
 
   const icons = {
+    'Resumo': '📌',
+    'Ponto de atenção': '⚠️',
+    'Leitura gerencial': '📈',
+    'Ação recomendada': '✅',
     'O que aconteceu': '📌',
     'Por que importa': '⚠️',
     'O que fazer agora': '✅'
@@ -3068,7 +3219,7 @@ function renderAICompactCards(text) {
 
   const wrap = document.createElement('div');
   wrap.className = 'ai-card-wrap';
-  sections.slice(0, 3).forEach(section => {
+  sections.slice(0, 4).forEach(section => {
     const card = document.createElement('div');
     card.className = 'ai-card';
 
@@ -3115,6 +3266,24 @@ function clearAIChat() {
   AI_HISTORY.length = 0;
   const c = document.getElementById('ai-chat-messages');
   if (c) c.innerHTML = '<div class="ai-msg assistant">Conversa limpa! Sou o Copiloto Carmais. Pergunte sobre captação, lojas, vendedores, compradores ou plano de ação.</div>';
+}
+
+// Entrada principal do Copiloto: lê a pergunta do campo e envia para a IA.
+function perguntarAoCopiloto(pergunta) {
+  const inp = document.getElementById('ai-chat-input');
+  const texto = pergunta || (inp ? inp.value.trim() : '');
+  if (!texto) {
+    showToast('Digite uma pergunta para o Copiloto Carmais.', 'error');
+    return;
+  }
+  sendAIMessage(texto);
+}
+
+// Botões de perguntas rápidas: preenchem o campo e disparam a análise.
+function perguntaRapidaIA(pergunta) {
+  const inp = document.getElementById('ai-chat-input');
+  if (inp) inp.value = pergunta;
+  perguntarAoCopiloto(pergunta);
 }
 
 // ============================================================
