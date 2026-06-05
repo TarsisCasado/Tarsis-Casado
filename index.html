@@ -2596,7 +2596,7 @@ function switchTab(name,btn){
   if(name==='usuarios'){loadUsuarios();loadCompradores();}
   if(name==='historico')loadHistorico();
   if(name==='ia')initAIKeyUI();
-  if(name==='analytics')renderAnalytics();
+  if(name==='analytics'){ const _ai=document.getElementById('an-f-ini'); if(_ai&&!_ai.value)initAnalyticsDates(); renderAnalytics(); }
   if(name==='alertas'){
     const cfg=JSON.parse(localStorage.getItem('carmais_alert_config')||'{}');
     if(cfg.primeiroDisparo){const el=document.getElementById('alert-primeiro');if(el)el.value=cfg.primeiroDisparo;}
@@ -3884,6 +3884,99 @@ async function excluirComprador(idx) {
 // ANALYTICS
 // ============================================================
 function fmtBRL(v){if(v==null||isNaN(v))return'—';return'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});}
+// ----- Estado de ordenação das tabelas (Análise Avançada) -----
+const AN_SORT = { prec:{ col:'avaliados', asc:false }, vend:{ col:'avaliados', asc:false } };
+
+function initAnalyticsDates() {
+  // Inicializa os filtros de data do analytics com o intervalo REAL dos dados.
+  const datas = (STATE.avaliacoes||[]).map(r=>r.dataAv).filter(d=>d instanceof Date && !isNaN(d));
+  if (!datas.length) return;
+  const minD = new Date(Math.min(...datas.map(d=>d.getTime())));
+  const maxD = new Date(Math.max(...datas.map(d=>d.getTime())));
+  const ini = document.getElementById('an-f-ini');
+  const fim = document.getElementById('an-f-fim');
+  if (ini) ini.value = dateStr(minD);
+  if (fim) fim.value = dateStr(maxD);
+}
+
+// ----- Multi-select de lojas (Análise Avançada) -----
+const MS_STATE = {};
+
+function toggleMsDropdown(id) {
+  const drop = document.getElementById('ms-'+id+'-drop');
+  const btn = document.getElementById('ms-'+id+'-btn');
+  if (!drop) return;
+  const open = drop.classList.toggle('open');
+  if (btn) btn.classList.toggle('open', open);
+  if (open) {
+    const search = document.getElementById('ms-'+id+'-search');
+    if (search) search.focus();
+    const close = e => { if (!document.getElementById('ms-'+id+'-wrap')?.contains(e.target)) { drop.classList.remove('open'); if(btn)btn.classList.remove('open'); document.removeEventListener('click', close); } };
+    setTimeout(() => document.addEventListener('click', close), 0);
+  }
+}
+
+const MS_OPTIONS = {};
+
+function populateMsDropdown(id, options) {
+  if (!MS_STATE[id]) MS_STATE[id] = new Set();
+  MS_OPTIONS[id] = options;
+  const list = document.getElementById('ms-'+id+'-list');
+  if (!list) return;
+  // Remove options that no longer exist
+  [...MS_STATE[id]].forEach(v => { if (!options.includes(v)) MS_STATE[id].delete(v); });
+  list.innerHTML = options.map((o, i) => {
+    const cbId = `ms-${id}-cb-${i}`;
+    const checked = MS_STATE[id].has(o) ? 'checked' : '';
+    return `<div class="ms-item"><input type="checkbox" id="${cbId}" data-idx="${i}" ${checked} onchange="onMsCbChange('${id}',${i},this.checked)"><label for="${cbId}">${escHtml(o)}</label></div>`;
+  }).join('');
+  updateMsLabel(id);
+}
+
+function onMsCbChange(id, idx, checked) {
+  if (!MS_STATE[id]) MS_STATE[id] = new Set();
+  const val = (MS_OPTIONS[id]||[])[idx];
+  if (val === undefined) return;
+  if (checked) MS_STATE[id].add(val); else MS_STATE[id].delete(val);
+  updateMsLabel(id);
+  renderAnalytics();
+}
+
+function toggleMsItem(id, val, checked) {
+  if (!MS_STATE[id]) MS_STATE[id] = new Set();
+  if (checked) MS_STATE[id].add(val); else MS_STATE[id].delete(val);
+  updateMsLabel(id);
+  renderAnalytics();
+}
+
+function getMsSelected(id) {
+  return MS_STATE[id] ? [...MS_STATE[id]] : [];
+}
+
+function clearMsSelected(id) {
+  if (MS_STATE[id]) MS_STATE[id].clear();
+  const list = document.getElementById('ms-'+id+'-list');
+  if (list) list.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = false);
+  updateMsLabel(id);
+}
+
+function updateMsLabel(id) {
+  const sel = getMsSelected(id);
+  const label = document.getElementById('ms-'+id+'-label');
+  if (!label) return;
+  label.textContent = sel.length === 0 ? 'Todas' : sel.length === 1 ? sel[0] : `${sel.length} lojas selecionadas`;
+}
+
+function filterMsItems(id, search) {
+  const list = document.getElementById('ms-'+id+'-list');
+  if (!list) return;
+  const s = search.toLowerCase();
+  list.querySelectorAll('.ms-item').forEach(item => {
+    const label = item.querySelector('label');
+    item.style.display = label && label.textContent.toLowerCase().includes(s) ? '' : 'none';
+  });
+}
+
 function getAnalyticsData() {
   const iniV = document.getElementById('an-f-ini')?.value || '';
   const fimV = document.getElementById('an-f-fim')?.value || '';
