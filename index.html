@@ -304,61 +304,23 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
   @page{size:A4 landscape;margin:8mm;}
 }
 
-/* ANALYTICS */
-.analytics-kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;margin-bottom:20px;}
-.akpi{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px;position:relative;overflow:hidden;}
-.akpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--akpi-color,var(--accent));}
-.akpi .ak-label{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:6px;}
-.akpi .ak-val{font-family:'Syne',sans-serif;font-size:clamp(16px,2.2vw,26px);font-weight:800;color:var(--text);line-height:1.1;word-break:break-word;overflow-wrap:anywhere;}
-.akpi .ak-sub{font-size:11px;color:var(--text3);margin-top:4px;}
-.fipe-band-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);}
-.fipe-band-row:last-child{border-bottom:none;}
-.fipe-band-label{font-size:12px;font-weight:700;color:var(--text2);width:90px;flex-shrink:0;}
-.fipe-band-bar-wrap{flex:1;display:flex;flex-direction:column;gap:3px;}
-.fipe-band-bar{height:8px;border-radius:4px;transition:width .6s;}
-.fipe-band-stats{font-size:11px;color:var(--text3);white-space:nowrap;text-align:right;width:120px;flex-shrink:0;}
-.perf-table{width:100%;border-collapse:collapse;font-size:13px;}
-.perf-table thead th{padding:10px 12px;text-align:left;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text3);border-bottom:1px solid var(--border);background:var(--bg2);cursor:pointer;white-space:nowrap;}
-.perf-table thead th:hover{color:var(--text);}
-.perf-table tbody tr{border-bottom:1px solid var(--border);transition:background .15s;}
-.perf-table tbody tr:hover{background:rgba(255,255,255,0.02);}
-.perf-table tbody td{padding:9px 12px;color:var(--text2);white-space:nowrap;}
-.perf-score{display:inline-flex;align-items:center;gap:6px;}
-.perf-bar-mini{height:6px;width:60px;background:var(--border);border-radius:3px;overflow:hidden;display:inline-block;vertical-align:middle;}
-.perf-bar-mini-fill{height:100%;border-radius:3px;}
-.heat-cell{display:inline-block;padding:4px 8px;border-radius:4px;font-weight:700;font-size:12px;}
-.heat-high{background:rgba(16,185,129,0.18);color:var(--green2);}
-.heat-mid{background:rgba(245,158,11,0.18);color:var(--accent2);}
-.heat-low{background:rgba(239,68,68,0.18);color:var(--red2);}
-.heat-none{background:rgba(100,116,139,0.12);color:var(--text3);}
-.analytics-filters{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:20px;}
-.analytics-filters-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;align-items:end;}
-.analytics-filters-grid label{display:block;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:5px;}
-.analytics-filters-grid input,.analytics-filters-grid select{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r2);padding:7px 10px;font-size:12px;color:var(--text);outline:none;font-family:'DM Sans',sans-serif;}
-.analytics-filters-grid input:focus,.analytics-filters-grid select:focus{border-color:var(--accent);}
-/* Multi-select dropdown */
-.ms-wrap{position:relative;width:100%;}
-.ms-trigger{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r2);padding:7px 10px;font-size:12px;color:var(--text);cursor:pointer;text-align:left;display:flex;justify-content:space-between;align-items:center;font-family:'DM Sans',sans-serif;box-sizing:border-box;}
-.ms-trigger:focus,.ms-trigger.open{border-color:var(--accent);outline:none;}
-.ms-dropdown{display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--card);border:1px solid var(--border);border-radius:var(--r2);z-index:999;max-height:200px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.4);}
-.ms-dropdown.open{display:block;}
-.ms-item{display:flex;align-items:center;gap:8px;padding:7px 12px;cursor:pointer;font-size:12px;color:var(--text2);}
-.ms-item:hover{background:var(--bg3);}
-.ms-item input[type=checkbox]{accent-color:var(--accent);width:14px;height:14px;cursor:pointer;flex-shrink:0;}
-.ms-item label{cursor:pointer;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.ms-search{padding:6px 10px;border-bottom:1px solid var(--border);}
-.ms-search input{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:11px;color:var(--text);outline:none;box-sizing:border-box;}
-.insight-box{background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.25);border-radius:var(--r2);padding:12px 16px;font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:16px;}
-.insight-box strong{color:var(--blue2);}
-@media(max-width:900px){.analytics-kpi-grid{grid-template-columns:repeat(2,1fr);}}
-
 /* AI CHAT */
 .ai-chat-container{display:flex;flex-direction:column;height:calc(100vh - 260px);min-height:400px;max-height:700px;}
 .ai-chat-messages{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r) var(--r) 0 0;}
-.ai-msg{max-width:80%;padding:12px 16px;border-radius:12px;font-size:14px;line-height:1.5;}
-.ai-msg.user{background:var(--accent);color:#000;align-self:flex-end;border-radius:12px 12px 2px 12px;font-weight:500;}
-.ai-msg.assistant{background:var(--card);border:1px solid var(--border);color:var(--text);align-self:flex-start;border-radius:12px 12px 12px 2px;white-space:pre-wrap;}
+.ai-msg{max-width:80%;padding:12px 16px;border-radius:12px;font-size:14px;line-height:1.45;}
+.ai-msg.user{background:var(--accent);color:#000;align-self:flex-end;border-radius:12px 12px 2px 12px;font-weight:700;box-shadow:0 8px 24px rgba(245,158,11,0.22);}
+.ai-msg.assistant{background:linear-gradient(180deg,var(--card),var(--card2));border:1px solid var(--border);color:var(--text);align-self:flex-start;border-radius:14px 14px 14px 4px;white-space:normal;box-shadow:0 10px 28px rgba(15,23,42,0.10);}
 .ai-msg.thinking{background:var(--bg3);border:1px dashed var(--border2);color:var(--text3);align-self:flex-start;font-style:italic;}
+.ai-card-wrap{display:grid;grid-template-columns:1fr;gap:10px;min-width:320px;max-width:720px;}
+.ai-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:13px 15px;position:relative;overflow:hidden;}
+.ai-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent);}
+.ai-card-title{font-family:'Syne',sans-serif;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--accent);margin-bottom:6px;display:flex;align-items:center;gap:8px;}
+.ai-card-text{font-size:14px;color:var(--text);line-height:1.45;}
+.ai-mini-note{font-size:12px;color:var(--text3);margin-top:6px;}
+.ai-section{background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:10px;padding:10px 13px;margin-bottom:8px;font-size:14px;color:var(--text);line-height:1.45;}
+.ai-section strong{display:block;font-family:'Syne',sans-serif;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--accent);margin-bottom:4px;}
+.ai-msg.assistant.compact{padding:14px;background:transparent;border:none;box-shadow:none;max-width:760px;}
+.ai-msg.assistant.plain{white-space:pre-wrap;}
 .ai-chat-input-row{display:flex;gap:8px;padding:12px;background:var(--card);border:1px solid var(--border);border-top:none;border-radius:0 0 var(--r) var(--r);}
 .ai-chat-input-field{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r2);padding:10px 14px;font-size:14px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;}
 .ai-chat-input-field:focus{border-color:var(--accent);}
@@ -366,35 +328,6 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
 .ai-suggestion-btn{background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:6px 14px;font-size:12px;color:var(--text2);cursor:pointer;transition:var(--transition);}
 .ai-suggestion-btn:hover{border-color:var(--accent);color:var(--accent);}
 .ai-key-setup{background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.25);border-radius:var(--r);padding:16px;margin-bottom:16px;}
-/* Section collapse/expand */
-.an-section { margin-bottom: 24px; }
-.an-section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; cursor:pointer; user-select:none; }
-.an-section-header .section-title { margin:0; }
-.an-section-toggle { background:none; border:1px solid var(--border); border-radius:6px; padding:4px 10px; color:var(--text3); font-size:12px; cursor:pointer; display:flex; align-items:center; gap:4px; }
-.an-section-toggle:hover { background:var(--bg3); color:var(--text); }
-.an-section-body { transition: none; }
-.an-section-body.collapsed { display:none; }
-.an-section-explain { font-size:12px; color:var(--text3); background:var(--bg3); border-left:3px solid var(--accent); padding:8px 12px; border-radius:0 6px 6px 0; margin-bottom:12px; line-height:1.6; }
-/* Export buttons */
-.an-export-bar { display:flex; gap:6px; margin-bottom:16px; flex-wrap:wrap; }
-.an-export-bar .btn { font-size:11px; padding:5px 10px; }
-/* Modelo filter */
-.an-f-modelo-wrap { position:relative; }
-/* Brand select */
-#an-f-marca { background:var(--bg3); border:1px solid var(--border); border-radius:var(--r2); padding:8px 12px; color:var(--text); font-family:'DM Sans',sans-serif; width:100%; }
-/* Tooltip expand */
-.an-expandable { cursor:pointer; border-bottom:1px dashed var(--text3); }
-.an-expand-panel { display:none; background:var(--bg3); border-radius:8px; padding:12px; margin-top:8px; font-size:13px; color:var(--text2); line-height:1.7; }
-.an-expand-panel.open { display:block; }
-/* AA comparison */
-.aa-comp-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px; margin-top:12px; }
-.aa-comp-card { background:var(--bg3); border-radius:10px; padding:12px 14px; border:1px solid var(--border); }
-.aa-comp-card .label { font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:.8px; }
-.aa-comp-card .val { font-size:18px; font-weight:700; color:var(--accent); margin:4px 0 2px; }
-.aa-comp-card .sub { font-size:11px; color:var(--text3); }
-.aa-comp-card .delta { font-size:12px; font-weight:600; }
-.aa-comp-card .delta.pos { color:var(--green2); }
-.aa-comp-card .delta.neg { color:var(--red2); }
 </style>
 </head>
 <body>
@@ -453,7 +386,6 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
   <button class="tab-btn master-only" onclick="switchTab('config-script',this)">⚙️ Config Script</button>
   <button class="tab-btn master-only" onclick="switchTab('historico',this)">📜 Histórico</button>
   <button class="tab-btn master-only" onclick="switchTab('alertas',this)">🔔 Alertas</button>
-  <button class="tab-btn" onclick="switchTab('analytics',this)">📈 Análise Avançada</button>
   <button class="tab-btn" onclick="switchTab('ia',this)">🤖 IA</button>
 </nav>
 
@@ -587,6 +519,7 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
       <div class="filter-group"><label>Objetivo</label><input type="text" id="f-objetivo" list="dl-objetivo" placeholder="Todos" oninput="applyFilters()"/><datalist id="dl-objetivo"></datalist></div>
       <div class="filter-group"><label>Tipo</label><input type="text" id="f-tipo" list="dl-tipo" placeholder="Todos" oninput="applyFilters()"/><datalist id="dl-tipo"></datalist></div>
       <div class="filter-group"><label>Placa</label><input type="text" id="f-placa" placeholder="ABC1234" oninput="applyFilters()"/></div>
+      <div class="filter-group"><label>Melhorado</label><select id="f-melhorado" onchange="applyFilters()"><option value="">Todos</option><option value="Sim">Sim</option><option value="Não">Não</option></select></div>
       <div class="filter-group"><label>Comprador</label><input type="text" id="f-comprador" list="dl-comprador" placeholder="Todos" oninput="applyFilters()"/><datalist id="dl-comprador"></datalist></div>
       <div class="filter-group"><label>Modelo</label><input type="text" id="f-modelo" list="dl-modelo" placeholder="Todos" oninput="applyFilters()"/><datalist id="dl-modelo"></datalist></div>
     </div>
@@ -607,20 +540,22 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
   </div>
 
   <p class="section-title">Indicadores Principais</p>
-  <div class="grid-4 mb-24">
+  <div class="grid-5 mb-24">
     <div class="metric-card" style="--accent-color:var(--blue)"><div class="label">Total Avaliados</div><div class="value" id="kpi-avaliados">—</div><div class="sub">no período</div><div class="icon">📋</div></div>
     <div class="metric-card" style="--accent-color:var(--green)"><div class="label">Total Comprado</div><div class="value" id="kpi-comprado">—</div><div class="sub">data da compra</div><div class="icon">✅</div></div>
     <div class="metric-card" style="--accent-color:var(--accent)"><div class="label">% Captação</div><div class="value" id="kpi-captacao">—</div><div class="sub">comprado / avaliado</div><div class="icon">📈</div></div>
     <div class="metric-card" style="--accent-color:var(--purple)"><div class="label">Média % FIPE</div><div class="value" id="kpi-fipe">—</div><div class="sub">valor / FIPE</div><div class="icon">💰</div></div>
+    <div class="metric-card" style="--accent-color:var(--red)"><div class="label">Melhorados</div><div class="value" id="kpi-melhorados">—</div><div class="sub">pelo comprador</div><div class="icon">🔑</div></div>
   </div>
 
   <p class="section-title">Distribuição por Objetivo — Comprados</p>
   <div class="obj-cards mb-24" id="obj-cards"></div>
 
   <p class="section-title">Comparativos</p>
-  <div class="grid-3 mb-24">
+  <div class="grid-4 mb-24">
     <div class="metric-card" style="--accent-color:var(--blue)"><div class="label">Avaliado x Comprado</div><div class="value" id="cmp-av-cp">—</div><div class="sub" id="cmp-av-cp-sub">conversão</div><div class="icon">⚖️</div></div>
     <div class="metric-card" style="--accent-color:var(--green)"><div class="label">Média diária</div><div class="value" id="cmp-media-dia">—</div><div class="sub">avaliações / dia</div><div class="icon">📅</div></div>
+    <div class="metric-card" style="--accent-color:var(--accent)"><div class="label">Melhorado x Total</div><div class="value" id="cmp-melhorado">—</div><div class="sub" id="cmp-melhorado-sub">participação</div><div class="icon">🔑</div></div>
     <div class="metric-card" style="--accent-color:var(--purple)"><div class="label">Top Loja</div><div class="value" id="cmp-top-loja">—</div><div class="sub" id="cmp-top-loja-sub">maior volume</div><div class="icon">🏆</div></div>
   </div>
 
@@ -659,7 +594,7 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
       <button class="btn btn-green" onclick="exportExcel()">⬇ Excel</button>
     </div>
   </div>
-  <div style="font-size:13px;color:var(--text3);margin-bottom:12px">Dados de melhoria e comprador disponíveis na aba <strong>🏷️ Visão Comprador</strong>.</div>
+  <div style="font-size:13px;color:var(--text3);margin-bottom:12px">Campos editáveis são salvos automaticamente no Google Sheets ☁️</div>
   <div class="table-wrap">
     <table>
       <thead><tr>
@@ -673,8 +608,8 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
         <th onclick="sortDetail('valorAv')">Vlr Av ↕</th>
         <th onclick="sortDetail('fipe')">FIPE ↕</th>
         <th>%FIPE</th><th>Placa</th><th>Marca</th><th>Modelo</th><th>KM</th>
-        <th onclick="sortDetail('classificacao')">Class. ↕</th>
-        <th>Comprado</th>
+        <th>Comprado</th><th>Data Melhoria</th><th>Vlr Melhorado</th>
+        <th>Melhorado</th><th>Neg. Fechado</th><th>Comprador</th>
       </tr></thead>
       <tbody id="detail-tbody"></tbody>
     </table>
@@ -691,12 +626,13 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
       <button class="btn btn-green" onclick="exportExcel()">⬇ Excel</button>
     </div>
   </div>
-  <div style="font-size:13px;color:var(--text3);margin-bottom:12px">Dados de melhoria e comprador disponíveis na aba <strong>🏷️ Visão Comprador</strong>.</div>
+  <div style="font-size:13px;color:var(--text3);margin-bottom:12px">Campos editáveis são salvos no Google Sheets ☁️</div>
   <div class="table-wrap">
     <table>
       <thead><tr>
         <th>Data Compra</th><th>Data Avaliação</th><th>Empresa Compra</th><th>Empresa Av.</th>
-        <th>Vendedor</th><th>Placa</th><th>Modelo</th><th>Objetivo</th><th>Class.</th><th>Valor Av.</th>
+        <th>Vendedor</th><th>Placa</th><th>Modelo</th><th>Objetivo</th><th>Valor Av.</th>
+        <th>Data Melhoria</th><th>Vlr Melhorado</th><th>Melhorado</th><th>Neg. Fechado</th><th>Comprador</th>
       </tr></thead>
       <tbody id="detail-comprados-tbody"></tbody>
     </table>
@@ -796,338 +732,6 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
   </div>
 </div>
 
-<!-- TAB: ANALYTICS -->
-<div id="tab-analytics" class="tab-content">
-  <div class="section-header">
-    <h2>Análise Avançada — Cruzamento de Dados</h2>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-      <button class="btn btn-ghost" style="font-size:12px" onclick="exportAnalyticsPDF()">📄 PDF Completo</button>
-      <button class="btn btn-ghost" style="font-size:12px" onclick="exportAnalyticsImage()">📷 Imagem</button>
-      <button class="btn btn-ghost" style="font-size:12px" onclick="viewFilteredInDetail('avaliados')">📋 Ver Avaliados</button>
-      <button class="btn btn-ghost" style="font-size:12px" onclick="viewFilteredInDetail('comprados')">📋 Ver Comprados</button>
-      <button class="btn btn-ghost" onclick="renderAnalytics()">🔄 Atualizar</button>
-    </div>
-  </div>
-
-  <!-- FILTROS ANALYTICS -->
-  <div class="analytics-filters mb-24">
-    <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:10px;">Filtros desta análise</div>
-    <div class="analytics-filters-grid">
-      <div><label>Data Inicial</label><input type="date" id="an-f-ini" onchange="renderAnalytics()"/></div>
-      <div><label>Data Final</label><input type="date" id="an-f-fim" onchange="renderAnalytics()"/></div>
-      <div><label>Loja / Empresa</label><div class="ms-wrap" id="ms-empresa-wrap">
-        <button class="ms-trigger" id="ms-empresa-btn" onclick="toggleMsDropdown('empresa')" type="button"><span id="ms-empresa-label">Todas</span><span>▾</span></button>
-        <div class="ms-dropdown" id="ms-empresa-drop">
-          <div class="ms-search"><input type="text" placeholder="Buscar loja..." oninput="filterMsItems('empresa',this.value)" id="ms-empresa-search"/></div>
-          <div id="ms-empresa-list"></div>
-        </div>
-      </div></div>
-      <div><label>Tipo (VD/VN/VU)</label><select id="an-f-tipo" onchange="renderAnalytics()"><option value="">Todos</option><option value="VD">VD</option><option value="VN">VN</option><option value="VU">VU</option></select></div>
-      <div><label>Objetivo</label><input type="text" id="an-f-objetivo" list="an-dl-objetivo" placeholder="Todos" oninput="renderAnalytics()"><datalist id="an-dl-objetivo"></datalist></div>
-      <div><label>Precificador</label><input type="text" id="an-f-prec" list="an-dl-prec" placeholder="Todos" oninput="renderAnalytics()"><datalist id="an-dl-prec"></datalist></div>
-      <div><label>Faixa %FIPE</label><select id="an-f-fipe" onchange="renderAnalytics()"><option value="">Todas</option><option value="0-70">&lt; 70%</option><option value="70-80">70–80%</option><option value="80-90">80–90%</option><option value="90-100">90–100%</option><option value="100-999">&gt; 100%</option></select></div>
-      <div><label>Classificação (A–E)</label><select id="an-f-class" onchange="renderAnalytics()"><option value="">Todas</option><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option><option value="E">E</option></select></div>
-      <div><label>Marca</label><select id="an-f-marca" onchange="renderAnalytics()"><option value="">Todas</option></select></div>
-      <div><label>Modelo</label><input type="text" id="an-f-modelo" list="an-dl-modelo" placeholder="Todos" oninput="renderAnalytics()"><datalist id="an-dl-modelo"></datalist></div>
-      <div style="display:flex;align-items:flex-end;gap:6px">
-        <button class="btn btn-ghost" style="font-size:12px;padding:7px 14px" onclick="clearAnalyticsFilters()">✕ Limpar</button>
-        <button class="btn btn-primary" style="font-size:12px;padding:7px 14px" onclick="renderAnalytics()">🔍 Aplicar</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- DIAGNÓSTICO -->
-  <div id="an-diag" style="display:none;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:var(--r2);padding:14px 18px;font-size:13px;color:var(--accent2);margin-bottom:16px;line-height:1.6;"></div>
-
-  <!-- KPIs RÁPIDOS -->
-  <p class="section-title">Visão Geral do Filtro</p>
-  <div class="analytics-kpi-grid mb-24" id="an-kpis"></div>
-
-  <!-- INSIGHT AUTOMÁTICO -->
-  <div class="insight-box" id="an-insight" style="display:none"></div>
-
-  <!-- SEÇÃO 1: OBJETIVO x RESULTADO -->
-  <div class="an-section" id="an-sec-obj">
-    <div class="an-section-header" onclick="toggleAnSection('obj')">
-      <p class="section-title" style="margin:0">Por Objetivo (Categoria)</p>
-      <div style="display:flex;gap:6px;align-items:center">
-        <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionImage('an-sec-obj','Por Objetivo (Categoria)')">📷</button>
-        <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionWhatsApp('an-sec-obj','Por Objetivo (Categoria)')">💬</button>
-        <button class="an-section-toggle" id="an-sec-obj-btn">▼</button>
-      </div>
-    </div>
-    <div class="an-section-explain">Compara quantos veículos foram avaliados vs efetivamente comprados por tipo de negócio. Clique nas barras para filtrar automaticamente.</div>
-    <div class="an-section-body" id="an-sec-obj-body">
-      <div class="grid-2 mb-24">
-        <div class="chart-card">
-          <h3>Captação por Objetivo</h3>
-          <p>Avaliados vs Comprados — taxa de conversão por categoria</p>
-          <div id="an-obj-bars"></div>
-        </div>
-        <div class="chart-card">
-          <h3>Ticket Médio por Objetivo</h3>
-          <p>Valor médio avaliado e % FIPE médio por categoria</p>
-          <div id="an-obj-ticket"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- SEÇÃO 2: FIPE x CAPTAÇÃO -->
-  <div class="an-section" id="an-sec-fipe">
-    <div class="an-section-header" onclick="toggleAnSection('fipe')">
-      <p class="section-title" style="margin:0">Correlação % FIPE × Captação</p>
-      <div style="display:flex;gap:6px;align-items:center">
-        <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionImage('an-sec-fipe','Correlação % FIPE × Captação')">📷</button>
-        <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionWhatsApp('an-sec-fipe','Correlação % FIPE × Captação')">💬</button>
-        <button class="an-section-toggle" id="an-sec-fipe-btn">▼</button>
-      </div>
-    </div>
-    <div class="an-section-explain">Mostra em qual faixa de precificação (em relação à tabela FIPE) há maior taxa de conversão. Ideal para calibrar a estratégia de oferta.</div>
-    <div class="an-section-body" id="an-sec-fipe-body">
-      <div class="grid-2 mb-24">
-        <div class="chart-card">
-          <h3>Faixa de % FIPE vs Taxa de Captação</h3>
-          <p>Em qual faixa de preço (em relação à FIPE) mais compramos?</p>
-          <div id="an-fipe-captacao"></div>
-        </div>
-        <div class="chart-card">
-          <h3>Distribuição de Avaliações por % FIPE</h3>
-          <p>Volume e captação — gráfico de barras empilhadas</p>
-          <div class="chart-wrap compact"><canvas id="chart-fipe-dist" height="160"></canvas></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- SEÇÃO 3: PERFORMANCE PRECIFICADORES -->
-  <div class="an-section" id="an-sec-prec">
-    <div class="an-section-header" onclick="toggleAnSection('prec')">
-      <p class="section-title" style="margin:0">Performance dos Precificadores</p>
-      <div style="display:flex;gap:6px;align-items:center">
-        <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionImage('an-sec-prec','Performance dos Precificadores')">📷</button>
-        <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionWhatsApp('an-sec-prec','Performance dos Precificadores')">💬</button>
-        <button class="an-section-toggle" id="an-sec-prec-btn">▼</button>
-      </div>
-    </div>
-    <div class="an-section-explain">Ranking dos avaliadores por volume, taxa de captação e eficiência de precificação. Clique no cabeçalho para ordenar.</div>
-    <div class="an-section-body" id="an-sec-prec-body">
-      <div class="insight-box" id="an-prec-insight" style="display:none"></div>
-      <div class="card mb-24" style="overflow:auto">
-        <table class="perf-table" id="an-prec-table">
-          <thead><tr>
-            <th onclick="sortAnalyticsTable('prec','nome')">Precificador ↕</th>
-            <th onclick="sortAnalyticsTable('prec','avaliados')">Avaliados ↕</th>
-            <th onclick="sortAnalyticsTable('prec','comprados')">Comprados ↕</th>
-            <th onclick="sortAnalyticsTable('prec','captacao')">% Captação ↕</th>
-            <th onclick="sortAnalyticsTable('prec','avgFipe')">%FIPE Médio ↕</th>
-            <th onclick="sortAnalyticsTable('prec','avgValor')">Ticket Médio ↕</th>
-            <th>Índice Eficiência</th>
-          </tr></thead>
-          <tbody id="an-prec-tbody"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- SEÇÃO 4: TIPO VD/VN/VU (BUG FIX) -->
-  <div class="an-section" id="an-sec-tipo">
-    <div class="an-section-header" onclick="toggleAnSection('tipo')">
-      <p class="section-title" style="margin:0">Análise por Tipo de Equipe (VD / VN / VU)</p>
-      <div style="display:flex;gap:6px;align-items:center">
-        <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionImage('an-sec-tipo','Análise por Tipo de Equipe (VD / VN / VU)')">📷</button>
-        <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionWhatsApp('an-sec-tipo','Análise por Tipo de Equipe (VD / VN / VU)')">💬</button>
-        <button class="an-section-toggle" id="an-sec-tipo-btn">▼</button>
-      </div>
-    </div>
-    <div class="an-section-explain">Compara performance entre vendedores de veículos Usados (VU), Novos (VN) e Diretos (VD). O total pode não fechar se houver vendedores sem tipo cadastrado.</div>
-    <div class="an-section-body" id="an-sec-tipo-body">
-      <div id="an-tipo-warning" style="display:none;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:var(--r2);padding:12px 16px;font-size:13px;color:var(--accent2);margin-bottom:16px;"></div>
-      <div class="grid-2 mb-24">
-        <div class="chart-card">
-          <h3>Volume por Tipo</h3>
-          <p>Avaliados e comprados por tipo de vendedor</p>
-          <div id="an-tipo-bars"></div>
-        </div>
-        <div class="chart-card">
-          <h3>%FIPE Médio e Captação por Tipo</h3>
-          <p>Comparativo de eficiência entre VD, VN e VU</p>
-          <div class="chart-wrap compact"><canvas id="chart-tipo-comp" height="160"></canvas></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- SEÇÃO 5: PERFORMANCE VENDEDORES -->
-  <div class="an-section" id="an-sec-vend">
-    <div class="an-section-header" onclick="toggleAnSection('vend')">
-      <p class="section-title" style="margin:0">Performance dos Vendedores</p>
-      <div style="display:flex;gap:6px;align-items:center">
-        <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionImage('an-sec-vend','Performance dos Vendedores')">📷</button>
-        <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionWhatsApp('an-sec-vend','Performance dos Vendedores')">💬</button>
-        <button class="an-section-toggle" id="an-sec-vend-btn">▼</button>
-      </div>
-    </div>
-    <div class="an-section-explain">Ranking detalhado por vendedor com captação, ticket médio e dias médios até a compra. Mínimo de avaliações para aparecer no ranking.</div>
-    <div class="an-section-body" id="an-sec-vend-body">
-      <div class="card mb-24" style="overflow:auto">
-        <table class="perf-table" id="an-vend-table">
-          <thead><tr>
-            <th onclick="sortAnalyticsTable('vend','nome')">Vendedor ↕</th>
-            <th onclick="sortAnalyticsTable('vend','tipo')">Tipo ↕</th>
-            <th onclick="sortAnalyticsTable('vend','empresa')">Loja ↕</th>
-            <th onclick="sortAnalyticsTable('vend','avaliados')">Avaliados ↕</th>
-            <th onclick="sortAnalyticsTable('vend','comprados')">Comprados ↕</th>
-            <th onclick="sortAnalyticsTable('vend','captacao')">% Captação ↕</th>
-            <th onclick="sortAnalyticsTable('vend','avgFipe')">%FIPE Médio ↕</th>
-            <th onclick="sortAnalyticsTable('vend','avgDias')">Dias p/ Compra ↕</th>
-            <th>Nível</th>
-          </tr></thead>
-          <tbody id="an-vend-tbody"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- SEÇÃO 6: TOP MODELOS -->
-  <div class="an-section" id="an-sec-mod">
-    <div class="an-section-header" onclick="toggleAnSection('mod')">
-      <p class="section-title" style="margin:0">Análise por Modelo</p>
-      <div style="display:flex;gap:6px;align-items:center">
-        <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionImage('an-sec-mod','Análise por Modelo')">📷</button>
-        <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionWhatsApp('an-sec-mod','Análise por Modelo')">💬</button>
-        <button class="an-section-toggle" id="an-sec-mod-btn">▼</button>
-      </div>
-    </div>
-    <div class="an-section-explain">Top modelos por volume avaliado, com taxa de captação. Identifica quais modelos têm maior ou menor eficiência de compra.</div>
-    <div class="an-section-body" id="an-sec-mod-body">
-      <div class="grid-2 mb-24">
-        <div class="chart-card">
-          <h3>Top 15 Modelos — Avaliados vs Comprados</h3>
-          <p>Captação por modelo</p>
-          <div id="an-modelo-bars"></div>
-        </div>
-        <div class="chart-card">
-          <h3>Modelos com Maior e Menor Captação</h3>
-          <p>Mínimo 3 avaliações para aparecer no ranking</p>
-          <div id="an-modelo-captacao"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-<!-- SEÇÃO MARCA: ANÁLISE POR MARCA -->
-<div class="an-section" id="an-sec-marca">
-  <div class="an-section-header" onclick="toggleAnSection('marca')">
-    <p class="section-title" style="margin:0">Análise por Marca</p>
-    <div style="display:flex;gap:6px;align-items:center">
-      <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionImage('an-sec-marca','Análise por Marca')">📷</button>
-      <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionWhatsApp('an-sec-marca','Análise por Marca')">💬</button>
-      <button class="an-section-toggle" id="an-sec-marca-btn">▼</button>
-    </div>
-  </div>
-  <div class="an-section-explain">Comparativo entre marcas: volume avaliado, comprado, %FIPE médio e ticket médio. Agrupa todos os modelos de cada fabricante.</div>
-  <div class="an-section-body" id="an-sec-marca-body">
-    <div class="grid-2 mb-24">
-      <div class="chart-card">
-        <h3>Top Marcas — Avaliados vs Comprados</h3>
-        <p>Captação por fabricante</p>
-        <div id="an-marca-bars"></div>
-      </div>
-      <div class="chart-card">
-        <h3>%FIPE Médio por Marca</h3>
-        <p>Ticket médio e eficiência de precificação por fabricante</p>
-        <div class="chart-wrap compact"><canvas id="chart-marca-comp" height="160"></canvas></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-  <!-- SEÇÃO 7: CLASSIFICAÇÃO A/B/C/D/E -->
-  <div class="an-section" id="an-sec-class">
-    <div class="an-section-header" onclick="toggleAnSection('class')">
-      <p class="section-title" style="margin:0">Análise por Classificação (A–E)</p>
-      <div style="display:flex;gap:6px;align-items:center">
-        <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionImage('an-sec-class','Análise por Classificação (A–E)')">📷</button>
-        <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionWhatsApp('an-sec-class','Análise por Classificação (A–E)')">💬</button>
-        <button class="an-section-toggle" id="an-sec-class-btn">▼</button>
-      </div>
-    </div>
-    <div class="an-section-explain">Distribuição de avaliações por nota de qualidade do veículo (A=melhor, E=pior). Revela quais classificações têm maior captação e valor médio ofertado.</div>
-    <div class="an-section-body" id="an-sec-class-body">
-      <div id="an-class-aviso" style="display:none;background:rgba(100,116,139,0.1);border:1px solid var(--border);border-radius:var(--r2);padding:12px 16px;font-size:13px;color:var(--text3);margin-bottom:16px;"></div>
-      <div class="grid-2 mb-24">
-        <div class="chart-card">
-          <h3>Captação por Classificação</h3>
-          <p>Volume avaliado e comprado por categoria A/B/C/D/E</p>
-          <div id="an-class-bars"></div>
-        </div>
-        <div class="chart-card">
-          <h3>%FIPE Médio e Ticket por Classificação</h3>
-          <p>Comparativo de valor ofertado por categoria</p>
-          <div class="chart-wrap compact"><canvas id="chart-class-comp" height="160"></canvas></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-<!-- SEÇÃO AA: COMPARATIVO AA -->
-<div class="an-section" id="an-sec-aa">
-  <div class="an-section-header" onclick="toggleAnSection('aa')">
-    <p class="section-title" style="margin:0">Comparativo AA — Valor Pago vs Mercado</p>
-    <div style="display:flex;gap:6px;align-items:center">
-      <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionImage('an-sec-aa','Comparativo AA')">📷</button>
-      <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionWhatsApp('an-sec-aa','Comparativo AA')">💬</button>
-      <button class="an-section-toggle" id="an-sec-aa-btn">▼</button>
-    </div>
-  </div>
-  <div class="an-section-explain">Cruza o valor médio pago pelo AA (coluna 'AA' da planilha de comprados) com o valor avaliado. Identifica se estamos comprando acima ou abaixo da referência de mercado AA.</div>
-  <div class="an-section-body" id="an-sec-aa-body">
-    <div id="an-aa-aviso" style="display:none;background:rgba(100,116,139,0.1);border:1px solid var(--border);border-radius:var(--r2);padding:12px 16px;font-size:13px;color:var(--text3);margin-bottom:16px;"></div>
-    <div class="aa-comp-grid" id="an-aa-cards"></div>
-    <div class="grid-2 mb-24" style="margin-top:16px">
-      <div class="chart-card">
-        <h3>Valor AA vs Valor Avaliado — por Modelo</h3>
-        <p>Top modelos: quanto o AA referencia vs quanto avaliamos</p>
-        <div class="chart-wrap compact"><canvas id="chart-aa-comp" height="180"></canvas></div>
-      </div>
-      <div class="chart-card">
-        <h3>Delta AA (Avaliado − AA Ref.) por Faixa</h3>
-        <p>Positivo = avaliamos acima do AA; Negativo = abaixo</p>
-        <div class="chart-wrap compact"><canvas id="chart-aa-delta" height="180"></canvas></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-  <!-- SEÇÃO 9: ANÁLISE TEMPORAL -->
-  <div class="an-section" id="an-sec-tempo">
-    <div class="an-section-header" onclick="toggleAnSection('tempo')">
-      <p class="section-title" style="margin:0">Métricas Temporais</p>
-      <div style="display:flex;gap:6px;align-items:center">
-        <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionImage('an-sec-tempo','Métricas Temporais')">📷</button>
-        <button class="an-section-toggle" onclick="event.stopPropagation();exportSectionWhatsApp('an-sec-tempo','Métricas Temporais')">💬</button>
-        <button class="an-section-toggle" id="an-sec-tempo-btn">▼</button>
-      </div>
-    </div>
-    <div class="an-section-explain">Distribuição de avaliações por dia da semana e tempo médio entre avaliação e compra efetiva.</div>
-    <div class="an-section-body" id="an-sec-tempo-body">
-      <div class="grid-2 mb-24">
-        <div class="chart-card">
-          <h3>Avaliações por Dia da Semana</h3>
-          <p>Distribuição do volume por dia</p>
-          <div class="chart-wrap compact"><canvas id="chart-dia-semana" height="160"></canvas></div>
-        </div>
-        <div class="chart-card">
-          <h3>Tempo Médio Avaliação → Compra</h3>
-          <p>Distribuição em dias entre avaliação e compra (comprados)</p>
-          <div class="chart-wrap compact"><canvas id="chart-tempo-compra" height="160"></canvas></div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- TAB: ALERTAS -->
 <div id="tab-alertas" class="tab-content">
   <div class="section-header">
@@ -1180,39 +784,47 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
 <!-- TAB: IA ASSISTANT -->
 <div id="tab-ia" class="tab-content">
   <div class="section-header">
-    <h2>Assistente IA — Pesquisa Inteligente</h2>
+    <h2>Copiloto Carmais — Análise Inteligente</h2>
     <span class="badge badge-blue">Beta</span>
   </div>
   <div class="ai-key-setup" id="ai-key-setup">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
       <span style="font-size:20px">🔑</span>
       <div>
-        <div style="font-size:14px;font-weight:700;color:var(--accent)">Configure sua chave da API Claude</div>
+        <div style="font-size:14px;font-weight:700;color:var(--accent)">Configure sua chave da API Gemini</div>
         <div style="font-size:12px;color:var(--text3)">Necessária para usar o assistente. Salva apenas neste navegador — nunca compartilhada.</div>
       </div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-      <input type="password" id="claude-api-key" placeholder="sk-ant-api03-..." style="flex:1;min-width:200px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r2);padding:8px 14px;font-size:13px;color:var(--text);font-family:monospace;outline:none;"/>
-      <button class="btn btn-primary" onclick="saveClaudeKey(document.getElementById('claude-api-key').value)">💾 Salvar chave</button>
+      <input type="password" id="gemini-api-key" placeholder="Cole aqui sua chave Gemini: AIza..." style="flex:1;min-width:200px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r2);padding:8px 14px;font-size:13px;color:var(--text);font-family:monospace;outline:none;"/>
+      <button class="btn btn-primary" onclick="saveGeminiKey(document.getElementById('gemini-api-key').value)">💾 Salvar chave</button>
     </div>
-    <div style="font-size:11px;color:var(--text3);margin-top:8px;">Obtenha sua chave em console.anthropic.com → API Keys</div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;">
+      <label style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text3);">Modelo</label>
+      <select id="gemini-model-select" onchange="saveGeminiModel(this.value)" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r2);padding:8px 12px;font-size:12px;color:var(--text);outline:none;min-width:220px;">
+        <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite — mais estável</option>
+        <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite — fallback rápido</option>
+        <option value="gemini-2.5-flash">Gemini 2.5 Flash — fallback</option>
+        <option value="gemini-3.5-flash">Gemini 3.5 Flash — melhor, mas pode lotar</option>
+      </select>
+    </div>
+    <div style="font-size:11px;color:var(--text3);margin-top:8px;">Obtenha sua chave em Google AI Studio → API Keys. Se um modelo estiver sobrecarregado, o dashboard tenta automaticamente outro modelo.</div>
   </div>
-  <p style="font-size:13px;color:var(--text3);margin-bottom:12px;">Faça perguntas em linguagem natural sobre os dados do dashboard. O assistente analisa os dados filtrados:</p>
-  <div class="ai-suggestions">
-    <button class="ai-suggestion-btn" onclick="sendAIMessage('Quais Dolphin Mini foram avaliados em maio?')">🚗 Dolphin Mini em maio</button>
-    <button class="ai-suggestion-btn" onclick="sendAIMessage('Qual a taxa de captação por loja no período atual?')">📊 Captação por loja</button>
-    <button class="ai-suggestion-btn" onclick="sendAIMessage('Quais vendedores tiveram mais avaliações?')">🏆 Top vendedores</button>
-    <button class="ai-suggestion-btn" onclick="sendAIMessage('Quantos veículos foram melhorados e qual o valor médio?')">💰 Melhorados</button>
-    <button class="ai-suggestion-btn" onclick="sendAIMessage('Me dê um resumo geral do período filtrado')">📋 Resumo geral</button>
-    <button class="ai-suggestion-btn" onclick="sendAIMessage('Quais comprados ainda não receberam melhoria?')">🔍 Pendentes</button>
-    <button class="ai-suggestion-btn" onclick="sendAIMessage('Compare a performance entre as lojas')">🏪 Comparativo lojas</button>
+  <p style="font-size:13px;color:var(--text3);margin-bottom:12px;">Faça perguntas em linguagem natural sobre os dados filtrados do dashboard. O Copiloto Carmais responde com visão gerencial e plano de ação:</p>
+  <div class="ai-suggestions ai-quick-actions">
+    <button class="ai-suggestion-btn" onclick="perguntaRapidaIA('Faça um resumo executivo do período selecionado.')">📋 Resumo executivo</button>
+    <button class="ai-suggestion-btn" onclick="perguntaRapidaIA('Quais lojas precisam de atenção?')">📊 Lojas em atenção</button>
+    <button class="ai-suggestion-btn" onclick="perguntaRapidaIA('Quais vendedores estão abaixo da média?')">🏆 Vendedores abaixo da média</button>
+    <button class="ai-suggestion-btn" onclick="perguntaRapidaIA('Quais placas melhoradas ainda não viraram negócio fechado?')">🔑 Placas melhoradas</button>
+    <button class="ai-suggestion-btn" onclick="perguntaRapidaIA('Onde temos oportunidade de aumentar a conversão?')">📈 Aumentar conversão</button>
+    <button class="ai-suggestion-btn" onclick="perguntaRapidaIA('Quais oportunidades ainda estão pendentes e merecem ação imediata?')">⚡ Oportunidades pendentes</button>
   </div>
   <div class="ai-chat-container">
     <div class="ai-chat-messages" id="ai-chat-messages">
-      <div class="ai-msg assistant">Olá! Sou seu assistente de análise de dados do Grupo Carmais. Configure sua chave API acima e faça perguntas sobre avaliações, compras, vendedores, lojas e muito mais. 🚗</div>
+      <div class="ai-msg assistant">Olá! Sou o Copiloto Carmais. Pergunte sobre captação, lojas, vendedores, compradores ou plano de ação. Vou responder curto, visual e direto.</div>
     </div>
     <div class="ai-chat-input-row">
-      <input class="ai-chat-input-field" id="ai-chat-input" type="text" placeholder="Ex: Quais Dolphin Mini avaliamos entre 20 e 30 de maio?" onkeydown="if(event.key==='Enter')sendAIMessage();"/>
+      <input class="ai-chat-input-field" id="ai-chat-input" type="text" placeholder="Ex: Faça um resumo executivo do período e o que devo olhar hoje." onkeydown="if(event.key==='Enter')perguntarAoCopiloto();"/>
       <button class="btn btn-primary" onclick="sendAIMessage()" id="ai-send-btn">Enviar</button>
       <button class="btn btn-ghost" onclick="clearAIChat()" title="Limpar conversa">🗑️</button>
     </div>
@@ -1336,6 +948,14 @@ function loadSavedApiUrl() {
 // ============================================================
 // API
 // ============================================================
+
+function fetchWithTimeout(url, options = {}, ms = 45000) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), ms);
+  return fetch(url, { ...options, signal: controller.signal })
+    .finally(() => clearTimeout(timeoutId));
+}
+
 async function callAPI(params) {
   if (!API_URL) throw new Error('URL do Apps Script não configurada. Faça login com o arquivo correto ou ajuste em Config Script após acessar.');
   setCloud('syncing');
@@ -1353,7 +973,7 @@ async function callAPI(params) {
       }
     }
     const url = API_URL + '?' + qs.toString();
-    const r = await fetch(url, { method: 'GET', redirect: 'follow' });
+    const r = await fetchWithTimeout(url, { method: 'GET', redirect: 'follow' }, 45000);
     if (!r.ok) throw new Error('Erro HTTP ' + r.status);
     const text = await r.text();
     let j;
@@ -1508,7 +1128,7 @@ async function testConnection() {
   btn.textContent = '⏳ Testando...'; btn.disabled = true;
   try {
     const url = API_URL + '?action=getConfig';
-    const r = await fetch(url, { method: 'GET', redirect: 'follow' });
+    const r = await fetchWithTimeout(url, { method: 'GET', redirect: 'follow' }, 45000);
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const text = await r.text();
     const j = JSON.parse(text);
@@ -1655,16 +1275,13 @@ async function loadDataFromSheets(forceRefresh) {
         STATE.comprador = cached.data.comprador || [];
         crossJoin();
         applyCompradorSheetData(STATE.avaliacoes, STATE.comprador);
-        if (!STATE._filtersInitialized) {
-          populateFilters(true); STATE._filtersInitialized = true;
-          initAnalyticsDates();
-        }
+        if (!STATE._filtersInitialized) { populateFilters(true); STATE._filtersInitialized = true; }
         applyFilters();
         updateStatusBar();
         const bar = document.getElementById('data-status-bar');
         const vin = STATE.avaliacoes.filter(r=>r.compraInput).length;
-        if (bar) bar.innerHTML = `<span><span class="dot-green">●</span> Cache local — atualizado há <strong>${cached.ageMin} min</strong></span><span><span class="dot-green">●</span> Avaliações: <strong>${STATE.avaliacoes.length}</strong></span><span><span class="dot-green">●</span> Comprados: <strong>${STATE.comprados.length}</strong></span><span><span class="dot-green">●</span> Vinculados: <strong>${vin}</strong></span><span style="margin-left:auto"><button class="btn btn-ghost" style="padding:4px 10px;font-size:12px" onclick="loadDataFromSheets(true)">🔄 Atualizar agora</button></span>`;
-        setTimeout(()=>loadDataFromSheets(true), 3000);
+        if (bar) bar.innerHTML = `<span><span class="dot-green">●</span> Cache rápido — atualizado há <strong>${cached.ageMin} min</strong></span><span><span class="dot-green">●</span> Avaliações: <strong>${STATE.avaliacoes.length}</strong></span><span><span class="dot-green">●</span> Comprados: <strong>${STATE.comprados.length}</strong></span><span><span class="dot-green">●</span> Vinculados: <strong>${vin}</strong></span><span style="margin-left:auto"><button class="btn btn-ghost" style="padding:4px 10px;font-size:12px" onclick="loadDataFromSheets(true)">🔄 Atualizar agora</button></span>`;
+        // Carregamento rápido: usa cache e só atualiza do Google Sheets quando o usuário clicar em Atualizar agora.
         return;
       } catch(ce) { console.warn('Cache restore failed:', ce); }
     }
@@ -1733,10 +1350,7 @@ async function loadDataFromSheets(forceRefresh) {
         comprador: STATE.comprador
       });
     } catch(ce) { console.warn('Cache save failed:', ce); }
-    if (!STATE._filtersInitialized) {
-      populateFilters(true); STATE._filtersInitialized = true;
-      initAnalyticsDates();
-    } else { populateFilters(false); }
+    if (!STATE._filtersInitialized) { populateFilters(true); STATE._filtersInitialized = true; } else { populateFilters(false); }
     applyFilters();
     updateStatusBar();
     showDiagnostico(diag);
@@ -1828,8 +1442,8 @@ function normalizeAvFromSheets(r) {
     // Status
     status: getField(r, 'status', 'Status', 'Instancias', 'Instância'),
 
-    // Objetivo (tipo de negócio: VD/VN/VU)
-    objetivo: getField(r, 'objetivo', 'Objetivo', 'Tipo Negócio', 'Tipo de Negócio', 'TipoNegocio'),
+    // Objetivo
+    objetivo: getField(r, 'objetivo', 'Objetivo', 'Classificação', 'Classificacao', 'Tipo Negócio'),
 
     // Valores
     valorAv: parseNumBR(getField(r, 'valorAv', 'Valor da avaliação', 'Valor da Avaliação', 'Valor Avaliação', 'Valor')),
@@ -1844,24 +1458,6 @@ function normalizeAvFromSheets(r) {
     km: parseNumBR(getField(r, 'km', 'KM', 'Km', 'Quilometragem')),
     aa: parseNumBR(getField(r, 'aa', 'AA')),
     b2b: parseNumBR(getField(r, 'b2b', 'B2B')),
-    // Classificação A/B/C/D/E do veículo — tenta várias colunas possíveis da planilha AA
-    classificacao: (()=>{
-      const raw = getField(r,
-        'classificacao','Classificação','Classificacao','Classif','CLASSIF',
-        'Categoria','categoria','Classe','classe','Class',
-        'Nota AA','Nota_AA','NotaAA','ClassificacaoAA','Classificacao AA',
-        'AA Classificação','AA Classificacao','AA_Classif',
-        'Avaliação AA','Avaliacao AA','GrauAA','Grau AA'
-      );
-      const v = String(raw||'').trim().toUpperCase();
-      if(['A','B','C','D','E'].includes(v)) return v;
-      const n = parseNumBR(v);
-      if(n>=1&&n<=5) return ['A','B','C','D','E'][Math.round(n)-1];
-      // Fallback: usa o campo aa numérico se ele existir no range 1-5
-      const aaNum = parseNumBR(getField(r,'aa','AA'));
-      if(aaNum>=1&&aaNum<=5) return ['A','B','C','D','E'][Math.round(aaNum)-1];
-      return null;
-    })(),
 
     // Chassi/VIN do veículo avaliado (para vínculo alternativo com comprados)
     // Importante: na aba AVALIAÇÕES o cabeçalho do chassi costuma vir como VIN.
@@ -2343,7 +1939,6 @@ function parseDate(val){
   const d=new Date(s);return isNaN(d)?null:d;
 }
 function fmtDate(d){if(!d)return'—';if(!(d instanceof Date))d=parseDate(d);if(!d||isNaN(d))return'—';return d.toLocaleDateString('pt-BR');}
-function fmtBRL(v){if(v==null||isNaN(v))return'—';return'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});}
 function dateStr(d){if(!d)return'';if(!(d instanceof Date))d=parseDate(d);if(!d||isNaN(d))return'';return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 function fmtDateForSheets(d){return dateStr(d);}
 function parseNumBR(val){
@@ -2506,7 +2101,6 @@ function switchTab(name,btn){
   if(name==='comprador-vis')renderCompradorVis();
   if(name==='usuarios'){loadUsuarios();loadCompradores();}
   if(name==='historico')loadHistorico();
-  if(name==='analytics')renderAnalytics();
   if(name==='ia')initAIKeyUI();
   if(name==='alertas'){
     const cfg=JSON.parse(localStorage.getItem('carmais_alert_config')||'{}');
@@ -2571,6 +2165,8 @@ function passesFilters(r){
   if(!contains(r.tipo,document.getElementById('f-tipo')?.value||''))return false;
   if(!contains(r.placa,document.getElementById('f-placa')?.value||''))return false;
   if(!contains(r.compradorNome,document.getElementById('f-comprador')?.value||''))return false;
+  const mel=document.getElementById('f-melhorado')?.value||'';
+  if(mel&&(r.melhorado||'Não')!==mel)return false;
   return true;
 }
 function applyFilters(){
@@ -2589,7 +2185,7 @@ function applyFilters(){
   renderDashboard();renderDetailTable();renderDetailCompradosTable();renderCompradorVis();
 }
 function clearFilters(){
-  ['f-data-ini','f-data-fim','f-modelo','f-objetivo','f-tipo','f-placa','f-comprador'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['f-data-ini','f-data-fim','f-modelo','f-objetivo','f-tipo','f-placa','f-melhorado','f-comprador'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   STATE.msSelected={'ms-empresa':[],'ms-vendedor':[],'ms-precificador':[]};
   populateFilters();
   applyFilters();
@@ -2657,14 +2253,15 @@ function renderDashboard(){
   const pct=ta>0?(tc/ta*100).toFixed(1):'0.0';
   const sf=av.reduce((s,r)=>s+(parseFloat(r.fipe)||0),0),sv=av.reduce((s,r)=>s+(parseFloat(r.valorAv)||0),0);
   const mfipe=sf>0?(sv/sf*100).toFixed(1):'—';
+  const tm=av.filter(r=>r.melhorado==='Sim').length;
   setText('kpi-avaliados',ta.toLocaleString('pt-BR'));setText('kpi-comprado',tc.toLocaleString('pt-BR'));
-  setText('kpi-captacao',pct+'%');setText('kpi-fipe',mfipe!=='—'?mfipe+'%':'—');
+  setText('kpi-captacao',pct+'%');setText('kpi-fipe',mfipe!=='—'?mfipe+'%':'—');setText('kpi-melhorados',tm.toLocaleString('pt-BR'));
   const dm=new Set(av.map(r=>dateStr(r.dataAv)).filter(Boolean)).size;
-  const med=dm>0?(ta/dm).toFixed(1):'0.0';
+  const med=dm>0?(ta/dm).toFixed(1):'0.0',pm=ta>0?(tm/ta*100).toFixed(1):'0.0';
   const lm={};av.forEach(r=>{const l=r.empresaEquipe||r.empresa||'N/D';lm[l]=(lm[l]||0)+1;});
   const topL=Object.entries(lm).sort((a,b)=>b[1]-a[1])[0];
   setText('cmp-av-cp',`${tc}/${ta}`);setText('cmp-av-cp-sub',`${pct}% captação`);
-  setText('cmp-media-dia',med);
+  setText('cmp-media-dia',med);setText('cmp-melhorado',`${tm}/${ta}`);setText('cmp-melhorado-sub',`${pm}% dos avaliados`);
   setText('cmp-top-loja',topL?topL[1].toLocaleString('pt-BR'):'—');setText('cmp-top-loja-sub',topL?topL[0]:'maior volume');
   const om={};cp.forEach(r=>{if(r.objetivo)om[r.objetivo]=(om[r.objetivo]||0)+1;});
   const od=document.getElementById('obj-cards');
@@ -2694,9 +2291,8 @@ function renderDashboard(){
   const pm2={};av.forEach(r=>{if(r.precificador)pm2[r.precificador]=(pm2[r.precificador]||0)+1;});
   renderRanking('rank-precificador',Object.entries(pm2).sort((a,b)=>b[1]-a[1]),'#f59e0b');
   renderDoughnut('chart-objetivo',Object.keys(om),Object.values(om));
-  // BUG FIX: inclui vendedores sem equipe cadastrada como "Sem Tipo" para não perder contagem
-  const tm2={};av.forEach(r=>{const t=r.tipo||'Sem Tipo';tm2[t]=(tm2[t]||0)+1;});
-  renderDoughnut('chart-tipo',Object.keys(tm2),Object.values(tm2),['#3b82f6','#f59e0b','#10b981','#8b5cf6','#ef4444','#64748b']);
+  const tm2={};av.forEach(r=>{if(r.tipo)tm2[r.tipo]=(tm2[r.tipo]||0)+1;});
+  renderDoughnut('chart-tipo',Object.keys(tm2),Object.values(tm2),['#3b82f6','#f59e0b','#10b981','#8b5cf6','#ef4444']);
 }
 
 // CHARTS
@@ -2738,12 +2334,10 @@ function renderDetailTable(){
   if(STATE.detailPage>pages)STATE.detailPage=pages;
   const rows=data.slice((STATE.detailPage-1)*STATE.detailPageSize,STATE.detailPage*STATE.detailPageSize);
   const tb=document.getElementById('detail-tbody');if(!tb)return;
-  const classColors={A:'#10b981',B:'#3b82f6',C:'#f59e0b',D:'#f97316',E:'#ef4444'};
-  if(!rows.length){tb.innerHTML='<tr><td colspan="16" style="text-align:center;padding:40px;color:var(--text3)">Nenhum avaliado</td></tr>';return;}
+  if(!rows.length){tb.innerHTML='<tr><td colspan="20" style="text-align:center;padding:40px;color:var(--text3)">Nenhum avaliado</td></tr>';return;}
   tb.innerHTML=rows.map(r=>{
     const fp=r.pctFipe?r.pctFipe.toFixed(1)+'%':'—',fc=r.pctFipe?(r.pctFipe<80?'fipe-low':r.pctFipe<95?'fipe-mid':'fipe-high'):'';
     const cb=r.comprado?'<span class="badge badge-green">Sim</span>':'<span class="badge badge-gray">Não</span>';
-    const cl=r.classificacao?`<span style="display:inline-block;width:20px;height:20px;line-height:20px;text-align:center;border-radius:4px;font-size:11px;font-weight:700;background:${classColors[r.classificacao]}22;color:${classColors[r.classificacao]}">${r.classificacao}</span>`:'—';
     return`<tr><td>${escHtml(r.idAv||'—')}</td><td>${fmtDate(r.dataAv)}</td><td>${escHtml(r.empresa||'—')}</td><td>${escHtml(r.vendedor||'—')}</td>
       <td>${escHtml(r.precificador||'—')}</td><td>${r.objetivo?`<span class="badge badge-${r.objetivo==='REPASSE'?'purple':'blue'}">${escHtml(r.objetivo)}</span>`:'—'}</td>
       <td>${r.tipo?`<span class="badge badge-gray">${escHtml(r.tipo)}</span>`:'—'}</td>
@@ -2752,8 +2346,7 @@ function renderDetailTable(){
       <td class="${fc}">${fp}</td><td>${escHtml(r.placa||'—')}</td>
       <td>${escHtml(r.marca||'—')}</td><td>${escHtml(r.modelo||'—')}</td>
       <td>${r.km?Number(r.km).toLocaleString('pt-BR'):'—'}</td>
-      <td>${cl}</td>
-      <td>${cb}</td></tr>`;
+      <td>${cb}</td>${editableBuyerCells(r)}</tr>`;
   }).join('');
   renderPagination('detail-pagination',pages,STATE.detailPage,p=>{STATE.detailPage=p;renderDetailTable();},`${total} avaliados não comprados`);
 }
@@ -2767,14 +2360,10 @@ function renderDetailCompradosTable(){
   if(STATE.detailCompradosPage>pages)STATE.detailCompradosPage=pages;
   const rows=data.slice((STATE.detailCompradosPage-1)*ps,STATE.detailCompradosPage*ps);
   const tb=document.getElementById('detail-comprados-tbody');if(!tb)return;
-  const clrC={A:'#10b981',B:'#3b82f6',C:'#f59e0b',D:'#f97316',E:'#ef4444'};
-  if(!rows.length){tb.innerHTML='<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--text3)">Nenhum comprado</td></tr>';return;}
-  tb.innerHTML=rows.map(r=>{
-    const cl=r.classificacao?`<span style="display:inline-block;width:20px;height:20px;line-height:20px;text-align:center;border-radius:4px;font-size:11px;font-weight:700;background:${clrC[r.classificacao]}22;color:${clrC[r.classificacao]}">${r.classificacao}</span>`:'—';
-    return`<tr><td>${fmtDate(getCompraDate(r))}</td><td>${fmtDate(r.dataAv)}</td><td>${escHtml(r.empresaCompraInput||'—')}</td><td>${escHtml(r.empresa||r.empresaEquipe||'—')}</td>
+  if(!rows.length){tb.innerHTML='<tr><td colspan="14" style="text-align:center;padding:40px;color:var(--text3)">Nenhum comprado</td></tr>';return;}
+  tb.innerHTML=rows.map(r=>`<tr><td>${fmtDate(getCompraDate(r))}</td><td>${fmtDate(r.dataAv)}</td><td>${escHtml(r.empresaCompraInput||'—')}</td><td>${escHtml(r.empresa||r.empresaEquipe||'—')}</td>
     <td>${escHtml(r.vendedor||'—')}</td><td>${escHtml(r.placa||'—')}</td><td>${escHtml(r.modelo||'—')}</td><td>${escHtml(r.objetivo||'—')}</td>
-    <td>${cl}</td><td>${r.valorAv?'R$ '+Number(r.valorAv).toLocaleString('pt-BR'):'—'}</td></tr>`;
-  }).join('');
+    <td>${r.valorAv?'R$ '+Number(r.valorAv).toLocaleString('pt-BR'):'—'}</td>${editableBuyerCells(r)}</tr>`).join('');
   renderPagination('detail-comprados-pagination',pages,STATE.detailCompradosPage,p=>{STATE.detailCompradosPage=p;renderDetailCompradosTable();},`${total} comprados`);
 }
 
@@ -2993,26 +2582,76 @@ async function exportJPEG(){
 // ============================================================
 // TOAST
 // ============================================================
+
+function extractGoogleSpreadsheetId(input) {
+  const raw = String(input || '').trim();
+  if (!raw) return '';
+  // Aceita URL completa: https://docs.google.com/spreadsheets/d/ID/edit...
+  const match = raw.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  if (match && match[1]) return match[1];
+  // Aceita somente o ID da planilha
+  const clean = raw.replace(/[?#].*$/, '').replace(/\/$/, '').trim();
+  return clean;
+}
+
+function getImportErrorMessage(err) {
+  const msg = String(err && err.message ? err.message : err || 'Erro desconhecido');
+  if (/not found|não encontrado|cannot find|arquivo/i.test(msg)) {
+    return 'Não encontrei a planilha. Confira se a URL/ID está correto e se a planilha está compartilhada com a conta do Apps Script.';
+  }
+  if (/permission|permiss|access|acesso|403/i.test(msg)) {
+    return 'Sem permissão para acessar a planilha. Compartilhe a planilha com a conta Google usada no Apps Script ou deixe o acesso por link habilitado.';
+  }
+  if (/sheet|aba|range/i.test(msg)) {
+    return 'A aba informada não foi encontrada. Confira o nome da aba ou deixe o campo Aba em branco.';
+  }
+  if (/timeout|demorou|exceeded/i.test(msg)) {
+    return 'A importação demorou demais. Tente importar novamente ou dividir a planilha em uma quantidade menor de linhas.';
+  }
+  return msg;
+}
+
 async function importFromGoogleSheets(mode) {
-  const url = document.getElementById('sheets-import-url').value.trim();
-  const tab = document.getElementById('sheets-import-tab').value.trim();
-  if (!url) { showToast('Cole a URL ou ID da planilha Google.', 'error'); return; }
+  const inputEl = document.getElementById('sheets-import-url');
+  const tabEl = document.getElementById('sheets-import-tab');
+  const rawUrl = inputEl ? inputEl.value.trim() : '';
+  const spreadsheetId = extractGoogleSpreadsheetId(rawUrl);
+  const tab = tabEl ? tabEl.value.trim() : '';
+
+  if (!spreadsheetId) {
+    showToast('Cole a URL ou o ID da planilha Google.', 'error');
+    return;
+  }
+  if (spreadsheetId.includes('docs.google.com') || spreadsheetId.length < 20) {
+    showToast('URL/ID da planilha inválido. Cole a URL completa do Google Sheets ou somente o ID.', 'error');
+    return;
+  }
+
   const modeLabel = mode === 'replace' ? 'Substituindo base' : 'Incluindo na base';
-  showLoading(modeLabel + ' via Google Sheets... aguarde.');
+  showLoading(modeLabel + ' via Google Sheets...');
+
   try {
-    const result = await callAPI({
+    const payload = {
       action: 'importFromSheet',
-      spreadsheetId: url,
+      spreadsheetId,
+      sheetId: spreadsheetId,
+      sheetUrl: rawUrl,
       sheetName: tab || null,
       targetAba: 'AVALIACOES',
       mode,
       usuario: SESSION.nome,
       perfil: SESSION.perfil
-    });
-    showToast('✅ ' + (result.inserted||0) + ' avaliações importadas!' + (result.duplicates ? ' ' + result.duplicates + ' duplicatas ignoradas.' : ''), 'success');
-    await loadDataFromSheets();
+    };
+
+    const result = await callAPI(payload);
+
+    // Após importar, força atualização e limpa o cache antigo para não mostrar dado velho.
+    localStorage.removeItem(DATA_CACHE_KEY);
+    showToast('✅ ' + (result.inserted || result.replaced || result.count || 0) + ' avaliações importadas!' + (result.duplicates ? ' ' + result.duplicates + ' duplicatas ignoradas.' : ''), 'success');
+    await loadDataFromSheets(true);
   } catch(e) {
-    showToast('Erro: ' + e.message, 'error');
+    showToast('Erro na importação: ' + getImportErrorMessage(e), 'error');
+    console.error('Erro importFromGoogleSheets:', e);
   } finally {
     hideLoading();
   }
@@ -3028,844 +2667,10 @@ function showToast(msg,type='info'){
 }
 
 // ============================================================
-// ANALYTICS TAB
-// ============================================================
-const AN_SORT = { prec:{ col:'avaliados', asc:false }, vend:{ col:'avaliados', asc:false } };
-
-// ============================================================
-// ANALYTICS HELPERS
-// ============================================================
-function initAnalyticsDates() {
-  // Inicializa os filtros de data do analytics com o intervalo REAL dos dados.
-  // Nunca copia o mês atual do dashboard — isso cortaria dados de outros meses.
-  const datas = (STATE.avaliacoes||[]).map(r=>r.dataAv).filter(d=>d instanceof Date && !isNaN(d));
-  if (!datas.length) return;
-  const minD = new Date(Math.min(...datas.map(d=>d.getTime())));
-  const maxD = new Date(Math.max(...datas.map(d=>d.getTime())));
-  const ini = document.getElementById('an-f-ini');
-  const fim = document.getElementById('an-f-fim');
-  if (ini) ini.value = dateStr(minD);
-  if (fim) fim.value = dateStr(maxD);
-}
-
-// ============================================================
-// MULTI-SELECT DROPDOWN
-// ============================================================
-const MS_STATE = {};
-
-function toggleMsDropdown(id) {
-  const drop = document.getElementById('ms-'+id+'-drop');
-  const btn = document.getElementById('ms-'+id+'-btn');
-  if (!drop) return;
-  const open = drop.classList.toggle('open');
-  if (btn) btn.classList.toggle('open', open);
-  if (open) {
-    const search = document.getElementById('ms-'+id+'-search');
-    if (search) search.focus();
-    const close = e => { if (!document.getElementById('ms-'+id+'-wrap')?.contains(e.target)) { drop.classList.remove('open'); if(btn)btn.classList.remove('open'); document.removeEventListener('click', close); } };
-    setTimeout(() => document.addEventListener('click', close), 0);
-  }
-}
-
-const MS_OPTIONS = {};
-
-function populateMsDropdown(id, options) {
-  if (!MS_STATE[id]) MS_STATE[id] = new Set();
-  MS_OPTIONS[id] = options;
-  const list = document.getElementById('ms-'+id+'-list');
-  if (!list) return;
-  // Remove options that no longer exist
-  [...MS_STATE[id]].forEach(v => { if (!options.includes(v)) MS_STATE[id].delete(v); });
-  list.innerHTML = options.map((o, i) => {
-    const cbId = `ms-${id}-cb-${i}`;
-    const checked = MS_STATE[id].has(o) ? 'checked' : '';
-    return `<div class="ms-item"><input type="checkbox" id="${cbId}" data-idx="${i}" ${checked} onchange="onMsCbChange('${id}',${i},this.checked)"><label for="${cbId}">${escHtml(o)}</label></div>`;
-  }).join('');
-  updateMsLabel(id);
-}
-
-function onMsCbChange(id, idx, checked) {
-  if (!MS_STATE[id]) MS_STATE[id] = new Set();
-  const val = (MS_OPTIONS[id]||[])[idx];
-  if (val === undefined) return;
-  if (checked) MS_STATE[id].add(val); else MS_STATE[id].delete(val);
-  updateMsLabel(id);
-  renderAnalytics();
-}
-
-function toggleMsItem(id, val, checked) {
-  if (!MS_STATE[id]) MS_STATE[id] = new Set();
-  if (checked) MS_STATE[id].add(val); else MS_STATE[id].delete(val);
-  updateMsLabel(id);
-  renderAnalytics();
-}
-
-function getMsSelected(id) {
-  return MS_STATE[id] ? [...MS_STATE[id]] : [];
-}
-
-function clearMsSelected(id) {
-  if (MS_STATE[id]) MS_STATE[id].clear();
-  const list = document.getElementById('ms-'+id+'-list');
-  if (list) list.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = false);
-  updateMsLabel(id);
-}
-
-function updateMsLabel(id) {
-  const sel = getMsSelected(id);
-  const label = document.getElementById('ms-'+id+'-label');
-  if (!label) return;
-  label.textContent = sel.length === 0 ? 'Todas' : sel.length === 1 ? sel[0] : `${sel.length} lojas selecionadas`;
-}
-
-function filterMsItems(id, search) {
-  const list = document.getElementById('ms-'+id+'-list');
-  if (!list) return;
-  const s = search.toLowerCase();
-  list.querySelectorAll('.ms-item').forEach(item => {
-    const label = item.querySelector('label');
-    item.style.display = label && label.textContent.toLowerCase().includes(s) ? '' : 'none';
-  });
-}
-
-function getAnalyticsData() {
-  const iniV = document.getElementById('an-f-ini')?.value || '';
-  const fimV = document.getElementById('an-f-fim')?.value || '';
-  const empF = getMsSelected('empresa');
-  const tipoF = document.getElementById('an-f-tipo')?.value || '';
-  const objF = (document.getElementById('an-f-objetivo')?.value||'').trim().toLowerCase();
-  const precF = (document.getElementById('an-f-prec')?.value||'').trim().toLowerCase();
-  const fipeFx = document.getElementById('an-f-fipe')?.value || '';
-  const classF = document.getElementById('an-f-class')?.value || '';
-  const marcaF = (document.getElementById('an-f-marca')?.value||'').trim();
-  const modeloF = (document.getElementById('an-f-modelo')?.value||'').trim().toLowerCase();
-
-  const ini = iniV ? new Date(iniV+'T00:00:00') : null;
-  const fim = fimV ? new Date(fimV+'T23:59:59') : null;
-
-  return (STATE.avaliacoes||[]).filter(r => {
-    if (ini || fim) { if (!inRange(r.dataAv,ini,fim) && !inRange(getCompraDate(r),ini,fim)) return false; }
-    if (empF.length && !empF.includes(r.empresaEquipe||r.empresa||'')) return false;
-    if (tipoF && (r.tipo||'') !== tipoF) return false;
-    if (objF && !normHdrEmpresa(r.objetivo||'').includes(objF)) return false;
-    if (precF && !normHdrEmpresa(r.precificador||'').includes(precF)) return false;
-    if (fipeFx && r.pctFipe != null) {
-      const [lo,hi] = fipeFx.split('-').map(Number);
-      if (!(r.pctFipe >= lo && r.pctFipe < hi)) return false;
-    }
-    if (classF && (r.classificacao||'') !== classF) return false;
-    if (marcaF && String(r.marca==null?'':r.marca).trim().replace(/\s+/g,' ') !== marcaF) return false;
-    if (modeloF && !String(r.modelo==null?'':r.modelo).toLowerCase().includes(modeloF)) return false;
-    return true;
-  });
-}
-
-function clearAnalyticsFilters() {
-  ['an-f-ini','an-f-fim','an-f-tipo','an-f-objetivo','an-f-prec','an-f-fipe','an-f-class','an-f-marca','an-f-modelo'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  clearMsSelected('empresa');
-  renderAnalytics();
-}
-
-function populateAnalyticsFilterOptions(data) {
-  const uniq = arr => [...new Set(arr.filter(Boolean).map(s=>s.toString().trim()))].sort();
-  const fill = (id, vals) => { const dl=document.getElementById(id); if(dl) dl.innerHTML=vals.map(v=>`<option value="${escHtml(v)}"></option>`).join(''); };
-  populateMsDropdown('empresa', uniq(data.map(r=>r.empresaEquipe||r.empresa)));
-  fill('an-dl-objetivo', uniq(data.map(r=>r.objetivo)));
-  fill('an-dl-prec', uniq(data.map(r=>r.precificador)));
-  const normTxt = s => String(s==null?'':s).trim().replace(/\s+/g,' ');
-  const marcaSel = document.getElementById('an-f-marca');
-  if(marcaSel) {
-    const marcas = [...new Set((data||[]).map(r=>normTxt(r.marca)).filter(Boolean))].sort();
-    const cur = marcaSel.value;
-    marcaSel.innerHTML = '<option value="">Todas</option>' + marcas.map(m=>`<option value="${escHtml(m)}"${m===cur?' selected':''}>${escHtml(m)}</option>`).join('');
-  }
-  fill('an-dl-modelo', [...new Set((data||[]).map(r=>normTxt(r.modelo)).filter(Boolean))].sort());
-}
-
-function renderAnalytics() {
-  const data = getAnalyticsData();
-  const av = data;
-  const cp = data.filter(r=>r.comprado);
-
-  populateAnalyticsFilterOptions(STATE.avaliacoes||[]);
-
-  // --- Diagnóstico: explica quando o filtro zera os resultados ---
-  const diagEl = document.getElementById('an-diag');
-  if (diagEl) {
-    const totalBase = (STATE.avaliacoes||[]).length;
-    if (totalBase === 0) {
-      diagEl.style.display = '';
-      diagEl.innerHTML = '⚠️ <strong>Nenhuma avaliação carregada.</strong> Importe ou conecte a planilha na aba inicial para ver as análises.';
-    } else if (av.length === 0) {
-      const iniV = document.getElementById('an-f-ini')?.value || '';
-      const fimV = document.getElementById('an-f-fim')?.value || '';
-      diagEl.style.display = '';
-      diagEl.innerHTML = `⚠️ <strong>${totalBase.toLocaleString('pt-BR')} avaliações na base</strong>, mas <strong>0 passam nos filtros atuais</strong>`
-        + (iniV||fimV ? ` (período ${iniV||'…'} → ${fimV||'…'})` : '')
-        + `. <button class="btn btn-primary" style="font-size:12px;padding:4px 12px;margin-left:8px" onclick="clearAnalyticsFilters()">🗓️ Limpar filtros e ver tudo</button>`;
-    } else {
-      diagEl.style.display = 'none';
-    }
-  }
-
-  // --- KPIs rápidos ---
-  const fipes = av.filter(r=>r.pctFipe!=null).map(r=>r.pctFipe);
-  const avgFipe = fipes.length ? (fipes.reduce((s,v)=>s+v,0)/fipes.length) : null;
-  const valores = av.filter(r=>r.valorAv).map(r=>r.valorAv);
-  const avgValor = valores.length ? (valores.reduce((s,v)=>s+v,0)/valores.length) : null;
-  const tempoDias = cp.filter(r=>r.dataAv&&r.dataCompraInput).map(r=>diffDays(r.dataAv,r.dataCompraInput)).filter(d=>d!=null&&d>=0&&d<=365);
-  const avgTempo = tempoDias.length ? Math.round(tempoDias.reduce((s,v)=>s+v,0)/tempoDias.length) : null;
-  const kpiEl = document.getElementById('an-kpis');
-  if (kpiEl) kpiEl.innerHTML = [
-    ['--blue','Total Avaliados',av.length.toLocaleString('pt-BR'),'no período filtrado'],
-    ['--green','Total Comprados',cp.length.toLocaleString('pt-BR'),'vinculados'],
-    ['--accent','% Captação',av.length?(cp.length/av.length*100).toFixed(1)+'%':'—','comprado / avaliado'],
-    ['--purple','%FIPE Médio',avgFipe!=null?avgFipe.toFixed(1)+'%':'—','valor / FIPE'],
-    ['--blue2','Ticket Médio',avgValor!=null?'R$ '+Math.round(avgValor).toLocaleString('pt-BR'):'—','valor avaliação'],
-    ['--green2','⌀ Dias Av→Compra',avgTempo!=null?avgTempo+'d':'—','média dos comprados'],
-  ].map(([c,l,v,s])=>`<div class="akpi" style="--akpi-color:var(${c})"><div class="ak-label">${l}</div><div class="ak-val">${v}</div><div class="ak-sub">${s}</div></div>`).join('');
-
-  // --- Insight automático ---
-  renderAnInsight(av, cp, avgFipe);
-
-  // --- Por Objetivo ---
-  renderAnObjetivo(av, cp);
-
-  const safeRender = (fn, name) => { try { fn(av, cp); } catch(e) { console.error('[analytics] Erro em '+name+':', e); } };
-  safeRender(renderAnFipeCaptacao, 'FipeCaptacao');
-  safeRender(renderAnPrecificadores, 'Precificadores');
-  safeRender(renderAnTipo, 'Tipo');
-  safeRender(renderAnVendedores, 'Vendedores');
-  safeRender(renderAnModelos, 'Modelos');
-  safeRender(renderAnClassificacao, 'Classificacao');
-  safeRender(renderAnAA, 'AA');
-  safeRender(renderAnMarcas, 'Marcas');
-  safeRender(renderAnTemporal, 'Temporal');
-}
-
-function renderAnInsight(av, cp) {
-  const el = document.getElementById('an-insight');
-  if (!el) return;
-  const insights = [];
-  const captacao = av.length ? cp.length/av.length*100 : 0;
-  if (captacao > 50) insights.push(`✅ Taxa de captação <strong>${captacao.toFixed(1)}%</strong> — excelente performance no período.`);
-  else if (captacao < 20) insights.push(`⚠️ Taxa de captação baixa: <strong>${captacao.toFixed(1)}%</strong>. Verifique se o %FIPE está adequado à demanda.`);
-
-  // Fipe insight
-  const fipeAltas = av.filter(r=>r.pctFipe!=null&&r.pctFipe>100);
-  if (fipeAltas.length/Math.max(av.length,1) > 0.3) {
-    insights.push(`💡 <strong>${fipeAltas.length} avaliações</strong> (${(fipeAltas.length/av.length*100).toFixed(0)}%) estão acima de 100% da FIPE — risco de oferta acima do mercado.`);
-  }
-  const fipeBaixas = av.filter(r=>r.pctFipe!=null&&r.pctFipe<75);
-  const compradosBaixos = fipeBaixas.filter(r=>r.comprado);
-  if (fipeBaixas.length && compradosBaixos.length/fipeBaixas.length > 0.6) {
-    insights.push(`📉 Avaliações abaixo de 75% da FIPE têm captação de <strong>${(compradosBaixos.length/fipeBaixas.length*100).toFixed(0)}%</strong> — preço baixo está convertendo bem.`);
-  }
-  // Sem tipo
-  const semTipo = av.filter(r=>!r.tipo);
-  if (semTipo.length > 0) {
-    insights.push(`⚠️ <strong>${semTipo.length} avaliações</strong> sem tipo de equipe (VD/VN/VU) — esses vendedores não estão cadastrados na aba Equipes.`);
-  }
-  if (!insights.length) { el.style.display='none'; return; }
-  el.style.display = 'block';
-  el.innerHTML = '💡 <strong>Insights automáticos:</strong><br>' + insights.join('<br>');
-}
-
-function renderAnObjetivo(av, cp) {
-  // Captação por objetivo
-  const objs = {};
-  av.forEach(r => { const o=r.objetivo||'N/D'; if(!objs[o]) objs[o]={av:0,cp:0,sumValor:0,sumFipe:0,nFipe:0}; objs[o].av++; if(r.valorAv){objs[o].sumValor+=r.valorAv;} if(r.pctFipe!=null){objs[o].sumFipe+=r.pctFipe;objs[o].nFipe++;} });
-  cp.forEach(r => { const o=r.objetivo||'N/D'; if(objs[o]) objs[o].cp++; });
-  const sorted = Object.entries(objs).sort((a,b)=>b[1].av-a[1].av);
-
-  const barsEl = document.getElementById('an-obj-bars');
-  if (barsEl) {
-    const maxAv = Math.max(...sorted.map(([,v])=>v.av),1);
-    barsEl.innerHTML = sorted.map(([o,v])=>{
-      const pct = v.av>0?(v.cp/v.av*100):0;
-      const heatClass = pct>50?'heat-high':pct>25?'heat-mid':pct>0?'heat-low':'heat-none';
-      return `<div class="fipe-band-row">
-        <div class="fipe-band-label" title="${escHtml(o)}">${escHtml(o.length>14?o.substring(0,13)+'…':o)}</div>
-        <div class="fipe-band-bar-wrap">
-          <div class="fipe-band-bar" style="width:${(v.av/maxAv*100).toFixed(0)}%;background:var(--blue);opacity:.7;max-width:100%"></div>
-          <div class="fipe-band-bar" style="width:${(v.cp/maxAv*100).toFixed(0)}%;background:var(--green);max-width:100%"></div>
-        </div>
-        <div class="fipe-band-stats"><span class="${heatClass} heat-cell">${pct.toFixed(1)}%</span><br><span style="color:var(--text3)">${v.av} av / ${v.cp} cp</span></div>
-      </div>`;
-    }).join('') || '<div class="no-data">Sem dados de objetivo.</div>';
-  }
-
-  const ticketEl = document.getElementById('an-obj-ticket');
-  if (ticketEl) {
-    ticketEl.innerHTML = sorted.map(([o,v])=>{
-      const avgV = v.sumValor>0&&v.av>0?Math.round(v.sumValor/v.av):null;
-      const avgF = v.nFipe>0?(v.sumFipe/v.nFipe):null;
-      const fClass = avgF!=null?(avgF<80?'fipe-low':avgF<95?'fipe-mid':'fipe-high'):'';
-      return `<div class="fipe-band-row">
-        <div class="fipe-band-label">${escHtml(o.length>14?o.substring(0,13)+'…':o)}</div>
-        <div class="fipe-band-bar-wrap">
-          <div style="font-size:13px;font-weight:600;color:var(--text)">${avgV?'R$ '+avgV.toLocaleString('pt-BR'):'—'}</div>
-          <div style="font-size:11px;color:var(--text3)">ticket médio</div>
-        </div>
-        <div class="fipe-band-stats"><span class="${fClass}" style="font-weight:700">${avgF!=null?avgF.toFixed(1)+'%':' — '}</span><br><span style="font-size:11px;color:var(--text3)">%FIPE médio</span></div>
-      </div>`;
-    }).join('') || '<div class="no-data">Sem dados.</div>';
-  }
-}
-
-function renderAnFipeCaptacao(av, cp) {
-  const bands = [
-    { label:'< 70%', lo:0, hi:70, color:'#ef4444' },
-    { label:'70–80%', lo:70, hi:80, color:'#f97316' },
-    { label:'80–90%', lo:80, hi:90, color:'#f59e0b' },
-    { label:'90–100%', lo:90, hi:100, color:'#10b981' },
-    { label:'> 100%', lo:100, hi:9999, color:'#3b82f6' },
-  ];
-  const stats = bands.map(b => {
-    const bavs = av.filter(r=>r.pctFipe!=null&&r.pctFipe>=b.lo&&r.pctFipe<b.hi);
-    const bcps = bavs.filter(r=>r.comprado);
-    return { ...b, av:bavs.length, cp:bcps.length, pct:bavs.length?(bcps.length/bavs.length*100):0 };
-  });
-  const maxAv = Math.max(...stats.map(s=>s.av),1);
-
-  const barsEl = document.getElementById('an-fipe-captacao');
-  if (barsEl) {
-    barsEl.innerHTML = stats.map(s=>{
-      const heatClass = s.pct>50?'heat-high':s.pct>25?'heat-mid':s.pct>0?'heat-low':'heat-none';
-      return `<div class="fipe-band-row">
-        <div class="fipe-band-label">${s.label}</div>
-        <div class="fipe-band-bar-wrap">
-          <div class="fipe-band-bar" style="width:${Math.max(2,s.av/maxAv*100).toFixed(0)}%;background:${s.color};opacity:.5;max-width:100%"></div>
-          <div class="fipe-band-bar" style="width:${Math.max(0,s.cp/maxAv*100).toFixed(0)}%;background:${s.color};max-width:100%"></div>
-        </div>
-        <div class="fipe-band-stats"><span class="${heatClass} heat-cell">${s.pct.toFixed(1)}%</span><br><span style="color:var(--text3)">${s.av} av / ${s.cp} cp</span></div>
-      </div>`;
-    }).join('');
-  }
-
-  // Bar chart
-  const ctx = document.getElementById('chart-fipe-dist');
-  if (ctx) {
-    if (CHARTS['chart-fipe-dist']) CHARTS['chart-fipe-dist'].destroy();
-    CHARTS['chart-fipe-dist'] = new Chart(ctx, {
-      type:'bar',
-      data:{ labels:stats.map(s=>s.label), datasets:[
-        {label:'Avaliados',data:stats.map(s=>s.av),backgroundColor:'rgba(59,130,246,0.4)',borderColor:'#3b82f6',borderWidth:1},
-        {label:'Comprados',data:stats.map(s=>s.cp),backgroundColor:'rgba(16,185,129,0.6)',borderColor:'#10b981',borderWidth:1}
-      ]},
-      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:chartTickColor()}}},scales:{x:{stacked:false,grid:{color:chartGridColor()},ticks:{color:chartTickColor()}},y:{grid:{color:chartGridColor()},ticks:{color:chartTickColor()},beginAtZero:true}}}
-    });
-  }
-}
-
-function buildPrecStats(av, cp) {
-  const m = {};
-  av.forEach(r => {
-    const p = r.precificador||'Sem Precificador';
-    if (!m[p]) m[p] = { nome:p, avaliados:0, comprados:0, sumFipe:0, nFipe:0, sumValor:0, nValor:0, melhorados:0 };
-    m[p].avaliados++;
-    if (r.pctFipe!=null){ m[p].sumFipe+=r.pctFipe; m[p].nFipe++; }
-    if (r.valorAv){ m[p].sumValor+=r.valorAv; m[p].nValor++; }
-    if (r.melhorado==='Sim') m[p].melhorados++;
-  });
-  cp.forEach(r => { const p=r.precificador||'Sem Precificador'; if(m[p]) m[p].comprados++; });
-  return Object.values(m).map(v=>({...v,
-    captacao: v.avaliados?v.comprados/v.avaliados*100:0,
-    avgFipe: v.nFipe?v.sumFipe/v.nFipe:null,
-    avgValor: v.nValor?v.sumValor/v.nValor:null,
-    pctMelhora: v.comprados?v.melhorados/v.comprados*100:0,
-    // Efficiency index: captacao ponderada pelo FIPE (abaixo do mercado + alta captação = bom)
-    eficiencia: v.avaliados>=3 ? (v.comprados/v.avaliados*100) * (v.nFipe?Math.max(0,105-v.sumFipe/v.nFipe)/25:1) : null
-  }));
-}
-
-function renderAnPrecificadores(av, cp) {
-  let stats = buildPrecStats(av, cp);
-  const { col, asc } = AN_SORT.prec;
-  stats.sort((a,b)=>{const va=a[col]??-1,vb=b[col]??-1;return asc?va-vb:vb-va;});
-  const maxAv = Math.max(...stats.map(s=>s.avaliados),1);
-  const maxEf = Math.max(...stats.map(s=>s.eficiencia??0),1);
-
-  // Insight
-  const top = stats.filter(s=>s.avaliados>=5).sort((a,b)=>b.captacao-a.captacao)[0];
-  const bot = stats.filter(s=>s.avaliados>=5).sort((a,b)=>a.captacao-b.captacao)[0];
-  const ins = document.getElementById('an-prec-insight');
-  if (ins && top && bot && top.nome!==bot.nome) {
-    ins.style.display='block';
-    ins.innerHTML=`💡 <strong>${escHtml(top.nome)}</strong> lidera em captação com <strong>${top.captacao.toFixed(1)}%</strong> (${top.comprados}/${top.avaliados}). <strong>${escHtml(bot.nome)}</strong> tem menor captação: <strong>${bot.captacao.toFixed(1)}%</strong> — pode indicar oportunidade de alinhamento no %FIPE ofertado.`;
-  } else if (ins) ins.style.display='none';
-
-  const tb = document.getElementById('an-prec-tbody');
-  if (!tb) return;
-  if (!stats.length) { tb.innerHTML='<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--text3)">Sem dados de precificador.</td></tr>'; return; }
-  tb.innerHTML = stats.map(s=>{
-    const capClass = s.captacao>50?'heat-high':s.captacao>25?'heat-mid':s.captacao>0?'heat-low':'heat-none';
-    const fClass = s.avgFipe!=null?(s.avgFipe<80?'fipe-low':s.avgFipe<95?'fipe-mid':'fipe-high'):'';
-    const efPct = s.eficiencia!=null?Math.min(100,s.eficiencia/maxEf*100):0;
-    const efColor = efPct>60?'var(--green)':efPct>30?'var(--accent)':'var(--red)';
-    const barW = Math.round(s.avaliados/maxAv*60);
-    return `<tr>
-      <td style="font-weight:600;color:var(--text)">${escHtml(s.nome)}</td>
-      <td><span class="perf-score">${s.avaliados}<span class="perf-bar-mini"><span class="perf-bar-mini-fill" style="width:${barW}%;background:var(--blue)"></span></span></span></td>
-      <td>${s.comprados}</td>
-      <td><span class="${capClass} heat-cell">${s.captacao.toFixed(1)}%</span></td>
-      <td class="${fClass}">${s.avgFipe!=null?s.avgFipe.toFixed(1)+'%':'—'}</td>
-      <td>${s.avgValor!=null?'R$ '+Math.round(s.avgValor).toLocaleString('pt-BR'):'—'}</td>
-      <td>${s.eficiencia!=null?`<span class="perf-bar-mini"><span class="perf-bar-mini-fill" style="width:${efPct.toFixed(0)}%;background:${efColor}"></span></span> ${s.eficiencia.toFixed(0)}`:'<span style="color:var(--text3);font-size:11px">min 3 av</span>'}</td>
-    </tr>`;
-  }).join('');
-}
-
-function renderAnTipo(av, cp) {
-  const m = {};
-  av.forEach(r => {
-    const t = r.tipo||'Sem Tipo';
-    if (!m[t]) m[t]={tipo:t,av:0,cp:0,sumFipe:0,nFipe:0};
-    m[t].av++;
-    if (r.pctFipe!=null){m[t].sumFipe+=r.pctFipe;m[t].nFipe++;}
-  });
-  cp.forEach(r => { const t=r.tipo||'Sem Tipo'; if(m[t]) m[t].cp++; });
-  const stats = Object.values(m).sort((a,b)=>b.av-a.av);
-  const semTipo = stats.find(s=>s.tipo==='Sem Tipo');
-  const totalAv = av.length;
-
-  // Warning panel
-  const warn = document.getElementById('an-tipo-warning');
-  if (warn) {
-    if (semTipo && semTipo.av > 0) {
-      warn.style.display = 'block';
-      warn.innerHTML = `⚠️ <strong>${semTipo.av} avaliações</strong> (${(semTipo.av/totalAv*100).toFixed(1)}% do total) pertencem a vendedores <strong>sem cadastro na aba Equipes</strong>. Por isso a soma VD+VN+VU não fecha com o total. Importe a planilha de Equipes completa para corrigir.`;
-    } else { warn.style.display='none'; }
-  }
-
-  const colors = {'VD':'#3b82f6','VN':'#f59e0b','VU':'#10b981','Sem Tipo':'#64748b'};
-  const maxAv = Math.max(...stats.map(s=>s.av),1);
-  const barsEl = document.getElementById('an-tipo-bars');
-  if (barsEl) {
-    barsEl.innerHTML = stats.map(s=>{
-      const pct = s.av?s.cp/s.av*100:0;
-      const heatClass = pct>50?'heat-high':pct>25?'heat-mid':pct>0?'heat-low':'heat-none';
-      const col = colors[s.tipo]||'#8b5cf6';
-      return `<div class="fipe-band-row">
-        <div class="fipe-band-label"><span class="badge" style="background:${col}22;color:${col}">${escHtml(s.tipo)}</span></div>
-        <div class="fipe-band-bar-wrap">
-          <div class="fipe-band-bar" style="width:${(s.av/maxAv*100).toFixed(0)}%;background:${col};opacity:.5;max-width:100%"></div>
-          <div class="fipe-band-bar" style="width:${(s.cp/maxAv*100).toFixed(0)}%;background:${col};max-width:100%"></div>
-        </div>
-        <div class="fipe-band-stats"><span class="${heatClass} heat-cell">${pct.toFixed(1)}%</span><br><span style="color:var(--text3)">${s.av} av / ${s.cp} cp</span></div>
-      </div>`;
-    }).join('');
-  }
-
-  // Chart comparison
-  const ctx = document.getElementById('chart-tipo-comp');
-  if (ctx) {
-    if (CHARTS['chart-tipo-comp']) CHARTS['chart-tipo-comp'].destroy();
-    const tiposOrdem = stats.map(s=>s.tipo);
-    CHARTS['chart-tipo-comp'] = new Chart(ctx, {
-      type:'bar',
-      data:{ labels:tiposOrdem, datasets:[
-        {label:'% Captação',data:stats.map(s=>s.av?+(s.cp/s.av*100).toFixed(1):0),backgroundColor:'rgba(16,185,129,0.6)',borderColor:'#10b981',borderWidth:1,yAxisID:'y1'},
-        {label:'%FIPE Médio',data:stats.map(s=>s.nFipe?+(s.sumFipe/s.nFipe).toFixed(1):0),backgroundColor:'rgba(245,158,11,0.4)',borderColor:'#f59e0b',borderWidth:1,yAxisID:'y2'}
-      ]},
-      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:chartTickColor()}}},
-        scales:{
-          x:{grid:{color:chartGridColor()},ticks:{color:chartTickColor()}},
-          y1:{position:'left',grid:{color:chartGridColor()},ticks:{color:'#10b981',callback:v=>v+'%'},beginAtZero:true},
-          y2:{position:'right',grid:{drawOnChartArea:false},ticks:{color:'#f59e0b',callback:v=>v+'%'},beginAtZero:true}
-        }
-      }
-    });
-  }
-}
-
-function buildVendStats(av, cp) {
-  const m = {};
-  av.forEach(r => {
-    const v = r.vendedor||'N/D';
-    if (!m[v]) m[v]={nome:v,tipo:r.tipo||'—',empresa:r.empresaEquipe||r.empresa||'—',avaliados:0,comprados:0,sumFipe:0,nFipe:0,melhorados:0,diasList:[]};
-    m[v].avaliados++;
-    if (r.pctFipe!=null){m[v].sumFipe+=r.pctFipe;m[v].nFipe++;}
-    if (r.melhorado==='Sim') m[v].melhorados++;
-    if (r.comprado && r.dataAv) {
-      const dc = getCompraDate(r);
-      if (dc) { const dias = Math.round((dc - r.dataAv)/(1000*86400)); if(dias>=0) m[v].diasList.push(dias); }
-    }
-  });
-  cp.forEach(r => { const v=r.vendedor||'N/D'; if(m[v]) m[v].comprados++; });
-  return Object.values(m).map(v=>({...v,
-    captacao:v.avaliados?v.comprados/v.avaliados*100:0,
-    avgFipe:v.nFipe?v.sumFipe/v.nFipe:null,
-    avgDias:v.diasList.length?v.diasList.reduce((a,b)=>a+b,0)/v.diasList.length:null
-  }));
-}
-
-function sortAnalyticsTable(table, col) {
-  if (AN_SORT[table].col===col) AN_SORT[table].asc=!AN_SORT[table].asc;
-  else { AN_SORT[table].col=col; AN_SORT[table].asc=false; }
-  const data = getAnalyticsData();
-  if (table==='prec') renderAnPrecificadores(data, data.filter(r=>r.comprado));
-  if (table==='vend') renderAnVendedores(data, data.filter(r=>r.comprado));
-}
-
-function renderAnVendedores(av, cp) {
-  let stats = buildVendStats(av, cp);
-  const { col, asc } = AN_SORT.vend;
-  stats.sort((a,b)=>{const va=a[col]??-1,vb=b[col]??-1;return typeof va==='string'?(asc?va.localeCompare(vb):vb.localeCompare(va)):(asc?va-vb:vb-va);});
-  const maxAv = Math.max(...stats.map(s=>s.avaliados),1);
-  const tipoCores = {'VD':'#3b82f6','VN':'#f59e0b','VU':'#10b981','—':'#64748b'};
-  const tb = document.getElementById('an-vend-tbody');
-  if (!tb) return;
-  if (!stats.length) { tb.innerHTML='<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--text3)">Sem dados de vendedor.</td></tr>'; return; }
-  tb.innerHTML = stats.map(s=>{
-    const capClass = s.captacao>50?'heat-high':s.captacao>25?'heat-mid':s.captacao>0?'heat-low':'heat-none';
-    const fClass = s.avgFipe!=null?(s.avgFipe<80?'fipe-low':s.avgFipe<95?'fipe-mid':'fipe-high'):'';
-    const col2 = tipoCores[s.tipo]||'#8b5cf6';
-    const nivel = s.avaliados<3?'—':s.captacao>=50?'🏆 Excelente':s.captacao>=30?'✅ Bom':s.captacao>=15?'⚠️ Regular':'🔴 Baixo';
-    return `<tr>
-      <td style="font-weight:600;color:var(--text)">${escHtml(s.nome)}</td>
-      <td><span class="badge" style="background:${col2}22;color:${col2}">${escHtml(s.tipo)}</span></td>
-      <td style="font-size:12px;color:var(--text3)">${escHtml(s.empresa.length>20?s.empresa.substring(0,19)+'…':s.empresa)}</td>
-      <td><span class="perf-score">${s.avaliados}<span class="perf-bar-mini"><span class="perf-bar-mini-fill" style="width:${Math.round(s.avaliados/maxAv*60)}%;background:var(--blue)"></span></span></span></td>
-      <td>${s.comprados}</td>
-      <td><span class="${capClass} heat-cell">${s.captacao.toFixed(1)}%</span></td>
-      <td class="${fClass}">${s.avgFipe!=null?s.avgFipe.toFixed(1)+'%':'—'}</td>
-      <td style="font-size:12px">${s.avgDias!=null?s.avgDias.toFixed(1)+' d':'—'}</td>
-      <td>${nivel}</td>
-    </tr>`;
-  }).join('');
-}
-
-function renderAnModelos(av, cp) {
-  const m = {};
-  const normMod = s => (String(s==null?'':s).trim().replace(/\s+/g,' ')) || 'N/D';
-  av.forEach(r=>{ const k=normMod(r.modelo); if(!m[k])m[k]={av:0,cp:0}; m[k].av++; });
-  cp.forEach(r=>{ const k=normMod(r.modelo); if(m[k])m[k].cp++; });
-  const sorted = Object.entries(m).sort((a,b)=>b[1].av-a[1].av).slice(0,15);
-  const maxAv = Math.max(...sorted.map(([,v])=>v.av),1);
-
-  const el = document.getElementById('an-modelo-bars');
-  if (el) {
-    el.innerHTML = sorted.map(([mod,v])=>{
-      const pct = v.av?v.cp/v.av*100:0;
-      const hClass = pct>50?'heat-high':pct>25?'heat-mid':pct>0?'heat-low':'heat-none';
-      return `<div class="fipe-band-row">
-        <div class="fipe-band-label" title="${escHtml(mod)}">${escHtml(mod.length>14?mod.substring(0,13)+'…':mod)}</div>
-        <div class="fipe-band-bar-wrap">
-          <div class="fipe-band-bar" style="width:${(v.av/maxAv*100).toFixed(0)}%;background:var(--blue);opacity:.5;max-width:100%"></div>
-          <div class="fipe-band-bar" style="width:${(v.cp/maxAv*100).toFixed(0)}%;background:var(--green);max-width:100%"></div>
-        </div>
-        <div class="fipe-band-stats"><span class="${hClass} heat-cell">${pct.toFixed(0)}%</span><br><span style="color:var(--text3)">${v.av} av / ${v.cp} cp</span></div>
-      </div>`;
-    }).join('') || '<div class="no-data">Sem dados.</div>';
-  }
-
-  // Captação extrema
-  const comMin3 = Object.entries(m).filter(([,v])=>v.av>=3).map(([mod,v])=>({mod,av:v.av,cp:v.cp,pct:v.av?v.cp/v.av*100:0}));
-  const melhores = [...comMin3].sort((a,b)=>b.pct-a.pct).slice(0,5);
-  const piores = [...comMin3].sort((a,b)=>a.pct-b.pct).slice(0,5);
-  const el2 = document.getElementById('an-modelo-captacao');
-  if (el2) {
-    el2.innerHTML = `
-      <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--green2);margin-bottom:6px;">🏆 Maior captação</div>
-      ${melhores.map(s=>`<div class="fipe-band-row" style="padding:6px 0"><div class="fipe-band-label" title="${escHtml(s.mod)}">${escHtml(s.mod.length>14?s.mod.substring(0,13)+'…':s.mod)}</div><div style="flex:1"></div><div><span class="heat-high heat-cell">${s.pct.toFixed(0)}%</span> <span style="font-size:11px;color:var(--text3)">${s.cp}/${s.av}</span></div></div>`).join('')}
-      <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--red2);margin-top:14px;margin-bottom:6px;">⚠️ Menor captação</div>
-      ${piores.map(s=>`<div class="fipe-band-row" style="padding:6px 0"><div class="fipe-band-label" title="${escHtml(s.mod)}">${escHtml(s.mod.length>14?s.mod.substring(0,13)+'…':s.mod)}</div><div style="flex:1"></div><div><span class="heat-low heat-cell">${s.pct.toFixed(0)}%</span> <span style="font-size:11px;color:var(--text3)">${s.cp}/${s.av}</span></div></div>`).join('')}
-      ${!comMin3.length?'<div class="no-data">Min. 3 avaliações por modelo.</div>':''}`;
-  }
-}
-
-function renderAnClassificacao(av, cp) {
-  const classes = ['A','B','C','D','E'];
-  const colors = {A:'#10b981',B:'#3b82f6',C:'#f59e0b',D:'#f97316',E:'#ef4444'};
-  const aviso = document.getElementById('an-class-aviso');
-  const barsEl = document.getElementById('an-class-bars');
-  const hasClass = av.some(r=>r.classificacao);
-  if(aviso) { aviso.style.display = hasClass ? 'none' : ''; aviso.textContent = 'Nenhum registro com classificação A–E encontrado. Verifique se a coluna "Classificação" (ou "AA") está preenchida na planilha de avaliações.'; }
-  if(!hasClass) { if(barsEl) barsEl.innerHTML='<div class="no-data">Sem dados de classificação.</div>'; if(CHARTS['chart-class-comp']){CHARTS['chart-class-comp'].destroy();delete CHARTS['chart-class-comp'];} return; }
-
-  const stats = {};
-  classes.forEach(c=>{ stats[c]={av:0,cp:0,fipes:[],tickets:[]}; });
-  av.forEach(r=>{ if(!r.classificacao) return; const s=stats[r.classificacao]; if(!s) return; s.av++; if(r.pctFipe!=null) s.fipes.push(r.pctFipe); });
-  cp.forEach(r=>{ if(!r.classificacao) return; const s=stats[r.classificacao]; if(!s) return; s.cp++; if(r.valorAv) s.tickets.push(r.valorAv); });
-
-  const avg = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null;
-
-  // Bars
-  if(barsEl) {
-    const maxAv = Math.max(1,...classes.map(c=>stats[c].av));
-    barsEl.innerHTML = classes.map(c=>{
-      const s=stats[c]; if(!s.av) return '';
-      const pctCp = s.av ? Math.round(s.cp/s.av*100) : 0;
-      const wAv = Math.round(s.av/maxAv*100);
-      const wCp = Math.round(s.cp/maxAv*100);
-      const avgFipe = avg(s.fipes); const avgTk = avg(s.tickets);
-      return `<div class="fipe-band-row" style="padding:8px 0;align-items:center">
-        <div class="fipe-band-label" style="font-weight:700;font-size:15px;color:${colors[c]};min-width:32px">${c}</div>
-        <div style="flex:1;display:flex;flex-direction:column;gap:3px">
-          <div style="display:flex;align-items:center;gap:6px">
-            <div style="width:${wAv}%;background:${colors[c]}33;border-radius:3px;height:10px;min-width:4px"></div>
-            <span style="font-size:12px;color:var(--text2)">${s.av} avaliados</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:6px">
-            <div style="width:${wCp}%;background:${colors[c]};border-radius:3px;height:10px;min-width:4px"></div>
-            <span style="font-size:12px;color:var(--text2)">${s.cp} comprados <span style="color:var(--text3)">(${pctCp}%)</span></span>
-          </div>
-        </div>
-        <div style="min-width:130px;text-align:right;font-size:11px;color:var(--text3)">
-          ${avgFipe!=null?`%FIPE médio: <b>${avgFipe.toFixed(1)}%</b><br>`:''}
-          ${avgTk!=null?`Ticket médio: <b>${fmtBRL(avgTk)}</b>`:''}
-        </div>
-      </div>`;
-    }).join('');
-  }
-
-  // Chart: %FIPE médio e ticket médio por classe
-  if(CHARTS['chart-class-comp']){CHARTS['chart-class-comp'].destroy();delete CHARTS['chart-class-comp'];}
-  const labels = classes.filter(c=>stats[c].av>0);
-  const fipeData = labels.map(c=>{ const v=avg(stats[c].fipes); return v!=null?+v.toFixed(1):null; });
-  const ticketData = labels.map(c=>{ const v=avg(stats[c].tickets); return v!=null?Math.round(v/1000):null; });
-  const ctx2 = document.getElementById('chart-class-comp');
-  if(ctx2 && labels.length) {
-    CHARTS['chart-class-comp'] = new Chart(ctx2, {
-      type:'bar',
-      data:{
-        labels,
-        datasets:[
-          {label:'%FIPE médio',data:fipeData,backgroundColor:labels.map(c=>colors[c]+'bb'),yAxisID:'y',order:1},
-          {label:'Ticket médio (R$ mil)',data:ticketData,type:'line',borderColor:'#8b5cf6',backgroundColor:'#8b5cf633',pointBackgroundColor:'#8b5cf6',tension:0.3,yAxisID:'y2',order:0}
-        ]
-      },
-      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:chartTickColor(),font:{size:11},boxWidth:12}}},scales:{
-        y:{title:{display:true,text:'%FIPE',color:chartTickColor()},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:chartTickColor(),font:{size:10}}},
-        y2:{position:'right',title:{display:true,text:'R$ mil',color:chartTickColor()},grid:{display:false},ticks:{color:chartTickColor(),font:{size:10}}},
-        x:{ticks:{color:chartTickColor(),font:{size:11}},grid:{display:false}}
-      }}
-    });
-  }
-}
-
-function renderAnTemporal(av, cp) {
-  // Dia da semana
-  const dias = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
-  const diasAv = Array(7).fill(0);
-  av.forEach(r=>{ if(r.dataAv) diasAv[r.dataAv.getDay()]++; });
-
-  const ctxSem = document.getElementById('chart-dia-semana');
-  if (ctxSem) {
-    if (CHARTS['chart-dia-semana']) CHARTS['chart-dia-semana'].destroy();
-    CHARTS['chart-dia-semana'] = new Chart(ctxSem, {
-      type:'bar',
-      data:{ labels:dias, datasets:[{label:'Avaliações',data:diasAv,backgroundColor:diasAv.map((_,i)=>i===0||i===6?'rgba(100,116,139,0.5)':'rgba(59,130,246,0.6)'),borderColor:diasAv.map((_,i)=>i===0||i===6?'#64748b':'#3b82f6'),borderWidth:1}]},
-      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:chartGridColor()},ticks:{color:chartTickColor()}},y:{grid:{color:chartGridColor()},ticks:{color:chartTickColor()},beginAtZero:true}}}
-    });
-  }
-
-  // Tempo avaliação → compra
-  const tempos = cp.filter(r=>r.dataAv&&r.dataCompraInput).map(r=>diffDays(r.dataAv,r.dataCompraInput)).filter(d=>d!=null&&d>=0&&d<=90);
-  const bands2 = [{l:'Mesmo dia',lo:0,hi:1},{l:'1–3 dias',lo:1,hi:4},{l:'4–7 dias',lo:4,hi:8},{l:'1–2 sem',lo:8,hi:15},{l:'2–4 sem',lo:15,hi:29},{l:'>1 mês',lo:29,hi:91}];
-  const contagens = bands2.map(b=>tempos.filter(d=>d>=b.lo&&d<b.hi).length);
-
-  const ctxT = document.getElementById('chart-tempo-compra');
-  if (ctxT) {
-    if (CHARTS['chart-tempo-compra']) CHARTS['chart-tempo-compra'].destroy();
-    CHARTS['chart-tempo-compra'] = new Chart(ctxT, {
-      type:'bar',
-      data:{ labels:bands2.map(b=>b.l), datasets:[{label:'Compras',data:contagens,backgroundColor:'rgba(16,185,129,0.6)',borderColor:'#10b981',borderWidth:1}]},
-      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:chartGridColor()},ticks:{color:chartTickColor(),font:{size:10}}},y:{grid:{color:chartGridColor()},ticks:{color:chartTickColor()},beginAtZero:true}}}
-    });
-  }
-}
-
-function toggleAnSection(id) {
-  const body = document.getElementById('an-sec-'+id+'-body');
-  const btn = document.getElementById('an-sec-'+id+'-btn');
-  if (!body) return;
-  const collapsed = body.classList.toggle('collapsed');
-  if (btn) btn.textContent = collapsed ? '▶' : '▼';
-}
-
-async function exportSectionImage(sectionId, title) {
-  const el = document.getElementById(sectionId);
-  if (!el) return;
-  showToast('Gerando imagem...', 'info');
-  try {
-    const canvas = await html2canvas(el, { backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--bg2').trim() || '#1e293b', scale: 2, useCORS: true, logging: false });
-    const link = document.createElement('a');
-    link.download = (title||'analise').replace(/\s+/g,'_') + '.png';
-    link.href = canvas.toDataURL('image/png');
-    link.click();
-    showToast('Imagem salva!', 'success');
-  } catch(e) { showToast('Erro ao gerar imagem: '+e.message, 'error'); }
-}
-
-async function exportSectionWhatsApp(sectionId, title) {
-  const el = document.getElementById(sectionId);
-  if (!el) return;
-  showToast('Preparando para WhatsApp...', 'info');
-  try {
-    const canvas = await html2canvas(el, { backgroundColor: '#1e293b', scale: 1.5, useCORS: true, logging: false });
-    canvas.toBlob(blob => {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url;
-      a.download = (title||'analise').replace(/\s+/g,'_')+'_whatsapp.jpg';
-      a.click(); setTimeout(()=>URL.revokeObjectURL(url),2000);
-      showToast('Imagem otimizada para WhatsApp salva!', 'success');
-    }, 'image/jpeg', 0.85);
-  } catch(e) { showToast('Erro: '+e.message, 'error'); }
-}
-
-async function exportAnalyticsPDF() {
-  showToast('Gerando PDF completo... aguarde', 'info');
-  try {
-    const el = document.getElementById('tab-analytics');
-    const canvas = await html2canvas(el, { backgroundColor: '#1e293b', scale: 1.5, useCORS: true, logging: false });
-    const imgData = canvas.toDataURL('image/jpeg', 0.85);
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [canvas.width/1.5, canvas.height/1.5] });
-    pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width/1.5, canvas.height/1.5);
-    pdf.save('analise_carmais_' + new Date().toISOString().slice(0,10) + '.pdf');
-    showToast('PDF salvo!', 'success');
-  } catch(e) { showToast('Erro ao gerar PDF: '+e.message, 'error'); }
-}
-
-async function exportAnalyticsImage() {
-  showToast('Gerando imagem da análise...', 'info');
-  try {
-    const el = document.getElementById('tab-analytics');
-    const canvas = await html2canvas(el, { backgroundColor: '#1e293b', scale: 1.5, useCORS: true, logging: false });
-    const link = document.createElement('a');
-    link.download = 'analise_carmais_' + new Date().toISOString().slice(0,10) + '.png';
-    link.href = canvas.toDataURL('image/png');
-    link.click();
-    showToast('Imagem salva!', 'success');
-  } catch(e) { showToast('Erro: '+e.message, 'error'); }
-}
-
-function viewFilteredInDetail(tipo) {
-  const ini = document.getElementById('an-f-ini')?.value || '';
-  const fim = document.getElementById('an-f-fim')?.value || '';
-  const emps = getMsSelected('empresa');
-  if(ini && document.getElementById('f-data-ini')) document.getElementById('f-data-ini').value = ini;
-  if(fim && document.getElementById('f-data-fim')) document.getElementById('f-data-fim').value = fim;
-  if(emps.length===1 && document.getElementById('f-empresa')) document.getElementById('f-empresa').value = emps[0];
-  applyFilters();
-  const tabName = tipo==='comprados'?'comprados':'tabela';
-  const btn = document.querySelector(`.tab-btn[onclick*="'${tabName}'"]`);
-  switchTab(tabName, btn);
-}
-
-function renderAnMarcas(av, cp) {
-  const m = {};
-  const normMarca = s => (String(s==null?'':s).trim().replace(/\s+/g,' ')) || 'N/D';
-  av.forEach(r=>{ const k=normMarca(r.marca); if(!m[k])m[k]={av:0,cp:0,fipes:[],tickets:[]}; m[k].av++; if(r.pctFipe!=null)m[k].fipes.push(r.pctFipe); });
-  cp.forEach(r=>{ const k=normMarca(r.marca); if(m[k]){m[k].cp++; if(r.valorAv)m[k].tickets.push(r.valorAv);} });
-  const sorted = Object.entries(m).sort((a,b)=>b[1].av-a[1].av).slice(0,12);
-  const maxAv = Math.max(...sorted.map(([,v])=>v.av),1);
-  const avg = arr=>arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:null;
-  const marcaAtiva = (document.getElementById('an-f-marca')?.value||'').trim();
-
-  const el = document.getElementById('an-marca-bars');
-  if(el) {
-    el.innerHTML = sorted.map(([marca,v])=>{
-      const pct = v.av?v.cp/v.av*100:0;
-      const hClass = pct>50?'heat-high':pct>25?'heat-mid':pct>0?'heat-low':'heat-none';
-      const ativa = marca===marcaAtiva;
-      return `<div class="fipe-band-row" style="cursor:pointer;border-radius:6px;${ativa?'background:rgba(59,130,246,0.12);':''}padding:4px 6px" onclick="filtrarPorMarca('${marca.replace(/'/g,"\\'")}')" title="Clique para filtrar por ${escHtml(marca)}">
-        <div class="fipe-band-label" title="${escHtml(marca)}" style="font-weight:600">${ativa?'✓ ':''}${escHtml(marca.length>13?marca.substring(0,12)+'…':marca)}</div>
-        <div class="fipe-band-bar-wrap">
-          <div class="fipe-band-bar" style="width:${(v.av/maxAv*100).toFixed(0)}%;background:var(--blue);opacity:.5;max-width:100%"></div>
-          <div class="fipe-band-bar" style="width:${(v.cp/maxAv*100).toFixed(0)}%;background:var(--green);max-width:100%"></div>
-        </div>
-        <div class="fipe-band-stats"><span class="${hClass} heat-cell">${pct.toFixed(0)}%</span><br><span style="color:var(--text3);font-size:11px">${v.av} av / ${v.cp} cp</span></div>
-      </div>`;
-    }).join('') || '<div class="no-data">Sem dados de marca.</div>';
-  }
-
-  if(CHARTS['chart-marca-comp']){CHARTS['chart-marca-comp'].destroy();delete CHARTS['chart-marca-comp'];}
-  const ctx = document.getElementById('chart-marca-comp');
-  if(ctx && sorted.length) {
-    const labels = sorted.map(([k])=>k);
-    const fipeData = sorted.map(([,v])=>{ const a=avg(v.fipes); return a!=null?+a.toFixed(1):null; });
-    const capData = sorted.map(([,v])=>v.av?+(v.cp/v.av*100).toFixed(1):0);
-    CHARTS['chart-marca-comp'] = new Chart(ctx, {
-      type:'bar',
-      data:{
-        labels,
-        datasets:[
-          {label:'%FIPE médio',data:fipeData,backgroundColor:'rgba(59,130,246,0.6)',yAxisID:'y',order:1},
-          {label:'% Captação',data:capData,type:'line',borderColor:'#10b981',backgroundColor:'#10b98120',pointBackgroundColor:'#10b981',tension:0.3,yAxisID:'y2',order:0}
-        ]
-      },
-      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:chartTickColor(),font:{size:11},boxWidth:12}}},scales:{
-        y:{title:{display:true,text:'%FIPE',color:chartTickColor()},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:chartTickColor(),font:{size:10}}},
-        y2:{position:'right',title:{display:true,text:'% Captação',color:chartTickColor()},grid:{display:false},ticks:{color:chartTickColor(),font:{size:10}}},
-        x:{ticks:{color:chartTickColor(),font:{size:10}},grid:{display:false}}
-      }}
-    });
-  }
-}
-
-function filtrarPorMarca(marca) {
-  const sel = document.getElementById('an-f-marca');
-  if (!sel) return;
-  // Toggle: se já está filtrando por essa marca, limpa
-  sel.value = (sel.value===marca) ? '' : marca;
-  renderAnalytics();
-}
-
-function renderAnAA(av, cp) {
-  const aviso = document.getElementById('an-aa-aviso');
-  const cardsEl = document.getElementById('an-aa-cards');
-  const hasAA = av.some(r=>r.aa && r.aa>0);
-  if(aviso){ aviso.style.display=hasAA?'none':''; aviso.textContent='Coluna "AA" não encontrada ou sem valores. Verifique se a planilha de avaliações possui a coluna AA com o valor de referência.'; }
-  if(!hasAA){ if(cardsEl)cardsEl.innerHTML='<div class="no-data">Sem dados AA.</div>'; ['chart-aa-comp','chart-aa-delta'].forEach(id=>{if(CHARTS[id]){CHARTS[id].destroy();delete CHARTS[id];}}); return; }
-
-  const withAA = av.filter(r=>r.aa>0&&r.valorAv>0);
-  const totalAv = withAA.length;
-  const sumAA = withAA.reduce((s,r)=>s+r.aa,0);
-  const sumValor = withAA.reduce((s,r)=>s+r.valorAv,0);
-  const avgAA = totalAv?sumAA/totalAv:0;
-  const avgValor = totalAv?sumValor/totalAv:0;
-  const delta = avgValor - avgAA;
-  const deltaPct = avgAA?(delta/avgAA*100):0;
-
-  if(cardsEl){
-    cardsEl.innerHTML=`
-      <div class="aa-comp-card"><div class="label">Ref. AA Médio</div><div class="val">${fmtBRL(avgAA)}</div><div class="sub">${totalAv} avaliações com AA</div></div>
-      <div class="aa-comp-card"><div class="label">Valor Avaliado Médio</div><div class="val">${fmtBRL(avgValor)}</div><div class="sub">Oferta média praticada</div></div>
-      <div class="aa-comp-card"><div class="label">Delta (Avaliado − AA)</div><div class="val ${delta>=0?'pos':'neg'}">${delta>=0?'+':''}${fmtBRL(delta)}</div><div class="sub delta ${delta>=0?'pos':'neg'}">${deltaPct>=0?'+':''}${deltaPct.toFixed(1)}% em relação ao AA</div></div>
-      <div class="aa-comp-card"><div class="label">Comprados com AA</div><div class="val">${cp.filter(r=>r.aa>0).length}</div><div class="sub">de ${cp.length} total comprados</div></div>
-    `;
-  }
-
-  const byMod = {};
-  withAA.forEach(r=>{ const k=(String(r.modelo==null?'':r.modelo).trim().replace(/\s+/g,' '))||'N/D'; if(!byMod[k])byMod[k]={aa:[],val:[]}; byMod[k].aa.push(r.aa); byMod[k].val.push(r.valorAv); });
-  const avg2 = arr=>arr.reduce((a,b)=>a+b,0)/arr.length;
-  const modStats = Object.entries(byMod).filter(([,v])=>v.aa.length>=1).map(([k,v])=>({mod:k,avgAA:avg2(v.aa),avgVal:avg2(v.val),n:v.aa.length})).sort((a,b)=>b.n-a.n).slice(0,10);
-
-  if(CHARTS['chart-aa-comp']){CHARTS['chart-aa-comp'].destroy();delete CHARTS['chart-aa-comp'];}
-  const ctx1=document.getElementById('chart-aa-comp');
-  if(ctx1&&modStats.length){
-    CHARTS['chart-aa-comp']=new Chart(ctx1,{type:'bar',data:{labels:modStats.map(s=>s.mod),datasets:[
-      {label:'AA Referência',data:modStats.map(s=>Math.round(s.avgAA)),backgroundColor:'rgba(100,116,139,0.5)'},
-      {label:'Valor Avaliado',data:modStats.map(s=>Math.round(s.avgVal)),backgroundColor:'rgba(59,130,246,0.7)'}
-    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:chartTickColor(),font:{size:11},boxWidth:12}}},scales:{y:{ticks:{callback:v=>'R$ '+v.toLocaleString('pt-BR'),color:chartTickColor(),font:{size:10}},grid:{color:'rgba(255,255,255,0.05)'}},x:{ticks:{color:chartTickColor(),font:{size:10}},grid:{display:false}}}}});
-  }
-
-  if(CHARTS['chart-aa-delta']){CHARTS['chart-aa-delta'].destroy();delete CHARTS['chart-aa-delta'];}
-  const ctx2=document.getElementById('chart-aa-delta');
-  if(ctx2&&modStats.length){
-    const deltas=modStats.map(s=>+(s.avgVal-s.avgAA).toFixed(0));
-    CHARTS['chart-aa-delta']=new Chart(ctx2,{type:'bar',data:{labels:modStats.map(s=>s.mod),datasets:[{label:'Delta (R$)',data:deltas,backgroundColor:deltas.map(d=>d>=0?'rgba(16,185,129,0.7)':'rgba(239,68,68,0.7)')}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>(v>=0?'+':'')+v.toLocaleString('pt-BR'),color:chartTickColor(),font:{size:10}},grid:{color:'rgba(255,255,255,0.05)'}},x:{ticks:{color:chartTickColor(),font:{size:10}},grid:{display:false}}}}});
-  }
-}
-
-// ============================================================
 // SMART CACHE
 // ============================================================
 const DATA_CACHE_KEY = 'carmais_data_cache_v1';
-const DATA_CACHE_TTL = 5 * 60 * 1000;
+const DATA_CACHE_TTL = 30 * 60 * 1000;
 
 function saveDataCache(data) {
   try { localStorage.setItem(DATA_CACHE_KEY, JSON.stringify({ timestamp: Date.now(), data })); } catch(e) {}
@@ -3888,97 +2693,570 @@ function restoreDates(r) {
 }
 
 // ============================================================
-// AI ASSISTANT
+// AI ASSISTANT — COPILOTO CARMAIS
 // ============================================================
 const AI_HISTORY = [];
 
-function saveClaudeKey(key) {
+const GEMINI_MODEL = localStorage.getItem('carmais_gemini_model') || 'gemini-3.1-flash-lite';
+const GEMINI_FALLBACK_MODELS = [
+  GEMINI_MODEL,
+  'gemini-3.1-flash-lite',
+  'gemini-2.5-flash-lite',
+  'gemini-2.5-flash'
+].filter((model, idx, arr) => model && arr.indexOf(model) === idx);
+
+function getGeminiModelLabel(model) {
+  const labels = {
+    'gemini-3.5-flash':'Gemini 3.5 Flash',
+    'gemini-3.1-flash-lite':'Gemini 3.1 Flash Lite',
+    'gemini-2.5-flash-lite':'Gemini 2.5 Flash Lite',
+    'gemini-2.5-flash':'Gemini 2.5 Flash'
+  };
+  return labels[model] || model;
+}
+
+function isTemporaryGeminiError(status, message) {
+  const m = String(message || '').toLowerCase();
+  return status === 429 || status === 503 || status === 500 ||
+    m.includes('high demand') || m.includes('overloaded') || m.includes('temporar') || m.includes('unavailable');
+}
+
+async function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function saveGeminiModel(model) {
+  if (!model) return;
+  localStorage.setItem('carmais_gemini_model', model);
+  showToast('Modelo Gemini salvo: ' + getGeminiModelLabel(model), 'success');
+}
+
+function initGeminiModelUI() {
+  const sel = document.getElementById('gemini-model-select');
+  if (sel) sel.value = localStorage.getItem('carmais_gemini_model') || GEMINI_MODEL;
+}
+
+
+const PROMPT_COPILOTO_CARMAIS = `
+Você é o Copiloto Carmais, um agente de inteligência comercial do Relatório de Avaliações de Seminovos do Grupo Carmais.
+
+Você analisa avaliações de veículos, compras realizadas, conversão por loja, conversão por vendedor, placas melhoradas, valores avaliados, valores melhorados, compradores responsáveis e negócios fechados.
+
+Seu objetivo é transformar dados em leitura gerencial simples, direta e acionável.
+
+Tom de voz:
+- Executivo
+- Curto
+- Claro
+- Prático
+- Sem enrolação
+- Sem excesso de markdown
+- Linguagem de diretor comercial, não de robô genérico
+
+Regras:
+1. Use apenas os dados enviados pelo sistema.
+2. Não invente números, nomes, placas, lojas, vendedores ou compradores.
+3. Quando não houver dados suficientes, informe claramente: "Não tenho dados suficientes para essa análise."
+4. Responda sempre em português do Brasil.
+5. Sempre destaque o principal ponto de atenção.
+6. Sempre sugira uma ação prática.
+7. Evite respostas com mais de 12 linhas.
+8. Não use muitos asteriscos, negrito, ## ou tabelas longas.
+9. Não responda como robô genérico.
+10. Priorize conversão, volume, lojas abaixo da média, vendedores abaixo da média, placas melhoradas sem fechamento e oportunidades perdidas.
+11. Quando o usuário pedir resumo, entregue uma leitura de diretoria.
+12. Quando houver bom desempenho, destaque o que deve ser mantido.
+13. Quando houver baixa conversão, indique uma ação comercial prática.
+14. Se houver filtros aplicados, considere apenas o período/filtro atual.
+15. Não diga que é uma IA.
+
+A conversão é calculada como compras / avaliações * 100.
+
+Formato padrão obrigatório das respostas:
+
+Resumo:
+[leitura objetiva]
+
+Ponto de atenção:
+[principal problema ou oportunidade]
+
+Leitura gerencial:
+[o que isso significa para o negócio]
+
+Ação recomendada:
+[ação prática para executar]
+
+Responda seguindo exatamente esse formato, com no máximo 2 frases curtas por bloco.
+`;
+
+// Alias mantido para compatibilidade com o restante do código.
+const COPILOTO_CARMAIS_PROMPT = PROMPT_COPILOTO_CARMAIS;
+
+
+function saveGeminiKey(key) {
   const k = (key||'').trim();
-  if (k) { localStorage.setItem('carmais_claude_key', k); showToast('Chave API salva!', 'success'); }
+  if (k) {
+    localStorage.setItem('carmais_gemini_key', k);
+    localStorage.removeItem('carmais_claude_key');
+    showToast('Chave API Gemini salva!', 'success');
+  }
   const setup = document.getElementById('ai-key-setup');
   if (setup) setup.style.display = k ? 'none' : 'block';
 }
 
 function initAIKeyUI() {
-  const key = localStorage.getItem('carmais_claude_key') || '';
-  const inp = document.getElementById('claude-api-key');
+  const key = localStorage.getItem('carmais_gemini_key') || '';
+  const inp = document.getElementById('gemini-api-key');
   if (inp) inp.value = key;
   const setup = document.getElementById('ai-key-setup');
   if (setup) setup.style.display = key ? 'none' : 'block';
+  initGeminiModelUI();
+}
+
+function safePct(num, den) {
+  if (!den || den <= 0) return '0.0%';
+  return ((num / den) * 100).toFixed(1) + '%';
+}
+
+function safeMoney(v) {
+  const n = Number(v || 0);
+  if (!Number.isFinite(n) || n === 0) return null;
+  return n.toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
+}
+
+function countBy(list, keyFn) {
+  return list.reduce((acc, item) => {
+    const key = keyFn(item) || 'N/D';
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+}
+
+function topEntries(obj, limit = 15) {
+  return Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0, limit);
 }
 
 function prepareAIContext() {
   const av = STATE.filtered || STATE.avaliacoes || [];
-  const cp = av.filter(r => r.comprado);
+  const cp = av.filter(r => !!r.comprado);
   const mel = av.filter(r => r.melhorado === 'Sim');
-  const byModelo = {};
-  av.forEach(r => { if (r.modelo) byModelo[r.modelo] = (byModelo[r.modelo]||0)+1; });
-  const topModelos = Object.entries(byModelo).sort((a,b)=>b[1]-a[1]).slice(0,20);
-  const byLoja = {};
-  av.forEach(r => { const l=r.empresaEquipe||r.empresa||'N/D'; byLoja[l]=(byLoja[l]||0)+1; });
-  const byVendedor = {};
-  av.forEach(r => { if(r.vendedor) byVendedor[r.vendedor]=(byVendedor[r.vendedor]||0)+1; });
-  const topVendedores = Object.entries(byVendedor).sort((a,b)=>b[1]-a[1]).slice(0,15);
-  const byComprador = {};
-  cp.forEach(r => { if(r.compradorNome) byComprador[r.compradorNome]=(byComprador[r.compradorNome]||0)+1; });
-  const datasAv = av.map(r=>r.dataAv?dateStr(r.dataAv):'').filter(Boolean).sort();
-  const sample = av.slice(0,200).map(r=>({
-    data:dateStr(r.dataAv),empresa:r.empresa,vendedor:r.vendedor,
-    modelo:r.modelo,placa:r.placa,comprado:r.comprado?'Sim':'Não',
-    melhorado:r.melhorado,comprador:r.compradorNome,objetivo:r.objetivo,
-    valorAv:r.valorAv,pctFipe:r.pctFipe?r.pctFipe.toFixed(1)+'%':null
+
+  const byModelo = countBy(av, r => r.modelo);
+  const byLojaAv = countBy(av, r => r.empresaEquipe || r.empresa);
+  const byLojaCp = countBy(cp, r => r.empresaEquipe || r.empresa);
+  const byVendedorAv = countBy(av, r => r.vendedor);
+  const byVendedorCp = countBy(cp, r => r.vendedor);
+  const byComprador = countBy(cp.filter(r => r.compradorNome), r => r.compradorNome);
+  const byObjetivoCp = countBy(cp, r => r.objetivo);
+  const byTipoAv = countBy(av, r => r.tipo);
+
+  const lojas = Object.keys({ ...byLojaAv, ...byLojaCp }).map(loja => {
+    const avaliados = byLojaAv[loja] || 0;
+    const comprados = byLojaCp[loja] || 0;
+    return { loja, avaliados, comprados, captacao: safePct(comprados, avaliados) };
+  }).sort((a,b) => parseFloat(a.captacao) - parseFloat(b.captacao));
+
+  const vendedores = Object.keys({ ...byVendedorAv, ...byVendedorCp }).map(vendedor => {
+    const avaliados = byVendedorAv[vendedor] || 0;
+    const comprados = byVendedorCp[vendedor] || 0;
+    return { vendedor, avaliados, comprados, captacao: safePct(comprados, avaliados) };
+  }).sort((a,b) => parseFloat(a.captacao) - parseFloat(b.captacao));
+
+  const placasMelhoradas = mel.slice(0,80).map(r => ({
+    placa:r.placa || 'N/D',
+    modelo:r.modelo || 'N/D',
+    loja:r.empresaEquipe || r.empresa || 'N/D',
+    vendedor:r.vendedor || 'N/D',
+    valorAvaliado:safeMoney(r.valorAv),
+    valorMelhorado:safeMoney(r.valorMelhorado),
+    dataAvaliacao:r.dataAv ? dateStr(r.dataAv) : null,
+    dataMelhoria:r.dataMelhoria ? dateStr(r.dataMelhoria) : null,
+    comprado:r.comprado ? 'Sim' : 'Não',
+    comprador:r.compradorNome || 'N/D'
   }));
-  return `PERÍODO: ${datasAv[0]||'N/A'} a ${datasAv[datasAv.length-1]||'N/A'}
-TOTAL AVALIAÇÕES (filtro): ${av.length} | COMPRADOS: ${cp.length} | CAPTAÇÃO: ${av.length>0?(cp.length/av.length*100).toFixed(1)+'%':'0%'} | MELHORADOS: ${mel.length}
-TOP MODELOS: ${topModelos.map(([m,n])=>`${m}(${n})`).join(', ')}
-AVALIAÇÕES POR LOJA: ${Object.entries(byLoja).map(([l,n])=>`${l}:${n}`).join(', ')}
-TOP VENDEDORES: ${topVendedores.map(([v,n])=>`${v}(${n})`).join(', ')}
-COMPRADORES: ${Object.entries(byComprador).map(([c,n])=>`${c}:${n}`).join(', ')}
-REGISTROS (amostra 200): ${JSON.stringify(sample)}`;
+
+  const datasAv = av.map(r=>r.dataAv?dateStr(r.dataAv):'').filter(Boolean).sort();
+  const datasCp = cp.map(r=>(r.dataCompraInput || r.dataAv)?dateStr(r.dataCompraInput || r.dataAv):'').filter(Boolean).sort();
+
+  const mediaPctFipe = av.filter(r => Number.isFinite(Number(r.pctFipe))).map(r => Number(r.pctFipe));
+  const mediaFipe = mediaPctFipe.length ? (mediaPctFipe.reduce((a,b)=>a+b,0) / mediaPctFipe.length).toFixed(1) + '%' : 'N/D';
+
+  const sample = av.slice(0,200).map(r=>({
+    data:dateStr(r.dataAv),
+    empresa:r.empresa,
+    lojaEquipe:r.empresaEquipe,
+    vendedor:r.vendedor,
+    precificador:r.precificador,
+    modelo:r.modelo,
+    placa:r.placa,
+    comprado:r.comprado?'Sim':'Não',
+    melhorado:r.melhorado,
+    comprador:r.compradorNome,
+    objetivo:r.objetivo,
+    tipo:r.tipo,
+    valorAvaliado:safeMoney(r.valorAv),
+    valorMelhorado:safeMoney(r.valorMelhorado),
+    pctFipe:r.pctFipe?Number(r.pctFipe).toFixed(1)+'%':null
+  }));
+
+  return `
+CONTEXTO DO DASHBOARD — COPILOTO CARMAIS
+
+PERÍODO DAS AVALIAÇÕES: ${datasAv[0]||'N/A'} a ${datasAv[datasAv.length-1]||'N/A'}
+PERÍODO DAS COMPRAS: ${datasCp[0]||'N/A'} a ${datasCp[datasCp.length-1]||'N/A'}
+TOTAL AVALIADOS NO FILTRO: ${av.length}
+TOTAL COMPRADOS NO FILTRO: ${cp.length}
+CAPTAÇÃO GERAL: ${safePct(cp.length, av.length)}
+TOTAL MELHORADOS: ${mel.length}
+MÉDIA % FIPE: ${mediaFipe}
+
+OBJETIVO DOS COMPRADOS: ${JSON.stringify(byObjetivoCp)}
+TIPOS DE VENDEDORES NAS AVALIAÇÕES: ${JSON.stringify(byTipoAv)}
+TOP MODELOS AVALIADOS: ${JSON.stringify(topEntries(byModelo, 20))}
+
+DESEMPENHO POR LOJA, ORDENADO DA MENOR PARA A MAIOR CAPTAÇÃO:
+${JSON.stringify(lojas)}
+
+DESEMPENHO POR VENDEDOR, ORDENADO DA MENOR PARA A MAIOR CAPTAÇÃO:
+${JSON.stringify(vendedores.slice(0,60))}
+
+COMPRAS POR COMPRADOR:
+${JSON.stringify(topEntries(byComprador, 30))}
+
+PLACAS MELHORADAS, AMOSTRA:
+${JSON.stringify(placasMelhoradas)}
+
+REGISTROS DETALHADOS, AMOSTRA MÁXIMA DE 200:
+${JSON.stringify(sample)}
+`;
+}
+
+// ------------------------------------------------------------
+// COPILOTO CARMAIS — leitura flexível de campos + resumo estruturado
+// Busca um valor entre vários nomes de campo possíveis (o sistema
+// pode usar nomenclaturas diferentes para o mesmo dado).
+// ------------------------------------------------------------
+function getValorCampo(item, possiveisCampos) {
+  for (const campo of possiveisCampos) {
+    if (item && item[campo] !== undefined && item[campo] !== null && item[campo] !== '') {
+      return item[campo];
+    }
+  }
+  return '';
+}
+
+const CAMPOS = {
+  placa:['placa','Placa','PLACA'],
+  loja:['empresaEquipe','empresa','loja','Loja','Empresa','EMPRESA','nomeLoja','nome_loja'],
+  vendedor:['vendedor','Vendedor','vendedorNome','nomeVendedor','Nome do Vendedor'],
+  valorAvaliado:['valorAv','valorAvaliado','valor_avaliado','Valor Avaliado','valor','Valor'],
+  valorMelhorado:['valorMelhorado','valor_melhorado','Valor Melhorado'],
+  melhorado:['melhorado','Melhorado'],
+  comprador:['compradorNome','comprador','Comprador'],
+  modelo:['modelo','Modelo','MODELO'],
+  data:['dataAv','data','Data','dataAvaliacao','Data Avaliação','dataCompra','Data Compra']
+};
+
+// Calcula ranking por um campo (loja ou vendedor) com avaliações,
+// compras e conversão. Ordena da maior conversão para a menor.
+function montarRankingPorCampo(avaliacoes, comprados, campo) {
+  const possiveis = CAMPOS[campo] || [campo];
+  const mapa = {};
+  (avaliacoes || []).forEach(item => {
+    const nome = getValorCampo(item, possiveis) || 'N/D';
+    if (!mapa[nome]) mapa[nome] = { nome, avaliacoes:0, compras:0 };
+    mapa[nome].avaliacoes++;
+  });
+  (comprados || []).forEach(item => {
+    const nome = getValorCampo(item, possiveis) || 'N/D';
+    if (!mapa[nome]) mapa[nome] = { nome, avaliacoes:0, compras:0 };
+    mapa[nome].compras++;
+  });
+  return Object.values(mapa).map(r => ({
+    nome:r.nome,
+    avaliacoes:r.avaliacoes,
+    compras:r.compras,
+    conversao: r.avaliacoes > 0 ? +((r.compras / r.avaliacoes) * 100).toFixed(1) : 0
+  })).sort((a,b) => (b.compras - a.compras) || (b.conversao - a.conversao));
+}
+
+// Monta um objeto resumido e enxuto com os dados ATUAIS do dashboard,
+// respeitando os filtros aplicados (usa STATE.filtered quando existe).
+function montarResumoRelatorioParaIA() {
+  // Respeita os filtros aplicados: STATE.filtered já é o recorte ativo.
+  const avaliacoes = (STATE.filtered && STATE.filtered.length ? STATE.filtered : STATE.avaliacoes) || [];
+  const comprados = avaliacoes.filter(r => !!r.comprado);
+  const melhoradas = avaliacoes.filter(r => getValorCampo(r, CAMPOS.melhorado) === 'Sim');
+
+  const totalAvaliacoes = avaliacoes.length;
+  const totalComprados = comprados.length;
+  const conversaoGeral = totalAvaliacoes > 0 ? +((totalComprados / totalAvaliacoes) * 100).toFixed(1) : 0;
+
+  const rankingLojas = montarRankingPorCampo(avaliacoes, comprados, 'loja').slice(0, 10);
+  const rankingVendedores = montarRankingPorCampo(avaliacoes, comprados, 'vendedor').slice(0, 10);
+
+  const placasMelhoradas = melhoradas.slice(0, 20).map(r => ({
+    placa:getValorCampo(r, CAMPOS.placa) || 'N/D',
+    modelo:getValorCampo(r, CAMPOS.modelo) || 'N/D',
+    loja:getValorCampo(r, CAMPOS.loja) || 'N/D',
+    vendedor:getValorCampo(r, CAMPOS.vendedor) || 'N/D',
+    valorAvaliado:safeMoney(getValorCampo(r, CAMPOS.valorAvaliado)),
+    valorMelhorado:safeMoney(getValorCampo(r, CAMPOS.valorMelhorado)),
+    negocioFechado:r.comprado ? 'Sim' : 'Não'
+  }));
+
+  // Oportunidades pendentes: avaliações ainda não compradas (foco em melhoradas sem fechamento).
+  const oportunidadesPendentes = avaliacoes
+    .filter(r => !r.comprado)
+    .sort((a,b) => (getValorCampo(b, CAMPOS.melhorado) === 'Sim' ? 1 : 0) - (getValorCampo(a, CAMPOS.melhorado) === 'Sim' ? 1 : 0))
+    .slice(0, 20)
+    .map(r => ({
+      placa:getValorCampo(r, CAMPOS.placa) || 'N/D',
+      modelo:getValorCampo(r, CAMPOS.modelo) || 'N/D',
+      loja:getValorCampo(r, CAMPOS.loja) || 'N/D',
+      vendedor:getValorCampo(r, CAMPOS.vendedor) || 'N/D',
+      melhorado:getValorCampo(r, CAMPOS.melhorado) || 'Não',
+      valorAvaliado:safeMoney(getValorCampo(r, CAMPOS.valorAvaliado))
+    }));
+
+  const f = (typeof STATE !== 'undefined' && STATE.filtros) ? STATE.filtros : {};
+  return {
+    filtrosAplicados:{
+      loja:f.loja || 'Todas',
+      vendedor:f.vendedor || 'Todos',
+      periodoInicio:f.dataInicio || f.periodoInicio || 'N/D',
+      periodoFim:f.dataFim || f.periodoFim || 'N/D',
+      melhorado:f.melhorado || 'Todos',
+      negocioFechado:f.comprado || f.negocioFechado || 'Todos',
+      comprador:f.comprador || 'Todos'
+    },
+    indicadoresGerais:{
+      totalAvaliacoes,
+      totalComprados,
+      conversaoGeral:conversaoGeral + '%',
+      totalPlacasMelhoradas:melhoradas.length,
+      negociosFechados:totalComprados,
+      avaliacoesNaoCompradas:totalAvaliacoes - totalComprados
+    },
+    rankingLojas,
+    rankingVendedores,
+    placasMelhoradas,
+    oportunidadesPendentes
+  };
+}
+
+// Limpa excesso de markdown e separa visualmente os 4 blocos da resposta.
+function formatarRespostaIA(texto) {
+  if (!texto) return '';
+  let resposta = String(texto).replace(/\*\*/g, '').replace(/\*/g, '').trim();
+  resposta = resposta
+    .replace(/Resumo:/gi, "<div class='ai-section'><strong>Resumo:</strong><br>")
+    .replace(/Ponto de atenção:/gi, "</div><div class='ai-section'><strong>Ponto de atenção:</strong><br>")
+    .replace(/Leitura gerencial:/gi, "</div><div class='ai-section'><strong>Leitura gerencial:</strong><br>")
+    .replace(/Ação recomendada:/gi, "</div><div class='ai-section'><strong>Ação recomendada:</strong><br>");
+  resposta += '</div>';
+  // Remove um div de abertura órfão, se a resposta não começar por "Resumo".
+  resposta = resposta.replace(/^<\/div>/, '');
+  return resposta;
+}
+
+async function callGeminiWithFallback(apiKey, payload) {
+  let lastError = null;
+  const models = GEMINI_FALLBACK_MODELS;
+
+  for (let i = 0; i < models.length; i++) {
+    const model = models[i];
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+          method:'POST',
+          headers:{
+            'Content-Type':'application/json',
+            'x-goog-api-key':apiKey
+          },
+          body:JSON.stringify(payload)
+        });
+
+        const data = await resp.json().catch(()=>({}));
+        if (resp.ok) return { data, modelUsed:model };
+
+        const message = data.error?.message || 'HTTP ' + resp.status;
+        lastError = new Error(message);
+        lastError.status = resp.status;
+
+        if (!isTemporaryGeminiError(resp.status, message)) {
+          throw lastError;
+        }
+
+        await sleep(700 * attempt);
+      } catch (err) {
+        lastError = err;
+        if (!isTemporaryGeminiError(err.status, err.message)) throw err;
+        await sleep(700 * attempt);
+      }
+    }
+  }
+
+  throw new Error(
+    (lastError && lastError.message)
+      ? 'Todos os modelos tentados estão temporariamente indisponíveis. Último erro: ' + lastError.message
+      : 'Não foi possível conectar ao Gemini.'
+  );
 }
 
 async function sendAIMessage(text) {
   const inp = document.getElementById('ai-chat-input');
   const msg = text || (inp ? inp.value.trim() : '');
   if (!msg) return;
-  const apiKey = localStorage.getItem('carmais_claude_key') || '';
-  if (!apiKey) { showToast('Configure sua chave API Claude na aba 🤖 IA.','error'); initAIKeyUI(); return; }
+
+  const apiKey = localStorage.getItem('carmais_gemini_key') || '';
+  if (!apiKey) {
+    showToast('Configure sua chave API Gemini na aba 🤖 IA.','error');
+    initAIKeyUI();
+    return;
+  }
+
   if (inp) inp.value = '';
   addAIChatMsg(msg, 'user');
-  const thinking = addAIChatMsg('⏳ Analisando dados...', 'thinking');
+  const thinking = addAIChatMsg('⏳ Copiloto Carmais analisando os dados filtrados...', 'thinking');
   const btn = document.getElementById('ai-send-btn');
   if (btn) btn.disabled = true;
+
   try {
     const ctx = prepareAIContext();
+    // Resumo estruturado e enxuto (respeita filtros, limita volume) enviado junto ao contexto.
+    let resumoRelatorio = {};
+    try { resumoRelatorio = montarResumoRelatorioParaIA(); } catch(err) { resumoRelatorio = {}; }
     AI_HISTORY.push({ role:'user', content:msg });
-    const msgs = AI_HISTORY.slice(-6).map((m,idx,arr)=>({
-      role: m.role,
-      content: (m.role==='user' && idx===arr.length-1) ? `Dados do dashboard:\n${ctx}\n\nPergunta: ${m.content}` : m.content
+
+    const recentHistory = AI_HISTORY.slice(-6).map((m, idx, arr) => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{
+        text: (m.role === 'user' && idx === arr.length - 1)
+          ? `${ctx}\n\nRESUMO ESTRUTURADO DO RELATÓRIO (JSON):\n${JSON.stringify(resumoRelatorio, null, 2)}\n\nPERGUNTA DO USUÁRIO, RESPONDA CURTO, SEM MARKDOWN, NO FORMATO PADRÃO (Resumo / Ponto de atenção / Leitura gerencial / Ação recomendada) E COM BASE EXCLUSIVA NOS DADOS ACIMA:\n${m.content}`
+          : m.content
+      }]
     }));
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:1024,
-        system:'Você é um assistente analítico de seminovos do Grupo Carmais. Responda em português brasileiro, seja preciso e use os dados fornecidos.',
-        messages:msgs})
-    });
-    if (!resp.ok) { const e=await resp.json().catch(()=>({})); throw new Error(e.error?.message||'HTTP '+resp.status); }
-    const data = await resp.json();
-    const reply = data.content[0].text;
+
+    const payload = {
+      systemInstruction:{ parts:[{ text:COPILOTO_CARMAIS_PROMPT }] },
+      contents: recentHistory,
+      generationConfig:{
+        temperature:0.3,
+        topP:0.8,
+        maxOutputTokens:600
+      }
+    };
+
+    const result = await callGeminiWithFallback(apiKey, payload);
+    const data = result.data;
+    if (result.modelUsed && result.modelUsed !== GEMINI_MODEL) {
+      addAIChatMsg('ℹ️ O modelo principal estava indisponível/sobrecarregado. Usei automaticamente: ' + getGeminiModelLabel(result.modelUsed) + '.', 'assistant');
+    }
+    const reply = (data.candidates?.[0]?.content?.parts || []).map(p=>p.text||'').join('') || 'Não consegui gerar uma resposta com os dados atuais.';
     AI_HISTORY.push({ role:'assistant', content:reply });
+
     thinking.remove();
     addAIChatMsg(reply, 'assistant');
   } catch(e) {
     thinking.remove();
-    addAIChatMsg('❌ Erro: '+e.message, 'assistant');
-  } finally { if (btn) btn.disabled = false; }
+    const msgErro = String(e.message || e);
+    const texto = msgErro.toLowerCase().includes('high demand') || msgErro.toLowerCase().includes('temporar') || msgErro.toLowerCase().includes('indispon')
+      ? '❌ O Gemini está temporariamente sobrecarregado. Eu já tentei modelos alternativos; aguarde alguns minutos e tente novamente. Você também pode trocar o modelo para Gemini 3.1 Flash Lite no seletor acima.'
+      : '❌ Erro: ' + msgErro;
+    addAIChatMsg(texto, 'assistant');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function cleanAIText(text) {
+  return String(text || '')
+    .replace(/\*\*/g, '')
+    .replace(/#{1,6}\s*/g, '')
+    .replace(/`{1,3}/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function extractAISections(text) {
+  const cleaned = cleanAIText(text);
+  // Formato padrão atual + compatibilidade com o formato antigo.
+  const labels = /Resumo\s*:/i.test(cleaned)
+    ? ['Resumo', 'Ponto de atenção', 'Leitura gerencial', 'Ação recomendada']
+    : ['O que aconteceu', 'Por que importa', 'O que fazer agora'];
+  const sections = [];
+
+  const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  labels.forEach((label, idx) => {
+    const next = labels[idx + 1];
+    const lbl = esc(label);
+    const pattern = next
+      ? new RegExp(lbl + '\\s*:?\\s*([\\s\\S]*?)(?=' + esc(next) + '\\s*:?)', 'i')
+      : new RegExp(lbl + '\\s*:?\\s*([\\s\\S]*)', 'i');
+    const match = cleaned.match(pattern);
+    if (match && match[1]) {
+      sections.push({ title: label, text: match[1].trim().replace(/^[-–•\s]+/gm, '').trim() });
+    }
+  });
+
+  return sections.filter(s => s.text);
+}
+
+function renderAICompactCards(text) {
+  const sections = extractAISections(text);
+  if (sections.length < 2) return null;
+
+  const icons = {
+    'Resumo': '📌',
+    'Ponto de atenção': '⚠️',
+    'Leitura gerencial': '📈',
+    'Ação recomendada': '✅',
+    'O que aconteceu': '📌',
+    'Por que importa': '⚠️',
+    'O que fazer agora': '✅'
+  };
+
+  const wrap = document.createElement('div');
+  wrap.className = 'ai-card-wrap';
+  sections.slice(0, 4).forEach(section => {
+    const card = document.createElement('div');
+    card.className = 'ai-card';
+
+    const title = document.createElement('div');
+    title.className = 'ai-card-title';
+    title.textContent = `${icons[section.title] || '•'} ${section.title}`;
+
+    const body = document.createElement('div');
+    body.className = 'ai-card-text';
+    body.textContent = section.text;
+
+    card.appendChild(title);
+    card.appendChild(body);
+    wrap.appendChild(card);
+  });
+  return wrap;
 }
 
 function addAIChatMsg(text, role) {
   const c = document.getElementById('ai-chat-messages'); if(!c) return null;
   const el = document.createElement('div');
-  el.className = `ai-msg ${role}`;
-  el.textContent = text;
+  const cleaned = cleanAIText(text);
+
+  if (role === 'assistant') {
+    const cards = renderAICompactCards(cleaned);
+    if (cards) {
+      el.className = 'ai-msg assistant compact';
+      el.appendChild(cards);
+    } else {
+      el.className = 'ai-msg assistant plain';
+      el.textContent = cleaned;
+    }
+  } else {
+    el.className = `ai-msg ${role}`;
+    el.textContent = cleaned;
+  }
+
   c.appendChild(el);
   c.scrollTop = c.scrollHeight;
   return el;
@@ -3987,7 +3265,25 @@ function addAIChatMsg(text, role) {
 function clearAIChat() {
   AI_HISTORY.length = 0;
   const c = document.getElementById('ai-chat-messages');
-  if (c) c.innerHTML = '<div class="ai-msg assistant">Conversa limpa! Como posso ajudar? 🚗</div>';
+  if (c) c.innerHTML = '<div class="ai-msg assistant">Conversa limpa! Sou o Copiloto Carmais. Pergunte sobre captação, lojas, vendedores, compradores ou plano de ação.</div>';
+}
+
+// Entrada principal do Copiloto: lê a pergunta do campo e envia para a IA.
+function perguntarAoCopiloto(pergunta) {
+  const inp = document.getElementById('ai-chat-input');
+  const texto = pergunta || (inp ? inp.value.trim() : '');
+  if (!texto) {
+    showToast('Digite uma pergunta para o Copiloto Carmais.', 'error');
+    return;
+  }
+  sendAIMessage(texto);
+}
+
+// Botões de perguntas rápidas: preenchem o campo e disparam a análise.
+function perguntaRapidaIA(pergunta) {
+  const inp = document.getElementById('ai-chat-input');
+  if (inp) inp.value = pergunta;
+  perguntarAoCopiloto(pergunta);
 }
 
 // ============================================================
