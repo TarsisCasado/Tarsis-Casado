@@ -1238,7 +1238,13 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
     <div class="modal-field"><label>Senha</label><input type="password" id="mu-senha" placeholder="Mínimo 6 caracteres"/></div>
     <div class="modal-field"><label>Perfil</label><select id="mu-perfil" onchange="onPerfilChange()"><option value="usuario">Usuário</option><option value="master">Master</option></select></div>
     <div class="modal-field"><label>Ativo</label><select id="mu-ativo"><option value="Sim">Sim</option><option value="Não">Não</option></select></div>
-    <div class="modal-field" id="mu-lojas-wrap"><label>Lojas que pode visualizar (separe por vírgula — vazio = todas)</label><input type="text" id="mu-lojas" list="dl-mu-lojas" placeholder="Ex: Honda Maceió, BYD Arapiraca"/><datalist id="dl-mu-lojas"></datalist></div>
+    <div class="modal-field" id="mu-lojas-wrap"><label>Lojas que o usuário pode visualizar</label>
+      <div style="font-size:11px;color:var(--text3);margin:2px 0 8px;">Marque as lojas liberadas. Se <strong>nenhuma</strong> for marcada, o usuário verá <strong>todas</strong>.</div>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--border);">
+        <input type="checkbox" id="mu-lojas-all" onchange="toggleAllLojas(this.checked)"/> Selecionar todas
+      </label>
+      <div id="mu-lojas" style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto;padding-right:4px;"></div>
+    </div>
     <div class="modal-field" id="mu-abas-wrap"><label>Abas liberadas para o usuário</label>
       <div id="mu-abas" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;"></div>
       <div style="font-size:11px;color:var(--text3);margin-top:6px;">Aplica-se ao perfil Usuário. O perfil Master sempre vê todas as abas e todas as lojas.</div>
@@ -2285,11 +2291,30 @@ function getUserPerms(login){ return getAllUserPerms()[(login||'').toString().to
 function setUserPerms(login, perms){ const m=getAllUserPerms(); m[(login||'').toString().toLowerCase()]=perms; saveJsonLocal('carmais_user_perms', m); }
 function parseLista(v){ return Array.isArray(v) ? v.filter(Boolean) : (v||'').toString().split(',').map(s=>s.trim()).filter(Boolean); }
 
-function fillLojasDatalist(){
-  const dl=document.getElementById('dl-mu-lojas'); if(!dl)return;
-  const lojas=[...new Set((STATE.avaliacoes||[]).map(r=>r.empresaEquipe||r.empresa).filter(Boolean).map(s=>s.toString().trim()))].sort();
-  dl.innerHTML=lojas.map(l=>`<option value="${escHtml(l)}"></option>`).join('');
+// Lista todas as lojas presentes nos dados (avaliações + comprados), únicas e ordenadas.
+function getAllLojas(){
+  const s=new Set();
+  (STATE.avaliacoes||[]).forEach(r=>{const v=(r.empresaEquipe||r.empresa||'').toString().trim(); if(v)s.add(v);});
+  (STATE.comprados||[]).forEach(r=>{const v=(r.empresa||r.empresaEquipe||'').toString().trim(); if(v)s.add(v);});
+  return [...s].sort((a,b)=>a.localeCompare(b,'pt-BR'));
 }
+// Monta a lista de checkboxes de lojas no modal de usuário, marcando as já liberadas.
+function buildLojasCheckboxes(selected){
+  const wrap=document.getElementById('mu-lojas'); if(!wrap)return;
+  const lojas=getAllLojas();
+  const selSet=new Set((selected||[]).map(x=>normHdrEmpresa(x)));
+  if(!lojas.length){ wrap.innerHTML='<div style="font-size:12px;color:var(--text3)">Nenhuma loja encontrada nos dados. Carregue os dados do dashboard antes de configurar.</div>'; const all=document.getElementById('mu-lojas-all'); if(all){all.checked=false;all.disabled=true;} return; }
+  const all=document.getElementById('mu-lojas-all'); if(all)all.disabled=false;
+  wrap.innerHTML=lojas.map(l=>`<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" class="mu-loja-chk" value="${escHtml(l)}" ${selSet.has(normHdrEmpresa(l))?'checked':''} onchange="syncLojasAllCheckbox()"/>${escHtml(l)}</label>`).join('');
+  syncLojasAllCheckbox();
+}
+function toggleAllLojas(check){ document.querySelectorAll('.mu-loja-chk').forEach(c=>c.checked=check); }
+function syncLojasAllCheckbox(){
+  const all=document.getElementById('mu-lojas-all'); if(!all)return;
+  const chks=[...document.querySelectorAll('.mu-loja-chk')];
+  all.checked = chks.length>0 && chks.every(c=>c.checked);
+}
+function getLojasSelecionadas(){ return [...document.querySelectorAll('.mu-loja-chk:checked')].map(c=>c.value); }
 function buildAbasCheckboxes(selected){
   const wrap=document.getElementById('mu-abas'); if(!wrap)return;
   const sel = (selected && selected.length) ? selected : ABAS_USUARIO.map(a=>a.id);
@@ -2324,11 +2349,11 @@ function renderUsuarios(users) {
 }
 function openModalNovoUsuario(){
   document.getElementById('modal-usuario-title').textContent='Novo Usuário';
-  ['mu-login','mu-nome','mu-senha','mu-lojas'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['mu-login','mu-nome','mu-senha'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('mu-perfil').value='usuario';
   document.getElementById('mu-ativo').value='Sim';
   document.getElementById('mu-login').dataset.editMode='';
-  fillLojasDatalist();
+  buildLojasCheckboxes(null);
   buildAbasCheckboxes(null);
   onPerfilChange();
   document.getElementById('modal-usuario').classList.add('open');
@@ -2344,9 +2369,8 @@ function editUsuario(login){
   document.getElementById('mu-ativo').value=u.ativo||'Sim';
   document.getElementById('mu-login').dataset.editMode=login;
   const lojas=parseLista(u.lojas!=null&&u.lojas!==''?u.lojas:perms.lojas);
-  document.getElementById('mu-lojas').value=lojas.join(', ');
   const abas=parseLista(u.abas!=null&&u.abas!==''?u.abas:perms.abas);
-  fillLojasDatalist();
+  buildLojasCheckboxes(lojas);
   buildAbasCheckboxes(abas.length?abas:null);
   onPerfilChange();
   document.getElementById('modal-usuario').classList.add('open');
@@ -2360,7 +2384,7 @@ async function salvarUsuario(){
   const editMode=document.getElementById('mu-login').dataset.editMode;
   if(!login||!nome){showToast('Login e nome obrigatórios.','error');return;}
   // Permissões (só fazem sentido para usuário comum)
-  const lojas = perfilNovo==='master' ? [] : parseLista(document.getElementById('mu-lojas').value);
+  const lojas = perfilNovo==='master' ? [] : getLojasSelecionadas();
   let abas = perfilNovo==='master' ? [] : [...document.querySelectorAll('.mu-aba-chk:checked')].map(c=>c.value);
   if(perfilNovo!=='master' && !abas.includes('dashboard')) abas.unshift('dashboard');
   const lojasStr = lojas.join(','), abasStr = abas.join(',');
@@ -2373,11 +2397,17 @@ async function salvarUsuario(){
       await callAPI({action:'createUsuario',novoUsuario:{login,senha,nome,perfilNovo,ativo,lojas:lojasStr,abas:abasStr},usuario:SESSION.nome,perfil:SESSION.perfil});
     }
     setUserPerms(login,{lojas,abas});
-    closeModal('modal-usuario'); showToast('Usuário salvo!','success'); await loadUsuarios();
+    closeModal('modal-usuario');
+    if(perfilNovo!=='master' && lojas.length){
+      showToast(`Usuário salvo! ${lojas.length} loja(s) liberada(s). A restrição vale no próximo login dele.`,'success');
+    } else {
+      showToast('Usuário salvo!','success');
+    }
+    await loadUsuarios();
   }catch(e){
-    // Mesmo sem backend, mantém as permissões salvas localmente.
+    // Mesmo sem backend, mantém as permissões salvas localmente (só vale nesta máquina).
     setUserPerms(login,{lojas,abas});
-    showToast('Erro no servidor, mas as permissões foram salvas neste navegador: '+e.message,'info');
+    showToast('⚠️ O servidor não confirmou o salvamento. A restrição de loja só funciona para outro usuário se o Apps Script atualizado estiver publicado. Erro: '+e.message,'error');
   }
 }
 async function toggleUsuario(login,atual){
