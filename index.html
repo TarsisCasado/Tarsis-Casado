@@ -375,18 +375,18 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
 
 <!-- TABS -->
 <nav class="tabs-bar" id="main-tabs" style="display:none">
-  <button class="tab-btn active" onclick="switchTab('dashboard',this)">📊 Dashboard</button>
-  <button class="tab-btn master-only" onclick="switchTab('input-avaliacoes',this)">📋 Input Avaliações</button>
-  <button class="tab-btn master-only" onclick="switchTab('input-equipes',this)">👥 Input Equipes</button>
-  <button class="tab-btn master-only" onclick="switchTab('input-comprados',this)">✅ Input Comprados</button>
-  <button class="tab-btn" onclick="switchTab('tabela',this)">🗂️ Detalhe Avaliados</button>
-  <button class="tab-btn" onclick="switchTab('tabela-comprados',this)">✅ Detalhe Comprados</button>
-  <button class="tab-btn" onclick="switchTab('comprador-vis',this)">🏷️ Visão Comprador</button>
-  <button class="tab-btn master-only" onclick="switchTab('usuarios',this)">👤 Usuários</button>
-  <button class="tab-btn master-only" onclick="switchTab('config-script',this)">⚙️ Config Script</button>
-  <button class="tab-btn master-only" onclick="switchTab('historico',this)">📜 Histórico</button>
-  <button class="tab-btn master-only" onclick="switchTab('alertas',this)">🔔 Alertas</button>
-  <button class="tab-btn" onclick="switchTab('ia',this)">🤖 IA</button>
+  <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard',this)">📊 Dashboard</button>
+  <button class="tab-btn master-only" data-tab="input-avaliacoes" onclick="switchTab('input-avaliacoes',this)">📋 Input Avaliações</button>
+  <button class="tab-btn master-only" data-tab="input-equipes" onclick="switchTab('input-equipes',this)">👥 Input Equipes</button>
+  <button class="tab-btn master-only" data-tab="input-comprados" onclick="switchTab('input-comprados',this)">✅ Input Comprados</button>
+  <button class="tab-btn" data-tab="tabela" onclick="switchTab('tabela',this)">🗂️ Detalhe Avaliados</button>
+  <button class="tab-btn" data-tab="tabela-comprados" onclick="switchTab('tabela-comprados',this)">✅ Detalhe Comprados</button>
+  <button class="tab-btn" data-tab="comprador-vis" onclick="switchTab('comprador-vis',this)">🏷️ Visão Comprador</button>
+  <button class="tab-btn master-only" data-tab="usuarios" onclick="switchTab('usuarios',this)">👤 Usuários</button>
+  <button class="tab-btn master-only" data-tab="config-script" onclick="switchTab('config-script',this)">⚙️ Config Script</button>
+  <button class="tab-btn master-only" data-tab="historico" onclick="switchTab('historico',this)">📜 Histórico</button>
+  <button class="tab-btn master-only" data-tab="alertas" onclick="switchTab('alertas',this)">🔔 Alertas</button>
+  <button class="tab-btn" data-tab="ia" onclick="switchTab('ia',this)">🤖 IA</button>
 </nav>
 
 <!-- MAIN -->
@@ -669,7 +669,7 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
     <button class="btn btn-primary" onclick="openModalNovoUsuario()">+ Novo Usuário</button>
   </div>
   <div class="table-wrap">
-    <table><thead><tr><th>Login</th><th>Nome</th><th>Perfil</th><th>Ativo</th><th>Ações</th></tr></thead>
+    <table><thead><tr><th>Login</th><th>Nome</th><th>Perfil</th><th>Lojas</th><th>Ativo</th><th>Ações</th></tr></thead>
     <tbody id="usuarios-tbody"></tbody></table>
   </div>
   <div style="margin-top:32px;">
@@ -856,8 +856,13 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
     <div class="modal-field"><label>Login</label><input type="text" id="mu-login" placeholder="Ex: joao.silva"/></div>
     <div class="modal-field"><label>Nome Completo</label><input type="text" id="mu-nome" placeholder="Ex: João Silva"/></div>
     <div class="modal-field"><label>Senha</label><input type="password" id="mu-senha" placeholder="Mínimo 6 caracteres"/></div>
-    <div class="modal-field"><label>Perfil</label><select id="mu-perfil"><option value="usuario">Usuário</option><option value="master">Master</option></select></div>
+    <div class="modal-field"><label>Perfil</label><select id="mu-perfil" onchange="onPerfilChange()"><option value="usuario">Usuário</option><option value="master">Master</option></select></div>
     <div class="modal-field"><label>Ativo</label><select id="mu-ativo"><option value="Sim">Sim</option><option value="Não">Não</option></select></div>
+    <div class="modal-field" id="mu-lojas-wrap"><label>Lojas que pode visualizar (separe por vírgula — vazio = todas)</label><input type="text" id="mu-lojas" list="dl-mu-lojas" placeholder="Ex: Honda Maceió, BYD Arapiraca"/><datalist id="dl-mu-lojas"></datalist></div>
+    <div class="modal-field" id="mu-abas-wrap"><label>Abas liberadas para o usuário</label>
+      <div id="mu-abas" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;"></div>
+      <div style="font-size:11px;color:var(--text3);margin-top:6px;">Aplica-se ao perfil Usuário. O perfil Master sempre vê todas as abas e todas as lojas.</div>
+    </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('modal-usuario')">Cancelar</button>
       <button class="btn btn-primary" onclick="salvarUsuario()">💾 Salvar</button>
@@ -1176,11 +1181,54 @@ function openDashboard() {
   document.getElementById('user-name').textContent = SESSION.nome || SESSION.usuario;
   document.getElementById('user-role').textContent = SESSION.perfil === 'master' ? '⭐ Master' : '👤 Usuário';
   if (SESSION.perfil === 'master') document.body.classList.add('is-master');
+  aplicarPermissoesUsuario();
   applyTheme(localStorage.getItem('carmais_theme') || 'dark');
   updateDateDisplay();
   setInterval(updateDateDisplay, 60000);
   document.addEventListener('click', closeAllMultiSelects);
   loadDataFromSheets();
+}
+
+// Calcula e aplica as permissões do usuário logado (lojas + abas).
+// Prioriza campos vindos do servidor (login); se não houver, usa o apoio local.
+function aplicarPermissoesUsuario(){
+  const login = (SESSION.usuario||SESSION.login||'').toString();
+  const perms = getUserPerms(login);
+  const lojas = (SESSION.lojas!=null && SESSION.lojas!=='') ? parseLista(SESSION.lojas) : parseLista(perms.lojas);
+  const abas  = (SESSION.abas!=null  && SESSION.abas!=='')  ? parseLista(SESSION.abas)  : parseLista(perms.abas);
+  // Master nunca é restringido.
+  SESSION.lojasPermitidas = (SESSION.perfil==='master') ? [] : lojas;
+  SESSION.abasPermitidas  = (SESSION.perfil==='master') ? [] : abas;
+  aplicarAbasUI();
+}
+// Esconde as abas de usuário comum que não foram liberadas (master vê tudo).
+function aplicarAbasUI(){
+  if(SESSION.perfil==='master') return;
+  const abas = SESSION.abasPermitidas||[];
+  if(!abas.length) return; // sem restrição definida = comportamento padrão
+  const permitidas = new Set(abas.concat(['dashboard']));
+  let ativaEscondida=false;
+  document.querySelectorAll('#main-tabs .tab-btn[data-tab]').forEach(btn=>{
+    const t=btn.getAttribute('data-tab');
+    if(ABAS_USUARIO.some(a=>a.id===t)){
+      const liberar=permitidas.has(t);
+      btn.style.display = liberar ? '' : 'none';
+      if(!liberar && btn.classList.contains('active')) ativaEscondida=true;
+    }
+  });
+  // Se a aba ativa foi escondida, volta para o Dashboard.
+  if(ativaEscondida){ const d=document.querySelector('#main-tabs .tab-btn[data-tab="dashboard"]'); if(d) switchTab('dashboard',d); }
+}
+// Restringe os dados carregados às lojas permitidas do usuário (na origem,
+// para que dashboard, tabelas, rankings e IA respeitem automaticamente).
+function restringirDadosPorLoja(){
+  const lojas = (SESSION && SESSION.lojasPermitidas) || [];
+  if(!lojas.length) return;
+  const set = new Set(lojas.map(l=>normHdrEmpresa(l)));
+  const okAv = r => set.has(normHdrEmpresa(r.empresaEquipe||r.empresa||''));
+  const okCp = r => set.has(normHdrEmpresa(r.empresa||r.empresaEquipe||''));
+  STATE.avaliacoes = (STATE.avaliacoes||[]).filter(okAv);
+  STATE.comprados  = (STATE.comprados||[]).filter(okCp);
 }
 
 async function doLogout() {
@@ -1273,6 +1321,7 @@ async function loadDataFromSheets(forceRefresh) {
         STATE.equipes = cached.data.equipes || [];
         STATE.comprados = (cached.data.comprados||[]).map(r=>{ if(r.dataCompra)r.dataCompra=new Date(r.dataCompra); return r; });
         STATE.comprador = cached.data.comprador || [];
+        restringirDadosPorLoja();
         crossJoin();
         applyCompradorSheetData(STATE.avaliacoes, STATE.comprador);
         if (!STATE._filtersInitialized) { populateFilters(true); STATE._filtersInitialized = true; }
@@ -1335,6 +1384,7 @@ async function loadDataFromSheets(forceRefresh) {
     STATE.comprados = dedupeInfo.rows;
     diag.compradosUnicos = STATE.comprados.length;
     diag.compradosDuplicados = dedupeInfo.duplicates;
+    restringirDadosPorLoja();
     crossJoin();
     applyCompradorSheetData(STATE.avaliacoes, STATE.comprador);
     const vinculados = STATE.avaliacoes.filter(r=>r.compraInput).length;
@@ -1838,33 +1888,86 @@ async function loadUsuarios() {
   try{ const users=await callAPI({action:'getUsuarios',usuario:SESSION.nome,perfil:SESSION.perfil}); renderUsuarios(users); }
   catch(e){showToast('Erro usuários: '+e.message,'error');}
 }
+// Abas que podem ser liberadas para um usuário comum (master sempre vê todas).
+const ABAS_USUARIO = [
+  {id:'dashboard', label:'📊 Dashboard'},
+  {id:'tabela', label:'🗂️ Detalhe Avaliados'},
+  {id:'tabela-comprados', label:'✅ Detalhe Comprados'},
+  {id:'comprador-vis', label:'🏷️ Visão Comprador'},
+  {id:'ia', label:'🤖 IA'}
+];
+
+// Permissões por usuário (loja + abas). Persistidas no navegador como apoio;
+// também enviadas ao backend para persistência cloud quando suportado.
+function getAllUserPerms(){ return loadJsonLocal('carmais_user_perms', {}) || {}; }
+function getUserPerms(login){ return getAllUserPerms()[(login||'').toString().toLowerCase()] || {}; }
+function setUserPerms(login, perms){ const m=getAllUserPerms(); m[(login||'').toString().toLowerCase()]=perms; saveJsonLocal('carmais_user_perms', m); }
+function parseLista(v){ return Array.isArray(v) ? v.filter(Boolean) : (v||'').toString().split(',').map(s=>s.trim()).filter(Boolean); }
+
+function fillLojasDatalist(){
+  const dl=document.getElementById('dl-mu-lojas'); if(!dl)return;
+  const lojas=[...new Set((STATE.avaliacoes||[]).map(r=>r.empresaEquipe||r.empresa).filter(Boolean).map(s=>s.toString().trim()))].sort();
+  dl.innerHTML=lojas.map(l=>`<option value="${escHtml(l)}"></option>`).join('');
+}
+function buildAbasCheckboxes(selected){
+  const wrap=document.getElementById('mu-abas'); if(!wrap)return;
+  const sel = (selected && selected.length) ? selected : ABAS_USUARIO.map(a=>a.id);
+  wrap.innerHTML = ABAS_USUARIO.map(a=>`<label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" class="mu-aba-chk" value="${a.id}" ${sel.includes(a.id)?'checked':''} ${a.id==='dashboard'?'disabled':''}/>${a.label}</label>`).join('');
+}
+// Master não usa restrição de loja/abas: esconde os campos quando perfil=master.
+function onPerfilChange(){
+  const isMaster = document.getElementById('mu-perfil').value==='master';
+  const lw=document.getElementById('mu-lojas-wrap'), aw=document.getElementById('mu-abas-wrap');
+  if(lw) lw.style.display = isMaster ? 'none' : 'block';
+  if(aw) aw.style.display = isMaster ? 'none' : 'block';
+}
+
+let usuariosListCache = [];
 function renderUsuarios(users) {
+  usuariosListCache = users || [];
   const tb=document.getElementById('usuarios-tbody'); if(!tb)return;
-  tb.innerHTML=(users||[]).map(u=>`<tr>
+  tb.innerHTML=(users||[]).map(u=>{
+    const perms=getUserPerms(u.login);
+    const lojas=parseLista(u.lojas!=null&&u.lojas!==''?u.lojas:perms.lojas);
+    const lojasTxt = u.perfil==='master' ? 'Todas' : (lojas.length?lojas.join(', '):'Todas');
+    return `<tr>
     <td>${escHtml(u.login)}</td><td>${escHtml(u.nome)}</td>
     <td><span class="badge ${u.perfil==='master'?'badge-amber':'badge-blue'}">${u.perfil==='master'?'⭐ Master':'👤 Usuário'}</span></td>
+    <td style="font-size:12px;color:var(--text2)">${escHtml(lojasTxt)}</td>
     <td><span class="badge ${u.ativo==='Sim'?'badge-green':'badge-red'}">${u.ativo}</span></td>
     <td style="display:flex;gap:6px">
-      <button class="btn btn-ghost" style="padding:4px 10px;font-size:12px" onclick="editUsuario('${escHtml(u.login)}','${escHtml(u.nome)}','${u.perfil}','${u.ativo}')">✏️</button>
+      <button class="btn btn-ghost" style="padding:4px 10px;font-size:12px" onclick="editUsuario('${escHtml(u.login)}')">✏️</button>
       <button class="btn btn-${u.ativo==='Sim'?'red':'green'}" style="padding:4px 10px;font-size:12px" onclick="toggleUsuario('${escHtml(u.login)}','${u.ativo}')">${u.ativo==='Sim'?'🚫 Inativar':'✅ Ativar'}</button>
-    </td></tr>`).join('')||'<tr><td colspan="5" class="no-data" style="padding:20px;text-align:center">Sem usuários</td></tr>';
+    </td></tr>`;
+  }).join('')||'<tr><td colspan="6" class="no-data" style="padding:20px;text-align:center">Sem usuários</td></tr>';
 }
 function openModalNovoUsuario(){
   document.getElementById('modal-usuario-title').textContent='Novo Usuário';
-  ['mu-login','mu-nome','mu-senha'].forEach(id=>document.getElementById(id).value='');
+  ['mu-login','mu-nome','mu-senha','mu-lojas'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('mu-perfil').value='usuario';
   document.getElementById('mu-ativo').value='Sim';
   document.getElementById('mu-login').dataset.editMode='';
+  fillLojasDatalist();
+  buildAbasCheckboxes(null);
+  onPerfilChange();
   document.getElementById('modal-usuario').classList.add('open');
 }
-function editUsuario(login,nome,perfil,ativo){
+function editUsuario(login){
+  const u = usuariosListCache.find(x=>x.login===login) || {login,nome:'',perfil:'usuario',ativo:'Sim'};
+  const perms = getUserPerms(login);
   document.getElementById('modal-usuario-title').textContent='Editar Usuário';
-  document.getElementById('mu-login').value=login;
-  document.getElementById('mu-nome').value=nome;
+  document.getElementById('mu-login').value=u.login;
+  document.getElementById('mu-nome').value=u.nome||'';
   document.getElementById('mu-senha').value='';
-  document.getElementById('mu-perfil').value=perfil;
-  document.getElementById('mu-ativo').value=ativo;
+  document.getElementById('mu-perfil').value=u.perfil||'usuario';
+  document.getElementById('mu-ativo').value=u.ativo||'Sim';
   document.getElementById('mu-login').dataset.editMode=login;
+  const lojas=parseLista(u.lojas!=null&&u.lojas!==''?u.lojas:perms.lojas);
+  document.getElementById('mu-lojas').value=lojas.join(', ');
+  const abas=parseLista(u.abas!=null&&u.abas!==''?u.abas:perms.abas);
+  fillLojasDatalist();
+  buildAbasCheckboxes(abas.length?abas:null);
+  onPerfilChange();
   document.getElementById('modal-usuario').classList.add('open');
 }
 async function salvarUsuario(){
@@ -1875,16 +1978,26 @@ async function salvarUsuario(){
   const ativo=document.getElementById('mu-ativo').value;
   const editMode=document.getElementById('mu-login').dataset.editMode;
   if(!login||!nome){showToast('Login e nome obrigatórios.','error');return;}
+  // Permissões (só fazem sentido para usuário comum)
+  const lojas = perfilNovo==='master' ? [] : parseLista(document.getElementById('mu-lojas').value);
+  let abas = perfilNovo==='master' ? [] : [...document.querySelectorAll('.mu-aba-chk:checked')].map(c=>c.value);
+  if(perfilNovo!=='master' && !abas.includes('dashboard')) abas.unshift('dashboard');
+  const lojasStr = lojas.join(','), abasStr = abas.join(',');
   try{
     if(editMode){
-      const campos={nome,perfil:perfilNovo,ativo}; if(senha)campos.senha=senha;
+      const campos={nome,perfil:perfilNovo,ativo,lojas:lojasStr,abas:abasStr}; if(senha)campos.senha=senha;
       await callAPI({action:'updateUsuario',loginAlvo:editMode,campos,usuario:SESSION.nome,perfil:SESSION.perfil});
     }else{
       if(!senha){showToast('Senha obrigatória.','error');return;}
-      await callAPI({action:'createUsuario',novoUsuario:{login,senha,nome,perfilNovo,ativo},usuario:SESSION.nome,perfil:SESSION.perfil});
+      await callAPI({action:'createUsuario',novoUsuario:{login,senha,nome,perfilNovo,ativo,lojas:lojasStr,abas:abasStr},usuario:SESSION.nome,perfil:SESSION.perfil});
     }
+    setUserPerms(login,{lojas,abas});
     closeModal('modal-usuario'); showToast('Usuário salvo!','success'); await loadUsuarios();
-  }catch(e){showToast('Erro: '+e.message,'error');}
+  }catch(e){
+    // Mesmo sem backend, mantém as permissões salvas localmente.
+    setUserPerms(login,{lojas,abas});
+    showToast('Erro no servidor, mas as permissões foram salvas neste navegador: '+e.message,'info');
+  }
 }
 async function toggleUsuario(login,atual){
   const novoAtivo=atual==='Sim'?'Não':'Sim';
@@ -3318,8 +3431,9 @@ function renderCompradores() {
     <td>${escHtml(c.email||'—')}</td><td>${escHtml(c.whatsapp||'—')}</td>
     <td><span class="badge ${(c.ativo||'Sim')==='Sim'?'badge-green':'badge-red'}">${c.ativo||'Sim'}</span></td>
     <td style="display:flex;gap:6px">
-      <button class="btn btn-ghost" style="padding:4px 10px;font-size:12px" onclick="editComprador(${i})">✏️</button>
-      <button class="btn btn-${(c.ativo||'Sim')==='Sim'?'red':'green'}" style="padding:4px 10px;font-size:12px" onclick="toggleComprador(${i})">${(c.ativo||'Sim')==='Sim'?'🚫':'✅'}</button>
+      <button class="btn btn-ghost" style="padding:4px 10px;font-size:12px" title="Editar" onclick="editComprador(${i})">✏️</button>
+      <button class="btn btn-${(c.ativo||'Sim')==='Sim'?'red':'green'}" style="padding:4px 10px;font-size:12px" title="${(c.ativo||'Sim')==='Sim'?'Inativar':'Ativar'}" onclick="toggleComprador(${i})">${(c.ativo||'Sim')==='Sim'?'🚫':'✅'}</button>
+      <button class="btn btn-red" style="padding:4px 10px;font-size:12px" title="Excluir" onclick="excluirComprador(${i})">🗑️</button>
     </td></tr>`).join('');
 }
 
@@ -3367,6 +3481,22 @@ async function toggleComprador(idx) {
   saveJsonLocal('carmais_compradores_local', compradoresList);
   try { await callAPI({action:'updateComprador',idx,comprador:compradoresList[idx],usuario:SESSION.nome,perfil:SESSION.perfil}); } catch(e) {}
   renderCompradores();
+}
+
+async function excluirComprador(idx) {
+  const c = compradoresList[idx]; if(!c) return;
+  if(!confirm(`Excluir o comprador "${c.nome}"? Esta ação não pode ser desfeita.`)) return;
+  try {
+    await callAPI({action:'deleteComprador',idx,nome:c.nome,comprador:c,usuario:SESSION.nome,perfil:SESSION.perfil});
+    showToast('Comprador excluído.','success');
+  } catch(e) {
+    showToast('Excluído localmente. Configure o Apps Script (action deleteComprador) para remover na nuvem.','info');
+  }
+  compradoresList.splice(idx,1);
+  saveJsonLocal('carmais_compradores_local', compradoresList);
+  renderCompradores();
+  const dl = document.getElementById('dl-compradores-manual');
+  if (dl) dl.innerHTML = compradoresList.filter(x=>x.ativo!=='Não').map(x=>`<option value="${escHtml(x.nome)}"></option>`).join('');
 }
 
 // ============================================================
