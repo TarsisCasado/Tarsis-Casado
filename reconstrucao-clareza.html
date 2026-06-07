@@ -134,7 +134,7 @@
   .btn.ghost:hover{box-shadow:none;background:var(--line)}
   .btn.sm{padding:7px 13px;font-size:13px}
   .tag{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:600}
-  textarea,input[type=text],input[type=date],input[type=number],select{
+  textarea,input[type=text],input[type=date],input[type=number],input[type=password],input[type=email],select{
     width:100%;padding:11px 13px;border:1.5px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);transition:.15s;
   }
   textarea:focus,input:focus,select:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
@@ -310,7 +310,7 @@
     <div class="login-logo">✦</div>
     <h1>Reconstrução e Clareza</h1>
     <p class="sub">Uma jornada estruturada de 90 dias rumo à cura, reconexão e decisão consciente.</p>
-    <div class="profiles">
+    <div class="profiles" id="profiles">
       <button class="profile-btn" data-user="tarsis">
         <div class="av" style="background:linear-gradient(140deg,#5b8def,#3bb6a6)">T</div>
         <div><div class="nm">Tarsis</div><div class="rl">Acesso individual + compartilhado</div></div>
@@ -324,12 +324,26 @@
         <div><div class="nm">Administrador</div><div class="rl">Mentor · Psicólogo · Pastor</div></div>
       </button>
     </div>
-    <div class="pin-row" id="pinRow">
-      <input type="password" id="pinInput" maxlength="8" placeholder="PIN do administrador (1234)">
+
+    <div id="authPanel" class="hidden">
+      <div style="display:flex;align-items:center;gap:12px;justify-content:center;margin:4px 0 18px">
+        <div class="av" id="authAv" style="width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:18px"></div>
+        <div style="text-align:left"><div class="nm" id="authName" style="font-weight:600"></div><div class="rl" id="authMode" style="font-size:12px;color:var(--ink-faint)"></div></div>
+      </div>
+      <div class="field"><input type="password" id="pw1" placeholder="Senha" autocomplete="current-password"></div>
+      <div class="field hidden" id="pw2row"><input type="password" id="pw2" placeholder="Confirmar senha" autocomplete="new-password"></div>
+      <div id="authErr" style="color:var(--rose);font-size:13px;min-height:18px;margin-bottom:6px"></div>
+      <button class="btn" id="authGo" style="width:100%;justify-content:center">Entrar</button>
+      <div style="margin-top:14px;font-size:13px;color:var(--ink-faint)">
+        <a id="toggleCreate" style="color:var(--brand);cursor:pointer;text-decoration:underline"></a>
+        &nbsp;·&nbsp; <a id="authBack" style="color:var(--ink-faint);cursor:pointer;text-decoration:underline">voltar</a>
+      </div>
     </div>
-    <div class="admin-toggle">
+
+    <div class="admin-toggle" id="adminToggleRow">
       <a id="showAdmin">Ativar perfil de Administrador (mentor/pastor)</a>
     </div>
+    <div id="cloudHint" style="margin-top:14px;font-size:12px;color:var(--ink-faint);line-height:1.4"></div>
   </div>
 </div>
 
@@ -366,6 +380,41 @@
 <div id="modalRoot"></div>
 <div id="toast"></div>
 
+<!-- ====== Firebase (sincronização entre dispositivos) ====== -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+/* =========================================================================
+   CONFIGURAÇÃO DO FIREBASE  (sincroniza os dados em qualquer dispositivo)
+   -------------------------------------------------------------------------
+   Cole abaixo a configuração do SEU projeto Firebase:
+     Console Firebase > ⚙ Configurações do projeto > Seus apps > App Web > SDK.
+   Enquanto os valores estiverem como "COLE_AQUI", o app funciona apenas
+   neste dispositivo (modo offline / LocalStorage). O passo a passo completo
+   está dentro do app em Configurações ⚙ > Sincronização na nuvem.
+   ========================================================================= */
+const FIREBASE_CONFIG = {
+  apiKey: "COLE_AQUI",
+  authDomain: "COLE_AQUI",
+  projectId: "COLE_AQUI",
+  storageBucket: "COLE_AQUI",
+  messagingSenderId: "COLE_AQUI",
+  appId: "COLE_AQUI"
+};
+let FB=null, AUTH=null, DB=null, CLOUD=false;
+(function initFirebase(){
+  try{
+    if(typeof firebase!=='undefined' && FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey!=='COLE_AQUI'){
+      FB=firebase.initializeApp(FIREBASE_CONFIG);
+      AUTH=firebase.auth(); DB=firebase.firestore();
+      try{ AUTH.setPersistence(firebase.auth.Auth.Persistence.LOCAL); }catch(e){}
+      CLOUD=true;
+    }
+  }catch(e){ console.warn('Firebase indisponível, usando modo offline:',e); CLOUD=false; }
+})();
+</script>
+
 <script>
 "use strict";
 /* =========================================================================
@@ -374,17 +423,94 @@
    e futuramente Google Sheets / PostgreSQL (basta implementar load/save).
    ========================================================================= */
 
-/* ---------------- DATA STORE (pluggable) ---------------- */
+/* ---------------- DATA STORE (LocalStorage + Firebase) ----------------
+   Os dados privados (cartas e diário) ficam SEPARADOS dos compartilhados,
+   tanto no cache local quanto na nuvem (Firestore), garantindo que uma
+   pessoa nunca consiga ler o conteúdo privado da outra — nem no banco. */
 const KEY = 'reconstrucao_clareza_v1';
+const PRIVKEY = u => KEY+'_priv_'+u;
+const PWKEY   = u => KEY+'_pw_'+u;          // fallback offline (sem Firebase)
+
+function clone(o){ return JSON.parse(JSON.stringify(o)); }
+function stripPrivate(s){
+  const c=clone(s);
+  if(c.users){ Object.keys(c.users).forEach(u=>{ c.users[u].letters=[]; c.users[u].diary=[]; }); }
+  return c;
+}
 const Store = {
-  // Adapter de persistência. Trocar por API Sheets/PostgreSQL no futuro.
-  load(){
-    try{ return JSON.parse(localStorage.getItem(KEY)) || null; }catch(e){ return null; }
+  loadShared(){ try{ return JSON.parse(localStorage.getItem(KEY))||null; }catch(e){ return null; } },
+  saveShared(s){ try{ localStorage.setItem(KEY, JSON.stringify(stripPrivate(s))); }catch(e){ console.warn('save falhou',e); } },
+  loadPriv(u){ try{ return JSON.parse(localStorage.getItem(PRIVKEY(u)))||null; }catch(e){ return null; } },
+  savePriv(u,obj){ try{ localStorage.setItem(PRIVKEY(u), JSON.stringify(obj)); }catch(e){} },
+  clearAll(){ try{ localStorage.removeItem(KEY); localStorage.removeItem(PRIVKEY('tarsis')); localStorage.removeItem(PRIVKEY('amanda')); }catch(e){} }
+};
+
+/* ---------------- CLOUD SYNC (Firestore) ---------------- */
+const emailFor = u => u+'@reconstrucao.app';
+const userFromEmail = e => (e||'').split('@')[0];
+const Cloud = {
+  unsub:[],
+  _t:null,
+  on(){ return CLOUD && AUTH && AUTH.currentUser; },
+  // assina alterações em tempo real conforme as permissões do usuário logado
+  subscribe(){
+    this.stop();
+    if(!this.on()) return;
+    // compartilhado
+    this.unsub.push(DB.collection('couples').doc('main').onSnapshot(doc=>{
+      if(doc.exists){ mergeShared(doc.data()); if(CURRENT) render(); }
+      else { this.pushShared(); } // primeira vez: cria documento
+    }, err=>console.warn('sync shared:',err)));
+    // privados acessíveis
+    const owners = CURRENT==='admin' ? ['tarsis','amanda'] : [CURRENT];
+    owners.forEach(o=>{
+      this.unsub.push(DB.collection('private').doc(o).onSnapshot(doc=>{
+        const d=doc.exists?doc.data():{letters:[],diary:[]};
+        S.users[o].letters=d.letters||[]; S.users[o].diary=d.diary||[];
+        Store.savePriv(o,{letters:S.users[o].letters,diary:S.users[o].diary});
+        if(CURRENT && (route==='letters'||route==='diary')) render();
+      }, err=>console.warn('sync priv '+o,err)));
+    });
   },
-  save(data){
-    try{ localStorage.setItem(KEY, JSON.stringify(data)); }catch(e){ console.warn('save falhou',e); }
+  stop(){ this.unsub.forEach(f=>{try{f();}catch(e){}}); this.unsub=[]; },
+  pushShared(){
+    if(!this.on()) return;
+    DB.collection('couples').doc('main').set(stripPrivate(S)).catch(e=>console.warn('push shared',e));
+  },
+  pushPriv(u){
+    if(!this.on()) return;
+    DB.collection('private').doc(u).set({letters:S.users[u].letters||[],diary:S.users[u].diary||[]}).catch(e=>console.warn('push priv',e));
+  },
+  // grava tudo o que o usuário atual pode escrever (debounced)
+  pushAll(){
+    if(!this.on()) return;
+    clearTimeout(this._t);
+    this._t=setTimeout(()=>{
+      this.pushShared();
+      const owners = CURRENT==='admin' ? ['tarsis','amanda'] : [CURRENT];
+      owners.forEach(o=>this.pushPriv(o));
+    },350);
   }
 };
+// mescla doc compartilhado preservando os dados privados já carregados em memória
+function mergeShared(data){
+  const priv={};
+  Object.keys(S.users||{}).forEach(u=>{ priv[u]={letters:S.users[u].letters,diary:S.users[u].diary}; });
+  S = normalizeShared(data);
+  Object.keys(priv).forEach(u=>{ if(S.users[u]){ S.users[u].letters=priv[u].letters||[]; S.users[u].diary=priv[u].diary||[]; } });
+}
+function normalizeShared(data){
+  const d=defaultState();
+  if(!data) return d;
+  return Object.assign(d, data, {
+    settings:Object.assign(d.settings,data.settings||{}),
+    users:{ tarsis:Object.assign(blankUser(),data.users&&data.users.tarsis||{}), amanda:Object.assign(blankUser(),data.users&&data.users.amanda||{}) },
+    couple:Object.assign(d.couple,data.couple||{}),
+    kanban:Object.assign(d.kanban,data.kanban||{}),
+    reportsAnswers:Object.assign(d.reportsAnswers,data.reportsAnswers||{}),
+    decision:Object.assign(d.decision,data.decision||{})
+  });
+}
 
 /* ---------------- DEFAULT STATE ---------------- */
 function defaultState(){
@@ -443,12 +569,17 @@ function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2000); }
 
 /* ---------------- GLOBAL ---------------- */
-let S = Store.load() || defaultState();
+let S = normalizeShared(Store.loadShared());
 let CURRENT = null;   // 'tarsis' | 'amanda' | 'admin'
 let VIEWAS = 'tarsis'; // para admin: qual pessoa está visualizando em áreas individuais
 let route = 'dash';
 
-function persist(){ Store.save(S); }
+function accessibleOwners(){ return CURRENT==='admin' ? ['tarsis','amanda'] : (CURRENT?[CURRENT]:[]); }
+function persist(){
+  Store.saveShared(S);
+  accessibleOwners().forEach(u=>Store.savePriv(u,{letters:S.users[u].letters,diary:S.users[u].diary}));
+  Cloud.pushAll();
+}
 const PEOPLE = {
   tarsis:{name:'Tarsis', av:'T', grad:'linear-gradient(140deg,#5b8def,#3bb6a6)', color:'#5b8def',
     tasks:[ ['oracao','🙏','Oração'],['biblia','📖','Leitura bíblica'],['exercicio','🏃','Exercício físico'],['registro','✍️','Registro emocional'],['reflexao','🧠','Reflexão pessoal'] ],
@@ -1267,9 +1398,26 @@ function viewSettings(v){
   ac.querySelector('.switch').onclick=()=>{ S.adminEnabled=!S.adminEnabled; persist(); ac.querySelector('.switch').classList.toggle('on'); toast(S.adminEnabled?'Administrador ativado':'Administrador desativado'); };
   v.appendChild(ac);
 
+  // sincronização na nuvem
+  const cloudCard=el(`<div class="card" style="margin-bottom:18px"><div class="section-title">Sincronização na nuvem</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <span class="tag" style="background:${CLOUD?'var(--green-soft)':'var(--amber-soft)'};color:${CLOUD?'var(--green)':'#9a7012'}">${CLOUD?'☁ Ativada':'⚠ Offline'}</span>
+      <span style="font-size:13px;color:var(--ink-soft)">${CLOUD?'Seus dados são salvos no Firebase e sincronizam em qualquer dispositivo.':'Os dados estão apenas neste dispositivo.'}</span>
+    </div>
+    <button class="btn ghost" id="cloudHelp">📘 Como ativar a sincronização (Firebase)</button></div>`);
+  cloudCard.querySelector('#cloudHelp').onclick=showCloudHelp;
+  v.appendChild(cloudCard);
+
+  // senha
+  const pwCard=el(`<div class="card" style="margin-bottom:18px"><div class="section-title">Senha de acesso</div>
+    <p style="font-size:13px;color:var(--ink-soft);margin-bottom:12px">Você está logado(a) como <b>${CURRENT==='admin'?'Administrador':PEOPLE[CURRENT]?.name||CURRENT}</b>.</p>
+    <button class="btn ghost" id="chgPw">🔑 Alterar minha senha</button></div>`);
+  pwCard.querySelector('#chgPw').onclick=()=>changePassword();
+  v.appendChild(pwCard);
+
   // dados
-  const datc=el(`<div class="card"><div class="section-title">Dados (LocalStorage)</div>
-    <p style="font-size:13px;color:var(--ink-soft);margin-bottom:14px">Seus dados ficam salvos apenas neste dispositivo. Estrutura preparada para futura sincronização com Google Sheets ou PostgreSQL.</p>
+  const datc=el(`<div class="card"><div class="section-title">Dados & backup</div>
+    <p style="font-size:13px;color:var(--ink-soft);margin-bottom:14px">${CLOUD?'Além da nuvem, você pode exportar um backup local.':'Faça backup manual exportando o arquivo.'} Estrutura preparada para Google Sheets / PostgreSQL no futuro.</p>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
       <button class="btn ghost" id="expData">⬇️ Exportar dados (JSON)</button>
       <button class="btn ghost" id="impData">⬆️ Importar dados</button>
@@ -1283,15 +1431,65 @@ function viewSettings(v){
   datc.querySelector('#impData').onclick=()=>datc.querySelector('#impFile').click();
   datc.querySelector('#impFile').onchange=(e)=>{
     const f=e.target.files[0]; if(!f) return; const rd=new FileReader();
-    rd.onload=()=>{ try{ S=JSON.parse(rd.result); persist(); render(); toast('Dados importados ✓'); }catch(err){ toast('Arquivo inválido'); } };
+    rd.onload=()=>{ try{ const obj=JSON.parse(rd.result); S=normalizeShared(obj); if(obj.users){['tarsis','amanda'].forEach(u=>{ if(obj.users[u]){ S.users[u].letters=obj.users[u].letters||[]; S.users[u].diary=obj.users[u].diary||[]; }});} persist(); render(); toast('Dados importados ✓'); }catch(err){ toast('Arquivo inválido'); } };
     rd.readAsText(f);
   };
   datc.querySelector('#resetData').onclick=()=>{
-    openModal('Apagar todos os dados?',`<p style="color:var(--ink-soft)">Esta ação remove permanentemente todos os registros, check-ins, cartas e diários deste dispositivo. Não pode ser desfeita.</p>`,()=>{
-      S=defaultState(); persist(); render(); toast('Tudo apagado'); return true;
+    openModal('Apagar todos os dados?',`<p style="color:var(--ink-soft)">Esta ação remove permanentemente todos os registros, check-ins, cartas e diários${CLOUD?' (inclusive na nuvem que você pode editar)':' deste dispositivo'}. Não pode ser desfeita.</p>`,()=>{
+      const start=S.startDate, adm=S.adminEnabled;
+      S=defaultState(); S.startDate=start; S.adminEnabled=adm;
+      Store.clearAll(); persist(); render(); toast('Tudo apagado'); return true;
     },'Apagar');
   };
   v.appendChild(datc);
+}
+
+function changePassword(){
+  openModal('Alterar senha',`
+    <div class="field"><label class="fld">Nova senha</label><input type="password" id="np1" placeholder="Mínimo 6 caracteres"></div>
+    <div class="field"><label class="fld">Confirmar nova senha</label><input type="password" id="np2" placeholder="Repita a senha"></div>`,()=>{
+    const a=document.getElementById('np1').value, b=document.getElementById('np2').value;
+    if(a.length<(CLOUD?6:4)){ toast('Senha muito curta'); return false; }
+    if(a!==b){ toast('As senhas não conferem'); return false; }
+    if(CLOUD && AUTH.currentUser){
+      AUTH.currentUser.updatePassword(a).then(()=>toast('Senha alterada ✓'))
+        .catch(err=>{ if((err.code||'')==='auth/requires-recent-login'){ toast('Saia e entre novamente para alterar a senha'); } else toast('Erro: '+(err.message||err.code)); });
+    } else {
+      localStorage.setItem(PWKEY(CURRENT), btoa(a)); toast('Senha alterada ✓');
+    }
+    return true;
+  },'Salvar');
+}
+
+function showCloudHelp(){
+  openModal('Ativar sincronização (Firebase)',`
+    <div style="font-size:13.5px;line-height:1.65;color:var(--ink-soft)">
+      <p style="margin-bottom:10px">Para que os dados fiquem disponíveis em qualquer dispositivo, é preciso criar um projeto gratuito no Firebase (Google) — apenas uma vez:</p>
+      <ol style="padding-left:18px;display:flex;flex-direction:column;gap:7px">
+        <li>Acesse <b>console.firebase.google.com</b> e clique em <b>Adicionar projeto</b>.</li>
+        <li>No projeto, abra <b>Criação &gt; Authentication</b> → <b>Começar</b> → ative o provedor <b>E-mail/senha</b>.</li>
+        <li>Abra <b>Criação &gt; Firestore Database</b> → <b>Criar banco de dados</b> (modo de produção).</li>
+        <li>Em <b>⚙ Configurações do projeto &gt; Seus apps</b>, registre um <b>App Web</b> e copie o objeto <code>firebaseConfig</code>.</li>
+        <li>Cole esses valores no topo do arquivo <code>reconstrucao-clareza.html</code> (constante <code>FIREBASE_CONFIG</code>) e recarregue.</li>
+        <li>Na aba <b>Regras</b> do Firestore, cole as regras abaixo e publique (protegem a privacidade das cartas/diário):</li>
+      </ol>
+      <pre style="background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:10px;font-size:11.5px;overflow:auto;white-space:pre">rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+    function authed(){ return request.auth != null; }
+    function mail(){ return request.auth.token.email; }
+    match /couples/main {
+      allow read, write: if authed();
+    }
+    match /private/{uid} {
+      allow read, write: if authed() &&
+        (mail() == uid + '@reconstrucao.app'
+         || mail() == 'admin@reconstrucao.app');
+    }
+  }
+}</pre>
+      <p style="margin-top:10px">Pronto! Cada pessoa cria sua senha na primeira vez e passa a acessar de qualquer aparelho. O conteúdo privado de cada um fica protegido também no banco de dados.</p>
+    </div>`,()=>true,'Entendi');
 }
 
 /* ---------------- MODAL ---------------- */
@@ -1308,57 +1506,133 @@ function openModal(title,bodyHTML,onSave,saveLabel){
 }
 
 /* =========================================================================
-   LOGIN / SESSION
+   LOGIN / SESSION / AUTH
    ========================================================================= */
-function refreshLoginAdmin(){
-  document.getElementById('adminBtn').classList.toggle('hidden', !S.adminEnabled);
+let pendingUser=null, authCreate=false;
+const $ = id => document.getElementById(id);
+
+function refreshLoginAdmin(){ $('adminBtn').classList.toggle('hidden', !S.adminEnabled); }
+
+function loadPrivateInto(){
+  accessibleOwners().forEach(u=>{
+    const p=Store.loadPriv(u)||{};
+    S.users[u].letters=p.letters||[]; S.users[u].diary=p.diary||[];
+  });
 }
+function clearPrivateMem(){
+  ['tarsis','amanda'].forEach(u=>{ if(S.users[u]){ S.users[u].letters=[]; S.users[u].diary=[]; } });
+}
+
 function login(user){
   CURRENT=user;
-  if(user==='admin'){ VIEWAS='tarsis'; }
-  else { VIEWAS=user; }
-  document.getElementById('login').style.display='none';
-  document.getElementById('app').style.display='block';
-  // foot chip
+  VIEWAS = user==='admin' ? 'tarsis' : user;
+  loadPrivateInto();
+  $('login').style.display='none';
+  $('app').style.display='block';
   const p = user==='admin' ? {name:'Administrador',av:'★',grad:'linear-gradient(140deg,#5a6b7d,#23303f)'} : PEOPLE[user];
-  document.getElementById('footAv').textContent=p.av;
-  document.getElementById('footAv').style.background=p.grad;
-  document.getElementById('footName').textContent=p.name;
-  document.getElementById('footRole').textContent = user==='admin'?'Acesso total · mentor':'Individual + compartilhado';
+  $('footAv').textContent=p.av; $('footAv').style.background=p.grad;
+  $('footName').textContent=p.name;
+  $('footRole').textContent = user==='admin'?'Acesso total · mentor':'Individual + compartilhado';
+  Cloud.subscribe();
   route='dash'; render();
 }
 function logout(){
-  CURRENT=null;
-  document.getElementById('app').style.display='none';
-  document.getElementById('login').style.display='flex';
+  Cloud.stop();
+  if(CLOUD && AUTH){ AUTH.signOut().catch(()=>{}); }
+  CURRENT=null; clearPrivateMem();
+  $('app').style.display='none';
+  $('login').style.display='flex';
+  resetAuthPanel();
   refreshLoginAdmin();
 }
 
+/* ----- painel de autenticação (login screen) ----- */
+function selectProfile(u){
+  pendingUser=u; authCreate=false;
+  const p = u==='admin' ? {name:'Administrador',av:'★',grad:'linear-gradient(140deg,#5a6b7d,#23303f)'} : PEOPLE[u];
+  $('authAv').textContent=p.av; $('authAv').style.background=p.grad;
+  $('authName').textContent=p.name;
+  $('profiles').classList.add('hidden');
+  $('adminToggleRow').classList.add('hidden');
+  $('authPanel').classList.remove('hidden');
+  $('pw1').value=''; $('pw2').value=''; $('authErr').textContent='';
+  setAuthMode(false);
+  setTimeout(()=>$('pw1').focus(),40);
+}
+function resetAuthPanel(){
+  $('authPanel').classList.add('hidden');
+  $('profiles').classList.remove('hidden');
+  $('adminToggleRow').classList.remove('hidden');
+  pendingUser=null;
+}
+function setAuthMode(create){
+  authCreate=create;
+  $('pw2row').classList.toggle('hidden', !create);
+  $('authGo').textContent = create ? 'Criar senha e entrar' : 'Entrar';
+  $('authMode').textContent = create ? 'Defina uma senha para este perfil' : 'Digite sua senha para entrar';
+  $('toggleCreate').textContent = create ? 'Já tenho senha' : 'Primeira vez aqui? Criar senha';
+  $('authErr').textContent='';
+}
+function authError(msg){ $('authErr').textContent=msg; }
+
+function doAuth(){
+  const u=pendingUser; if(!u) return;
+  const pw=$('pw1').value;
+  if(pw.length<4){ authError('A senha precisa ter ao menos 4 caracteres.'); return; }
+  if(authCreate && pw!==$('pw2').value){ authError('As senhas não conferem.'); return; }
+  $('authGo').disabled=true; $('authGo').textContent='Aguarde...';
+  const done=()=>{ $('authGo').disabled=false; };
+  if(CLOUD){
+    const op = authCreate
+      ? AUTH.createUserWithEmailAndPassword(emailFor(u),pw)
+      : AUTH.signInWithEmailAndPassword(emailFor(u),pw);
+    op.then(()=>{ /* onAuthStateChanged cuida do login */ done(); })
+      .catch(err=>{
+        done(); setAuthMode(authCreate);
+        const c=err.code||'';
+        if(c==='auth/user-not-found'){ authError('Conta ainda não criada. Toque em "Criar senha".'); }
+        else if(c==='auth/wrong-password'||c==='auth/invalid-credential'){ authError('Senha incorreta.'); }
+        else if(c==='auth/email-already-in-use'){ authError('Este perfil já tem senha. Use "Já tenho senha".'); }
+        else if(c==='auth/weak-password'){ authError('Senha muito fraca (mín. 6 caracteres).'); }
+        else authError('Não foi possível entrar: '+(err.message||c));
+      });
+  } else {
+    // modo offline (sem Firebase): senha guardada apenas neste dispositivo
+    const stored=localStorage.getItem(PWKEY(u));
+    if(authCreate){ localStorage.setItem(PWKEY(u), btoa(pw)); done(); login(u); }
+    else if(!stored){ done(); setAuthMode(false); authError('Conta ainda não criada. Toque em "Criar senha".'); }
+    else if(btoa(pw)===stored){ done(); login(u); }
+    else { done(); setAuthMode(false); authError('Senha incorreta.'); }
+  }
+}
+
 /* ---------------- SIDEBAR (mobile) ---------------- */
-function closeSidebar(){ document.getElementById('sidebar').classList.remove('open'); document.getElementById('scrim').classList.remove('show'); }
+function closeSidebar(){ $('sidebar').classList.remove('open'); $('scrim').classList.remove('show'); }
 
 /* ---------------- WIRING ---------------- */
-document.querySelectorAll('.profile-btn').forEach(b=>{
-  b.onclick=()=>{
-    const u=b.dataset.user;
-    if(u==='admin'){
-      const pin=document.getElementById('pinInput').value;
-      if(pin!=='1234'){ document.getElementById('pinRow').style.display='block'; document.getElementById('pinInput').focus(); if(pin) toast('PIN incorreto'); return; }
-    }
-    login(u);
-  };
-});
-document.getElementById('showAdmin').onclick=()=>{
-  S.adminEnabled=true; persist(); refreshLoginAdmin();
-  document.getElementById('pinRow').style.display='block';
-  toast('Perfil de administrador disponível (PIN: 1234)');
-};
-document.getElementById('logoutBtn').onclick=logout;
-document.getElementById('menuBtn').onclick=()=>{ document.getElementById('sidebar').classList.add('open'); document.getElementById('scrim').classList.add('show'); };
-document.getElementById('scrim').onclick=closeSidebar;
+document.querySelectorAll('.profile-btn').forEach(b=> b.onclick=()=>selectProfile(b.dataset.user));
+$('authGo').onclick=doAuth;
+$('pw1').addEventListener('keydown',e=>{ if(e.key==='Enter'){ if(authCreate) $('pw2').focus(); else doAuth(); }});
+$('pw2').addEventListener('keydown',e=>{ if(e.key==='Enter') doAuth(); });
+$('toggleCreate').onclick=()=>setAuthMode(!authCreate);
+$('authBack').onclick=resetAuthPanel;
+$('showAdmin').onclick=()=>{ S.adminEnabled=true; Store.saveShared(S); Cloud.pushAll(); refreshLoginAdmin(); toast('Perfil de Administrador disponível'); };
+$('logoutBtn').onclick=logout;
+$('menuBtn').onclick=()=>{ $('sidebar').classList.add('open'); $('scrim').classList.add('show'); };
+$('scrim').onclick=closeSidebar;
 
+$('cloudHint').innerHTML = CLOUD
+  ? '☁ Sincronização ativada — seus dados acompanham você em qualquer dispositivo.'
+  : '⚠ Modo offline: os dados ficam só neste dispositivo. Configure o Firebase em Configurações ⚙ para sincronizar.';
+
+// resume de sessão (Firebase mantém o login entre dispositivos/recarregamentos)
+if(CLOUD && AUTH){
+  AUTH.onAuthStateChanged(user=>{
+    if(user && !CURRENT){ login(userFromEmail(user.email)); }
+  });
+}
 refreshLoginAdmin();
-persist(); // garante estrutura salva
+Store.saveShared(S); // garante estrutura local salva
 </script>
 </body>
 </html>
