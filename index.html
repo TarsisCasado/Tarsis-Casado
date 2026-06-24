@@ -1783,6 +1783,8 @@ async function loadDataFromSheets(forceRefresh) {
     diag.compradosDuplicados = dedupeInfo.duplicates;
     restringirDadosPorLoja();
     crossJoin();
+    diag.avDuplicados = STATE._avDuplicados || 0;
+    diag.avaliacoesUnicas = STATE.avaliacoes.length;
     applyCompradorSheetData(STATE.avaliacoes, STATE.comprador);
     const vinculados = STATE.avaliacoes.filter(r=>r.compraInput).length;
     diag.vinculados = vinculados;
@@ -1835,7 +1837,9 @@ function showDiagnostico(diag) {
       <span onclick="document.getElementById('diag-panel').remove()" style="cursor:pointer;color:var(--text3);font-size:16px;">×</span>
     </div>
     <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 10px;">
-      <span>${ok(diag.avaliacoes)} Avaliações:</span><strong>${diag.avaliacoes.toLocaleString('pt-BR')}</strong>
+      <span>${ok(diag.avaliacoes)} Avaliações (brutas):</span><strong>${diag.avaliacoes.toLocaleString('pt-BR')}</strong>
+      <span>🚫 Aval. duplicadas/loja:</span><strong>${(diag.avDuplicados||0).toLocaleString('pt-BR')}</strong>
+      <span>✅ Avaliações únicas:</span><strong>${(diag.avaliacoesUnicas!=null?diag.avaliacoesUnicas:diag.avaliacoes).toLocaleString('pt-BR')}</strong>
       <span>${ok(diag.comprados)} Comprados Sheets:</span><strong>${diag.comprados.toLocaleString('pt-BR')}</strong>
       <span>💾 Cache local:</span><strong>${(diag.compradosLocal||0).toLocaleString('pt-BR')}</strong>
       <span>${ok(diag.compradosUnicos||0)} Comprados únicos:</span><strong>${(diag.compradosUnicos||0).toLocaleString('pt-BR')}</strong>
@@ -2542,6 +2546,35 @@ function dedupeCompradosByPlaca(rows){
   return { rows: Array.from(map.values()).map(({__firstIndex, ...r}) => r), duplicates };
 }
 
+// Regra de negócio: só pode haver UMA avaliação por loja para o mesmo veículo.
+// Se a mesma placa (ou chassi, quando não há placa) se repete na MESMA loja,
+// mantemos apenas uma — a avaliação MAIS ANTIGA (menor dataAv). Empate mantém a
+// primeira linha carregada. Lojas diferentes contam separadamente.
+// A "loja" considerada é a exibida no painel: empresaEquipe || empresa.
+function dedupeAvaliacoesPorLoja(rows){
+  const map = new Map();
+  let duplicates = 0;
+  (rows||[]).forEach((r, idx) => {
+    const veic = compraKey(r); // 'P:placa' ou 'C:chassi'
+    if (!veic) { // sem placa e sem chassi: não há como identificar duplicidade
+      map.set('__semid__' + idx, { ...r, __idx: idx });
+      return;
+    }
+    const loja = normHdrEmpresa(r.empresaEquipe || r.empresa || '');
+    const key = loja + '||' + veic;
+    const atual = map.get(key);
+    if (!atual) { map.set(key, { ...r, __idx: idx }); return; }
+    duplicates++;
+    const dAtual = parseDate(atual.dataAv);
+    const dNova = parseDate(r.dataAv);
+    // Mantém a MAIS ANTIGA. Se a nova for anterior, ela substitui.
+    if (dNova && (!dAtual || dNova < dAtual)) {
+      map.set(key, { ...r, __idx: atual.__idx });
+    }
+  });
+  return { rows: Array.from(map.values()).map(({__idx, ...r}) => r), duplicates };
+}
+
 // ============================================================
 // CROSS JOIN
 // ============================================================
@@ -2566,6 +2599,12 @@ function crossJoin(){
     if(cp&&!av.compradorNome&&cp.comprador){out.compradorNome=cp.comprador;out.manualCompradorNome=cp.comprador;}
     recomputeComprado(out); return out;
   });
+  // DEDUP: uma avaliação por loja para o mesmo veículo (mantém a mais antiga).
+  // Feito ANTES do vínculo com comprados, para que a compra cruze com a avaliação
+  // que sobreviveu e nenhuma compra fique órfã.
+  const dedupAv = dedupeAvaliacoesPorLoja(STATE.avaliacoes);
+  STATE.avaliacoes = dedupAv.rows;
+  STATE._avDuplicados = dedupAv.duplicates;
   // link comprados — cruzamento por PLACA e sem contar duplicidades de placa comprada
   STATE.avaliacoes.forEach(av=>{av.compraInput=false;av.empresaCompraInput=null;av.dataCompraInput=null;recomputeComprado(av);});
   const dedupeInfo = dedupeCompradosByPlaca(STATE.comprados);
@@ -4054,8 +4093,8 @@ function getAnalyticsData() {
   const ini = iniV ? new Date(iniV+'T00:00:00') : null;
   const fim = fimV ? new Date(fimV+'T23:59:59') : null;
 
-  return (STATE.avaliacoes||[]).filter(r => {
-    if (ini || fim) { if (!inRange(r.dataAv,ini,fim) && !inRange(getCompraDate(r),ini,fim)) return false; }
+  // Filtros que NÃO dependem de data (loja, tipo, objetivo, etc.)
+  const passaFiltrosBase = (r) => {
     if (empF.length && !empF.includes(r.empresaEquipe||r.empresa||'')) return false;
     if (tipoF && (r.tipo||'') !== tipoF) return false;
     if (objF && !normHdrEmpresa(r.objetivo||'').includes(objF)) return false;
@@ -4068,7 +4107,16 @@ function getAnalyticsData() {
     if (marcaF && String(r.marca==null?'':r.marca).trim().replace(/\s+/g,' ') !== marcaF) return false;
     if (modeloF && !String(r.modelo==null?'':r.modelo).toLowerCase().includes(modeloF)) return false;
     return true;
-  });
+  };
+
+  const base = (STATE.avaliacoes||[]).filter(passaFiltrosBase);
+  // Regra: a avaliação conta pela DATA DA AVALIAÇÃO; a compra conta pela DATA DA
+  // COMPRA — mesmo que sejam meses diferentes. Por isso os dois conjuntos são
+  // filtrados por datas independentes.
+  const semData = !ini && !fim;
+  const av = base.filter(r => semData ? true : inRange(r.dataAv, ini, fim));
+  const cp = base.filter(r => r.comprado && (semData ? true : inRange(getCompraDate(r), ini, fim)));
+  return { av, cp };
 }
 
 function clearAnalyticsFilters() {
@@ -4094,9 +4142,7 @@ function populateAnalyticsFilterOptions(data) {
 }
 
 function renderAnalytics() {
-  const data = getAnalyticsData();
-  const av = data;
-  const cp = data.filter(r=>r.comprado);
+  const { av, cp } = getAnalyticsData();
 
   populateAnalyticsFilterOptions(STATE.avaliacoes||[]);
 
@@ -4414,9 +4460,9 @@ function buildVendStats(av, cp) {
 function sortAnalyticsTable(table, col) {
   if (AN_SORT[table].col===col) AN_SORT[table].asc=!AN_SORT[table].asc;
   else { AN_SORT[table].col=col; AN_SORT[table].asc=false; }
-  const data = getAnalyticsData();
-  if (table==='prec') renderAnPrecificadores(data, data.filter(r=>r.comprado));
-  if (table==='vend') renderAnVendedores(data, data.filter(r=>r.comprado));
+  const { av, cp } = getAnalyticsData();
+  if (table==='prec') renderAnPrecificadores(av, cp);
+  if (table==='vend') renderAnVendedores(av, cp);
 }
 
 function renderAnVendedores(av, cp) {
