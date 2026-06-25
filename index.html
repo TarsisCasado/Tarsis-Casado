@@ -3990,7 +3990,15 @@ const AN_SORT = { prec:{ col:'avaliados', asc:false }, vend:{ col:'avaliados', a
 
 function initAnalyticsDates() {
   // Inicializa os filtros de data do analytics com o intervalo REAL dos dados.
-  const datas = (STATE.avaliacoes||[]).map(r=>r.dataAv).filter(d=>d instanceof Date && !isNaN(d));
+  // Importante: precisa abranger TANTO as datas de avaliação QUANTO as datas de
+  // compra. Como a compra costuma ocorrer DEPOIS da avaliação, usar só dataAv
+  // recortaria as compras posteriores à última avaliação (comprados "sumindo").
+  const datas = [];
+  (STATE.avaliacoes||[]).forEach(r=>{
+    if (r.dataAv instanceof Date && !isNaN(r.dataAv)) datas.push(r.dataAv);
+    const dc = parseDate(getCompraDate(r));
+    if (dc instanceof Date && !isNaN(dc)) datas.push(dc);
+  });
   if (!datas.length) return;
   const minD = new Date(Math.min(...datas.map(d=>d.getTime())));
   const maxD = new Date(Math.max(...datas.map(d=>d.getTime())));
