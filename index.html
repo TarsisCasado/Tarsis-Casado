@@ -1374,8 +1374,11 @@ async function callAPI(params) {
         qs.set(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
       }
     }
+    // Cache-buster: sem isto, o navegador/Google podem servir a resposta antiga
+    // do cache HTTP e o "Atualizar agora" não traz o que mudou na planilha.
+    qs.set('_ts', Date.now().toString());
     const url = API_URL + '?' + qs.toString();
-    const r = await fetchWithTimeout(url, { method: 'GET', redirect: 'follow' }, 45000);
+    const r = await fetchWithTimeout(url, { method: 'GET', redirect: 'follow', cache: 'no-store' }, 45000);
     if (!r.ok) throw new Error('Erro HTTP ' + r.status);
     const text = await r.text();
     let j;
@@ -1411,6 +1414,7 @@ async function callAPISingle(params) {
       qs.set(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
     }
   }
+  qs.set('_ts', Date.now().toString());
   const url = API_URL + '?' + qs.toString();
 
   // Aviso se URL ficar muito grande
@@ -1426,6 +1430,7 @@ async function callAPISingle(params) {
     const r = await fetch(url, {
       method: 'GET',
       redirect: 'follow',
+      cache: 'no-store',
       signal: controller.signal
     });
     clearTimeout(timeoutId);
