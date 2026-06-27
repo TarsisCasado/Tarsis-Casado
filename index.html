@@ -686,6 +686,7 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
     </div>
   </div>
   <div style="font-size:13px;color:var(--text3);margin-bottom:12px">Campos editáveis são salvos no Google Sheets ☁️</div>
+  <div id="comprados-sem-av-panel"></div>
   <div class="table-wrap">
     <table>
       <thead><tr>
@@ -2978,7 +2979,30 @@ function renderDetailTable(){
   renderPagination('detail-pagination',pages,STATE.detailPage,p=>{STATE.detailPage=p;renderDetailTable();},`${total} avaliados não comprados`);
 }
 
+function renderCompradosSemAvPanel(){
+  const el=document.getElementById('comprados-sem-av-panel');
+  if(!el)return;
+  const lista=STATE._compradosSemAv||[];
+  if(!lista.length){ el.innerHTML=''; return; }
+  const linhas=lista.map(c=>{
+    const id=c.placa||c.chassi||'(sem placa/chassi)';
+    const emp=c.empresa?` · ${escHtml(c.empresa)}`:'';
+    const dt=c.dataCompra?` · ${fmtDate(parseDate(c.dataCompra))}`:'';
+    return `<span style="display:inline-block;background:var(--bg3);border:1px solid rgba(245,158,11,0.35);border-radius:8px;padding:3px 9px;margin:3px;font-size:12px;font-family:monospace;color:var(--text2)" title="${escHtml((c.empresa||'')+' '+(c.dataCompra?fmtDate(parseDate(c.dataCompra)):''))}">${escHtml(id)}${emp}${dt}</span>`;
+  }).join('');
+  el.innerHTML=`
+    <div style="margin-bottom:14px;padding:14px;border:1px solid rgba(245,158,11,0.35);background:rgba(245,158,11,0.07);border-radius:var(--r2)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <strong style="color:var(--accent);font-size:14px">⚠️ ${lista.length} comprado(s) sem avaliação correspondente</strong>
+      </div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:8px;line-height:1.5">
+        Estas placas estão na aba <strong>COMPRADOS</strong> mas não têm avaliação com a mesma placa/chassi na aba <strong>AVALIAÇÕES</strong>, por isso não entram como comprados no dashboard. Verifique se a placa está grafada igual nas duas abas ou se falta cadastrar a avaliação.
+      </div>
+      <div>${linhas}</div>
+    </div>`;
+}
 function renderDetailCompradosTable(){
+  renderCompradosSemAvPanel();
   const s=(document.getElementById('table-search-comprados')||{}).value||'';
   let data=[...(STATE.filtered||STATE.avaliacoes||[])].filter(r=>r.comprado);
   if(s){const sl=s.toLowerCase();data=data.filter(r=>Object.values(r).some(v=>v&&v.toString().toLowerCase().includes(sl)));}
