@@ -701,7 +701,11 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
     </div>
     <div style="font-size:12px;color:var(--text3);margin-bottom:8px">Cole as placas (uma por linha, ou separadas por vírgula/espaço) para ver onde cada uma está ou some no processamento.</div>
     <textarea id="rastreio-placas" rows="3" placeholder="SBM7A79&#10;PNO0063&#10;..." style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r2);padding:8px 12px;font-size:13px;font-family:monospace;color:var(--text);outline:none;resize:vertical"></textarea>
-    <div style="margin-top:8px"><button class="btn btn-blue" onclick="rastrearPlacas()">🔍 Rastrear</button></div>
+    <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-blue" onclick="rastrearPlacas()">🔍 Rastrear</button>
+      <button class="btn btn-ghost" onclick="exportarDiagnostico()">📥 Exportar dados p/ análise</button>
+    </div>
+    <div style="font-size:11px;color:var(--text3);margin-top:6px">O botão acima baixa um arquivo <code>diagnostico-dados.json</code> (só placas, empresas e datas — sem valores financeiros). Suba esse arquivo no repositório do GitHub para o Claude analisar a planilha inteira.</div>
     <div id="rastreio-resultado" style="margin-top:12px"></div>
   </div>
   <div id="comprados-sem-av-panel"></div>
@@ -1322,7 +1326,7 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
 // ============================================================
 // VERSÃO / BUILD — atualize a cada deploy para confirmar o que carregou
 // ============================================================
-const BUILD_TAG = '2026-06-27 20:10 · rastreador';
+const BUILD_TAG = '2026-06-27 20:30 · export';
 function hardReloadApp(){
   // Recarrega forçando bypass do cache do navegador e da CDN do GitHub Pages.
   try {
@@ -3037,6 +3041,48 @@ function renderDetailTable(){
       <td>${cb}</td>${editableBuyerCells(r)}</tr>`;
   }).join('');
   renderPagination('detail-pagination',pages,STATE.detailPage,p=>{STATE.detailPage=p;renderDetailTable();},`${total} avaliados não comprados`);
+}
+
+function exportarDiagnostico(){
+  // Exporta um retrato compacto do pipeline para o Claude analisar a planilha
+  // inteira. Inclui SOMENTE identificadores e datas — nenhum valor financeiro.
+  const av = (STATE.avaliacoes||[]).map(r=>({
+    idAv: r.idAv||'', placa: normPlaca(r.placa), chassi: normChassi(r.chassi),
+    empresa: r.empresa||'', empresaEquipe: r.empresaEquipe||'',
+    dataAv: dateStr(r.dataAv)||'', comprado: !!r.comprado,
+    dataCompra: r.compraInput?(dateStr(r.dataCompraInput)||''):''
+  }));
+  const cpRaw = (STATE._snapCompradosRaw||[]).map(c=>({
+    placa: normPlaca(c.placa), chassi: normChassi(c.chassi), empresa: c.empresa||'', dataCompra: dateStr(c.dataCompra)||''
+  }));
+  const cpFinal = (STATE.comprados||[]).map(c=>({
+    placa: normPlaca(c.placa), chassi: normChassi(c.chassi), empresa: c.empresa||'', dataCompra: dateStr(c.dataCompra)||''
+  }));
+  const payload = {
+    build: BUILD_TAG,
+    geradoEm: new Date().toISOString(),
+    dedupLigado: dedupAvaliacoesAtivo(),
+    lojasPermitidas: (SESSION&&SESSION.lojasPermitidas)||[],
+    contagem: STATE._contagem||null,
+    totais: {
+      avaliacoes: av.length,
+      compradosBrutos: cpRaw.length,
+      compradosFinais: cpFinal.length,
+      vinculados: av.filter(r=>r.comprado).length,
+      compradosSemAvaliacao: (STATE._compradosSemAv||[]).length
+    },
+    compradosSemAvaliacao: (STATE._compradosSemAv||[]).map(c=>({placa:normPlaca(c.placa),chassi:normChassi(c.chassi),empresa:c.empresa||'',dataCompra:dateStr(c.dataCompra)||''})),
+    avaliacoes: av,
+    compradosBrutos: cpRaw,
+    compradosFinais: cpFinal
+  };
+  const blob = new Blob([JSON.stringify(payload,null,1)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'diagnostico-dados.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  showToast('Arquivo diagnostico-dados.json baixado. Suba-o no repositório para o Claude analisar.', 'success');
 }
 
 function rastrearPlacas(){
