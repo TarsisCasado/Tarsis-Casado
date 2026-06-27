@@ -1862,9 +1862,11 @@ function showDiagnostico(diag) {
       <span onclick="document.getElementById('diag-panel').remove()" style="cursor:pointer;color:var(--text3);font-size:16px;">×</span>
     </div>
     <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 10px;">
-      <span>${ok(diag.avaliacoes)} Avaliações (brutas):</span><strong>${diag.avaliacoes.toLocaleString('pt-BR')}</strong>
-      <span>🚫 Aval. duplicadas/loja:</span><strong>${(diag.avDuplicados||0).toLocaleString('pt-BR')}</strong>
-      <span>✅ Avaliações únicas:</span><strong>${(diag.avaliacoesUnicas!=null?diag.avaliacoesUnicas:diag.avaliacoes).toLocaleString('pt-BR')}</strong>
+      <span>${ok(diag.avaliacoes)} Avaliações (linhas brutas):</span><strong>${diag.avaliacoes.toLocaleString('pt-BR')}</strong>
+      <span>🚗 Únicas por placa (global):</span><strong>${((STATE._contagem?.unicoPlaca)||0).toLocaleString('pt-BR')}</strong>
+      <span>🏬 Únicas por placa+loja:</span><strong>${((STATE._contagem?.unicoPlacaLoja)||0).toLocaleString('pt-BR')}</strong>
+      <span>🚫 Removidas pelo dedup:</span><strong>${(diag.avDuplicados||0).toLocaleString('pt-BR')}</strong>
+      <span>✅ Avaliações no dash:</span><strong>${(diag.avaliacoesUnicas!=null?diag.avaliacoesUnicas:diag.avaliacoes).toLocaleString('pt-BR')}</strong>
       <span>${ok(diag.comprados)} Comprados Sheets:</span><strong>${diag.comprados.toLocaleString('pt-BR')}</strong>
       <span>💾 Cache local:</span><strong>${(diag.compradosLocal||0).toLocaleString('pt-BR')}</strong>
       <span>${ok(diag.compradosUnicos||0)} Comprados únicos:</span><strong>${(diag.compradosUnicos||0).toLocaleString('pt-BR')}</strong>
@@ -2640,6 +2642,26 @@ function crossJoin(){
   // Quando ligado, roda ANTES do vínculo para que a compra cruze com a avaliação
   // que sobreviveu e nenhuma compra fique órfã.
   STATE._compradosSemAv = []; // reset a cada crossJoin
+  // Diagnóstico de contagem — calcula SEMPRE (independe do dedup estar ligado)
+  // para esclarecer de onde vem cada total (bruto vs únicos).
+  (function(){
+    const bruto = STATE.avaliacoes.length;
+    const setPlaca = new Set(), setPlacaLoja = new Set(), setPlacaChassi = new Set();
+    STATE.avaliacoes.forEach(r=>{
+      const veic = compraKey(r); // 'P:placa' ou 'C:chassi'
+      const loja = normHdrEmpresa(r.empresaEquipe||r.empresa||'');
+      if(veic){ setPlaca.add(veic); setPlacaLoja.add(loja+'||'+veic); }
+      const pc = normPlaca(r.placa)+'|'+normChassi(r.chassi);
+      setPlacaChassi.add(pc);
+    });
+    STATE._contagem = {
+      bruto,
+      unicoPlaca: setPlaca.size,
+      unicoPlacaLoja: setPlacaLoja.size,
+      unicoPlacaChassi: setPlacaChassi.size
+    };
+    console.log('[CONTAGEM AVALIAÇÕES]', STATE._contagem);
+  })();
   if (dedupAvaliacoesAtivo()) {
     const dedupAv = dedupeAvaliacoesPorLoja(STATE.avaliacoes);
     STATE.avaliacoes = dedupAv.rows;
