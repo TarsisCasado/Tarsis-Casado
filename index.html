@@ -771,6 +771,24 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
       <strong style="color:var(--accent)">Observação:</strong> esta troca fica salva neste navegador. Para trocar o link padrão para todos os usuários, substitua a URL fixa no HTML e redistribua o arquivo.
     </div>
   </div>
+
+  <div class="card" style="max-width:900px;margin-top:16px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+      <div style="width:42px;height:42px;background:rgba(59,130,246,0.16);border:1px solid rgba(59,130,246,0.35);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;">🧮</div>
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:var(--text);">Regra de contagem de avaliações</div>
+        <div style="font-size:13px;color:var(--text3);margin-top:2px;">Controla se placas repetidas na mesma loja contam uma vez só.</div>
+      </div>
+    </div>
+    <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;color:var(--text2);">
+      <input type="checkbox" id="cfg-dedup-av" onchange="setDedupAvaliacoes(this.checked)" style="width:18px;height:18px;cursor:pointer"/>
+      <span>Deduplicar avaliações por loja (manter só a mais antiga por placa/chassi)</span>
+    </label>
+    <div style="margin-top:14px;padding:14px;border:1px solid rgba(59,130,246,0.25);background:rgba(59,130,246,0.06);border-radius:var(--r2);font-size:13px;color:var(--text2);line-height:1.5;">
+      <strong style="color:#3b82f6">Desligado (padrão):</strong> o dashboard mostra a contagem bruta, igual à sua contagem manual no Google Sheets.<br>
+      <strong style="color:#3b82f6">Ligado:</strong> aplica a regra "uma avaliação por loja para o mesmo veículo" — o total de avaliados fica menor, pois remove as placas repetidas na mesma loja.
+    </div>
+  </div>
 </div>
 
 <!-- TAB: HISTORICO -->
@@ -2553,6 +2571,15 @@ function dedupeCompradosByPlaca(rows){
   return { rows: Array.from(map.values()).map(({__firstIndex, ...r}) => r), duplicates };
 }
 
+// Flag (persistido) que liga/desliga o dedup de avaliações por loja.
+// Padrão DESLIGADO: o dash mostra a contagem bruta, igual ao Google Sheets.
+function dedupAvaliacoesAtivo(){ return localStorage.getItem('carmais_dedup_avaliacoes') === '1'; }
+function setDedupAvaliacoes(on){
+  localStorage.setItem('carmais_dedup_avaliacoes', on ? '1' : '0');
+  // Recarrega os dados (do cache) para recomputar com a nova regra.
+  loadDataFromSheets(false);
+}
+
 // Regra de negócio: só pode haver UMA avaliação por loja para o mesmo veículo.
 // Se a mesma placa (ou chassi, quando não há placa) se repete na MESMA loja,
 // mantemos apenas uma — a avaliação MAIS ANTIGA (menor dataAv). Empate mantém a
@@ -2607,12 +2634,18 @@ function crossJoin(){
     recomputeComprado(out); return out;
   });
   // DEDUP: uma avaliação por loja para o mesmo veículo (mantém a mais antiga).
-  // Feito ANTES do vínculo com comprados, para que a compra cruze com a avaliação
+  // OPCIONAL — desligado por padrão para o dash bater com a contagem bruta do
+  // Sheets. Ligue em "Config" se quiser aplicar a regra "uma avaliação por loja".
+  // Quando ligado, roda ANTES do vínculo para que a compra cruze com a avaliação
   // que sobreviveu e nenhuma compra fique órfã.
   STATE._compradosSemAv = []; // reset a cada crossJoin
-  const dedupAv = dedupeAvaliacoesPorLoja(STATE.avaliacoes);
-  STATE.avaliacoes = dedupAv.rows;
-  STATE._avDuplicados = dedupAv.duplicates;
+  if (dedupAvaliacoesAtivo()) {
+    const dedupAv = dedupeAvaliacoesPorLoja(STATE.avaliacoes);
+    STATE.avaliacoes = dedupAv.rows;
+    STATE._avDuplicados = dedupAv.duplicates;
+  } else {
+    STATE._avDuplicados = 0;
+  }
   // link comprados — cruzamento por PLACA e sem contar duplicidades de placa comprada
   STATE.avaliacoes.forEach(av=>{av.compraInput=false;av.empresaCompraInput=null;av.dataCompraInput=null;recomputeComprado(av);});
   const dedupeInfo = dedupeCompradosByPlaca(STATE.comprados);
@@ -2694,6 +2727,7 @@ function switchTab(name,btn){
   if(name==='usuarios'){loadUsuarios();loadCompradores();}
   if(name==='historico')loadHistorico();
   if(name==='ia')initAIKeyUI();
+  if(name==='config-script'){ const _cd=document.getElementById('cfg-dedup-av'); if(_cd)_cd.checked=dedupAvaliacoesAtivo(); }
   if(name==='analytics'){ const _ai=document.getElementById('an-f-ini'); if(_ai&&!_ai.value)initAnalyticsDates(); renderAnalytics(); }
   if(name==='alertas'){
     const cfg=JSON.parse(localStorage.getItem('carmais_alert_config')||'{}');
