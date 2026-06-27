@@ -695,6 +695,15 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
     </div>
   </div>
   <div style="font-size:13px;color:var(--text3);margin-bottom:12px">Campos editáveis são salvos no Google Sheets ☁️</div>
+  <div class="card" style="margin-bottom:14px;border:1px solid rgba(59,130,246,0.3)">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <strong style="color:#3b82f6;font-size:14px">🔍 Rastrear placas no pipeline</strong>
+    </div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:8px">Cole as placas (uma por linha, ou separadas por vírgula/espaço) para ver onde cada uma está ou some no processamento.</div>
+    <textarea id="rastreio-placas" rows="3" placeholder="SBM7A79&#10;PNO0063&#10;..." style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r2);padding:8px 12px;font-size:13px;font-family:monospace;color:var(--text);outline:none;resize:vertical"></textarea>
+    <div style="margin-top:8px"><button class="btn btn-blue" onclick="rastrearPlacas()">🔍 Rastrear</button></div>
+    <div id="rastreio-resultado" style="margin-top:12px"></div>
+  </div>
   <div id="comprados-sem-av-panel"></div>
   <div class="table-wrap">
     <table>
@@ -1313,7 +1322,7 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
 // ============================================================
 // VERSÃO / BUILD — atualize a cada deploy para confirmar o que carregou
 // ============================================================
-const BUILD_TAG = '2026-06-27 19:40';
+const BUILD_TAG = '2026-06-27 20:10 · rastreador';
 function hardReloadApp(){
   // Recarrega forçando bypass do cache do navegador e da CDN do GitHub Pages.
   try {
@@ -1827,10 +1836,13 @@ async function loadDataFromSheets(forceRefresh) {
         vendedor: getAnyField(r, 'vendedor', 'Vendedor') || ''
       };
     }).filter(r => r.placa || r.chassi);
+    // Snapshot p/ rastreador de placas: comprados brutos (antes da dedup/restrição)
+    STATE._snapCompradosRaw = compradosMapeados.map(c=>({placa:c.placa,chassi:c.chassi,empresa:c.empresa,dataCompra:c.dataCompra}));
     const dedupeInfo = dedupeCompradosByPlaca(compradosMapeados);
     STATE.comprados = dedupeInfo.rows;
     diag.compradosUnicos = STATE.comprados.length;
     diag.compradosDuplicados = dedupeInfo.duplicates;
+    STATE._snapCompradosDedup = STATE.comprados.map(c=>({placa:c.placa,chassi:c.chassi,empresa:c.empresa}));
     restringirDadosPorLoja();
     crossJoin();
     diag.avDuplicados = STATE._avDuplicados || 0;
@@ -3025,6 +3037,56 @@ function renderDetailTable(){
       <td>${cb}</td>${editableBuyerCells(r)}</tr>`;
   }).join('');
   renderPagination('detail-pagination',pages,STATE.detailPage,p=>{STATE.detailPage=p;renderDetailTable();},`${total} avaliados não comprados`);
+}
+
+function rastrearPlacas(){
+  const out = document.getElementById('rastreio-resultado');
+  if(!out) return;
+  const txt = (document.getElementById('rastreio-placas')||{}).value || '';
+  const entradas = txt.split(/[\s,;]+/).map(s=>s.trim()).filter(Boolean);
+  if(!entradas.length){ out.innerHTML='<span style="color:var(--text3);font-size:13px">Cole ao menos uma placa.</span>'; return; }
+
+  const raw = STATE._snapCompradosRaw || [];
+  const dedup = STATE._snapCompradosDedup || [];
+  const finalCp = STATE.comprados || []; // após dedup + restrição por loja
+  const avs = STATE.avaliacoes || [];
+  const orfaos = STATE._compradosSemAv || [];
+
+  const achaPorPlaca = (lista, pn) => lista.filter(c => normPlaca(c.placa)===pn || normChassi(c.chassi)===pn);
+  const linhas = entradas.map(orig=>{
+    const pn = normPlaca(orig); // normaliza como placa
+    const inRaw = achaPorPlaca(raw, pn);
+    const inDedup = achaPorPlaca(dedup, pn);
+    const inFinal = achaPorPlaca(finalCp, pn);
+    const avMatch = avs.filter(a => normPlaca(a.placa)===pn || normChassi(a.chassi)===pn);
+    const linked = avs.filter(a => a.compraInput && (normPlaca(a.placa)===pn || normChassi(a.chassi)===pn));
+    const orf = orfaos.filter(c => normPlaca(c.placa)===pn || normChassi(c.chassi)===pn);
+
+    // Determina o veredito / onde some
+    let verdict='', cor='';
+    if(linked.length){ verdict='✅ Vinculada e contada como comprada'; cor='#10b981'; }
+    else if(!inRaw.length){ verdict='❌ NÃO está na aba COMPRADOS (verifique grafia/coluna)'; cor='#ef4444'; }
+    else if(inRaw.length && !inDedup.length){ verdict='⚠️ Removida como DUPLICADA na aba COMPRADOS'; cor='#f59e0b'; }
+    else if(inDedup.length && !inFinal.length){ verdict='⚠️ Removida pela RESTRIÇÃO POR LOJA (loja não permitida p/ seu usuário)'; cor='#f59e0b'; }
+    else if(inFinal.length && !avMatch.length){ verdict='❌ Sem AVALIAÇÃO com essa placa/chassi (placa só existe em COMPRADOS)'; cor='#ef4444'; }
+    else if(orf.length){ verdict='❌ Comprado órfão — não casou com avaliação'; cor='#ef4444'; }
+    else { verdict='ℹ️ Está em comprados e há avaliação, mas não vinculou (verifique data/empresa)'; cor='#3b82f6'; }
+
+    const det = `bruto:${inRaw.length} · pós-dedup:${inDedup.length} · pós-loja:${inFinal.length} · avaliações:${avMatch.length} · vinculada:${linked.length?'sim':'não'}`;
+    const empresas = [...new Set(inRaw.map(c=>c.empresa).filter(Boolean))].join(', ');
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:6px 10px;font-family:monospace;font-weight:600">${escHtml(orig)}</td>
+      <td style="padding:6px 10px;color:${cor};font-size:12px">${verdict}</td>
+      <td style="padding:6px 10px;color:var(--text3);font-size:11px;font-family:monospace">${det}</td>
+      <td style="padding:6px 10px;color:var(--text3);font-size:11px">${escHtml(empresas||'—')}</td>
+    </tr>`;
+  }).join('');
+
+  const semSnap = (!STATE._snapCompradosRaw) ? '<div style="color:#f59e0b;font-size:12px;margin-bottom:8px">⚠️ Dados carregados do cache — clique em "Atualizar agora" para um rastreio completo (bruto/dedup).</div>' : '';
+  out.innerHTML = semSnap + `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead><tr style="text-align:left;color:var(--text3);font-size:11px;text-transform:uppercase">
+      <th style="padding:6px 10px">Placa</th><th style="padding:6px 10px">Diagnóstico</th><th style="padding:6px 10px">Detalhe (contagens)</th><th style="padding:6px 10px">Empresa(s)</th>
+    </tr></thead><tbody>${linhas}</tbody></table></div>`;
 }
 
 function renderCompradosSemAvPanel(){
