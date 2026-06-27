@@ -1795,6 +1795,7 @@ async function loadDataFromSheets(forceRefresh) {
     diag.vinculados = vinculados;
     diag.vinculadosPlaca = STATE.avaliacoes.filter(r=>r.compraInput && r.placa).length;
     diag.vinculadosChassi = STATE.avaliacoes.filter(r=>r.compraInput && r.chassi).length;
+    diag.compradosSemAv = (STATE._compradosSemAv||[]).length;
     // Save to cache
     try {
       saveDataCache({
@@ -1853,6 +1854,7 @@ function showDiagnostico(diag) {
       <span>${ok(diag.comprador)} Comprador:</span><strong>${diag.comprador.toLocaleString('pt-BR')}</strong>
       <span>${ok(diag.vinculados||0)} Vinculados:</span><strong>${(diag.vinculados||0).toLocaleString('pt-BR')}</strong>
       <span>🔗 Placa/Chassi:</span><strong>${(diag.vinculadosPlaca||0).toLocaleString('pt-BR')} / ${(diag.vinculadosChassi||0).toLocaleString('pt-BR')}</strong>
+      <span>⚠️ Comprados sem avaliação:</span><strong>${(diag.compradosSemAv||0).toLocaleString('pt-BR')}</strong>
     </div>
     ${errosHtml}
     <div style="margin-top:10px;font-size:11px;color:var(--text3)">Abra o Console (F12) para detalhes técnicos.</div>
@@ -1906,7 +1908,7 @@ function normalizeAvFromSheets(r) {
     fipe: parseNumBR(getField(r, 'fipe', 'FIPE', 'Fipe', 'Valor FIPE')),
 
     // Veículo
-    placa: normPlaca(String(getField(r, 'placa', 'Placa') || '')),
+    placa: normPlaca(String(getField(r, 'placa', 'Placa', 'PLACA', 'Placa Veículo', 'Placa Veiculo', 'Placa do Veículo', 'Placa do Veiculo') || '')),
     marca: getField(r, 'marca', 'Marca'),
     modelo: getField(r, 'modelo', 'Modelo'),
     versao: getField(r, 'versao', 'Versão', 'Versao', 'Versão/Trim'),
@@ -2607,6 +2609,7 @@ function crossJoin(){
   // DEDUP: uma avaliação por loja para o mesmo veículo (mantém a mais antiga).
   // Feito ANTES do vínculo com comprados, para que a compra cruze com a avaliação
   // que sobreviveu e nenhuma compra fique órfã.
+  STATE._compradosSemAv = []; // reset a cada crossJoin
   const dedupAv = dedupeAvaliacoesPorLoja(STATE.avaliacoes);
   STATE.avaliacoes = dedupAv.rows;
   STATE._avDuplicados = dedupAv.duplicates;
@@ -2650,13 +2653,23 @@ function crossJoin(){
       if(score > bestScore){bestAv = av; bestScore = score;}
     });
 
-    if(!bestAv) return;
+    if(!bestAv) {
+      // Comprado sem avaliação correspondente — registra para diagnóstico
+      if (!STATE._compradosSemAv) STATE._compradosSemAv = [];
+      STATE._compradosSemAv.push({ placa: compra.placa||'', chassi: compra.chassi||'', empresa: compra.empresa||'', dataCompra: compra.dataCompra });
+      console.warn('[VÍNCULO] Sem avaliação para comprado:', compra.placa||compra.chassi||'(sem id)', '| empresa:', compra.empresa, '| data:', compra.dataCompra);
+      return;
+    }
     bestAv.compraInput = true;
     bestAv.empresaCompraInput = compra.empresa || bestAv.empresa;
     bestAv.dataCompraInput = compra.dataCompra;
     usados.add(bestAv.__rowId);
     recomputeComprado(bestAv);
   });
+  if (STATE._compradosSemAv?.length) {
+    console.warn(`[VÍNCULO] ${STATE._compradosSemAv.length} comprado(s) sem avaliação correspondente:`,
+      STATE._compradosSemAv.map(c=>c.placa||c.chassi).join(', '));
+  }
 }
 function recomputeComprado(r){r.comprado=isCompraValida(r);}
 function isCompraValida(r){if(!r||!r.compraInput)return false;return !!r.dataCompraInput;}
