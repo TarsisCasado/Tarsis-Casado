@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+<meta http-equiv="Pragma" content="no-cache"/>
+<meta http-equiv="Expires" content="0"/>
 <title>Dashboard Seminovos — Grupo Carmais</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -384,6 +387,12 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
 </style>
 </head>
 <body>
+
+<!-- SELO DE VERSÃO (confirma qual build carregou; clique para recarregar sem cache) -->
+<div id="build-badge" onclick="hardReloadApp()" title="Clique para recarregar a versão mais recente (sem cache)"
+  style="position:fixed;bottom:8px;left:8px;z-index:9999;font-size:10px;font-family:monospace;color:#94a3b8;background:rgba(15,23,42,0.7);border:1px solid rgba(148,163,184,0.3);border-radius:6px;padding:3px 7px;cursor:pointer;user-select:none;">
+  build: <span id="build-tag">—</span> · 🔄
+</div>
 
 <!-- LOGIN SCREEN -->
 <div id="login-screen">
@@ -1301,6 +1310,23 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
 <datalist id="dl-compradores-manual"><option value="Rafael"></option><option value="Anderson"></option></datalist>
 <div class="toast-container" id="toast-container"></div>
 <script>
+// ============================================================
+// VERSÃO / BUILD — atualize a cada deploy para confirmar o que carregou
+// ============================================================
+const BUILD_TAG = '2026-06-27 19:40';
+function hardReloadApp(){
+  // Recarrega forçando bypass do cache do navegador e da CDN do GitHub Pages.
+  try {
+    const u = new URL(window.location.href);
+    u.searchParams.set('v', Date.now().toString());
+    window.location.replace(u.toString());
+  } catch(e) { window.location.reload(); }
+}
+document.addEventListener('DOMContentLoaded', function(){
+  const el = document.getElementById('build-tag');
+  if (el) el.textContent = BUILD_TAG;
+});
+
 // ============================================================
 // CONFIG & SESSION
 // ============================================================
