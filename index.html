@@ -1363,7 +1363,7 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
 // ============================================================
 // VERSÃO / BUILD — atualize a cada deploy para confirmar o que carregou
 // ============================================================
-const BUILD_TAG = '2026-06-29 · órfãos por VIN + inclusão manual + edição master';
+const BUILD_TAG = '2026-06-29b · órfãos: placa manual + incluir; VIN; edição master';
 function hardReloadApp(){
   // Recarrega forçando bypass do cache do navegador e da CDN do GitHub Pages.
   try {
@@ -1757,6 +1757,14 @@ function saveCompradosImportCache(rows, mode){
   return merged.length;
 }
 function loadCompradosImportCache(){ return loadJsonLocal(LOCAL_KEYS.comprados, []); }
+// Placas digitadas manualmente para comprados órfãos (chave = VIN normalizado).
+// Sobrevivem a recargas do Google Sheets, que não trazem a placa real.
+const PLACA_OVERRIDE_KEY = 'carmais_placa_overrides_v1';
+function loadPlacaOverrides(){ return loadJsonLocal(PLACA_OVERRIDE_KEY, {}); }
+function setPlacaOverride(vin, placa){
+  const v=normChassi(vin); if(!v) return;
+  const m=loadPlacaOverrides(); m[v]=normPlaca(placa); saveJsonLocal(PLACA_OVERRIDE_KEY, m);
+}
 function clearCompradosImportCache(){ localStorage.removeItem(LOCAL_KEYS.comprados); }
 function manualKey(row){ return String(row?.idAv || row?.placa || row?.chassi || row?.__rowId || '').trim(); }
 function saveManualCache(row){
@@ -1861,6 +1869,7 @@ async function loadDataFromSheets(forceRefresh) {
     }));
     const compradosOrigem = [...(comprados||[]), ...loadCompradosImportCache()];
     diag.compradosLocal = loadCompradosImportCache().length;
+    const placaOverrides = loadPlacaOverrides();
     const compradosMapeados = compradosOrigem.map(r => {
       // A aba COMPRADOS pode vir com a coluna "placa" preenchida com o VIN/chassi.
       // Por isso separamos placa real de chassi antes do cruzamento.
@@ -1869,8 +1878,10 @@ async function loadDataFromSheets(forceRefresh) {
         getAnyField(r, 'chassi', 'Chassi', 'CHASSI', 'VIN', 'vin')
       );
       const origem = getAnyField(r, 'origem', 'Origem') || '';
+      // Placa digitada manualmente para um órfão (a planilha não traz placa real).
+      const placaOverride = ids.chassi ? placaOverrides[normChassi(ids.chassi)] : '';
       return {
-        placa: ids.placa,
+        placa: placaOverride || ids.placa,
         chassi: ids.chassi,
         empresa: getAnyField(r, 'empresa', 'Empresa', 'Loja') || '',
         dataCompra: parseDate(getAnyField(r, 'dataCompra', 'Data Compra', 'Data da Compra', 'Data compra')) || new Date(),
@@ -2887,15 +2898,24 @@ function crossJoin(){
       STATE._compradosSemAv.map(c=>c.chassi||c.placa).join(', '));
   }
 }
-// Calcula os comprados órfãos por pertencimento ao conjunto de VINs avaliados.
+// Calcula os comprados órfãos. Um comprado é órfão quando NÃO casa com
+// nenhuma avaliação — nem pelo VIN (avaliacoes.VIN) nem pela placa real.
+// A checagem por placa permite que, ao digitar manualmente a placa de um
+// órfão, ele se vincule a uma avaliação existente e deixe de ser órfão.
 function computeOrfaos(comprados, avaliacoes){
-  const avSet = new Set();
-  (avaliacoes||[]).forEach(a=>{ const v=normChassi(a.chassi); if(v) avSet.add(v); });
+  const avVin = new Set(), avPlaca = new Set();
+  (avaliacoes||[]).forEach(a=>{
+    const v=normChassi(a.chassi); if(v) avVin.add(v);
+    const p=normPlaca(a.placa);   if(p) avPlaca.add(p);
+  });
   return (comprados||[]).filter(c=>{
     if(isInclusaoManual(c)) return false;     // inclusão manual nunca é órfã
     const vin = normChassi(c.chassi);
-    if(!vin) return false;                    // sem VIN não há como cruzar
-    return !avSet.has(vin);
+    const placa = normPlaca(c.placa);
+    if(!vin && !placa) return false;          // sem identificador não há como cruzar
+    const casaVin   = vin   && avVin.has(vin);
+    const casaPlaca = placa && avPlaca.has(placa);
+    return !casaVin && !casaPlaca;            // órfão só se não casa por VIN nem por placa
   }).map(c=>({
     placa: c.placa||'', chassi: c.chassi||'', empresa: c.empresa||'',
     dataCompra: c.dataCompra, modelo: c.modelo||'', vendedor: c.vendedor||'',
@@ -3427,27 +3447,96 @@ function renderCompradosSemAvPanel(){
   const lista=STATE._compradosSemAv||[];
   if(!lista.length){ el.innerHTML=''; return; }
   const nInvalidos=lista.filter(c=>c.vinInvalido).length;
+  const master=isMaster();
   const linhas=lista.map(c=>{
-    const id=c.chassi||c.placa||'(sem VIN)';
+    const vin=c.chassi||'';
+    const keyArg=String(vin||c.placa||'').replace(/'/g,'');
     const invalido=c.vinInvalido;
-    const borda=invalido?'rgba(239,68,68,0.5)':'rgba(245,158,11,0.35)';
     const selo=invalido?`<span style="display:inline-block;background:rgba(239,68,68,0.15);color:#ef4444;border-radius:6px;padding:1px 6px;margin-left:6px;font-size:10px;font-weight:700;letter-spacing:.3px">VIN INVÁLIDO</span>`:'';
-    const meta=[c.modelo,c.empresa,c.vendedor,c.dataCompra?fmtDate(parseDate(c.dataCompra)):''].filter(Boolean).map(escHtml).join(' · ');
-    return `<div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;background:var(--bg3);border:1px solid ${borda};border-radius:8px;padding:5px 10px;margin:3px;font-size:12px;color:var(--text2)" title="${escHtml(meta)}">
-      <span style="font-family:monospace;font-weight:600;color:var(--text)">${escHtml(id)}</span>${selo}
-      ${meta?`<span style="color:var(--text3);font-size:11px;margin-left:6px">${meta}</span>`:''}</div>`;
+    // Placa do comprado órfão. Em geral vem vazia (a planilha repete o VIN na
+    // coluna placa), então o master pode digitar a placa real e salvar.
+    const placaAtual = c.placa && !looksLikeChassi(c.placa) ? c.placa : '';
+    const placaCell = master
+      ? `<div style="display:flex;gap:4px;align-items:center">
+           <input class="edit-cell-input" id="orf-placa-${escHtml(keyArg)}" value="${escHtml(placaAtual)}" placeholder="Placa…" style="width:110px;text-transform:uppercase" maxlength="8" oninput="this.value=this.value.toUpperCase()">
+           <button class="btn btn-blue" style="padding:3px 8px;font-size:11px" onclick="salvarPlacaOrfao('${escHtml(keyArg)}')">💾</button>
+         </div>`
+      : (placaAtual ? `<span style="font-family:monospace">${escHtml(placaAtual)}</span>` : '<span style="color:var(--text3)">—</span>');
+    const incluirBtn = master
+      ? `<button class="btn btn-primary" style="padding:3px 9px;font-size:11px;white-space:nowrap" onclick="incluirOrfaoManualmente('${escHtml(keyArg)}')">➕ Incluir manual</button>`
+      : '';
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:6px 8px;font-family:monospace;font-weight:600;color:var(--text)">${escHtml(vin||'(sem VIN)')}${selo}</td>
+      <td style="padding:6px 8px">${escHtml(c.modelo||'—')}</td>
+      <td style="padding:6px 8px">${escHtml(c.empresa||'—')}</td>
+      <td style="padding:6px 8px">${escHtml(c.vendedor||'—')}</td>
+      <td style="padding:6px 8px">${c.dataCompra?fmtDate(parseDate(c.dataCompra)):'—'}</td>
+      <td style="padding:6px 8px">${placaCell}</td>
+      <td style="padding:6px 8px;text-align:right">${incluirBtn}</td>
+    </tr>`;
   }).join('');
   el.innerHTML=`
     <div style="margin-bottom:14px;padding:14px;border:1px solid rgba(245,158,11,0.35);background:rgba(245,158,11,0.07);border-radius:var(--r2)">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-        <strong style="color:var(--accent);font-size:14px">⚠️ ${lista.length} comprado(s) órfão(s) — VIN sem avaliação</strong>
+        <strong style="color:var(--accent);font-size:14px">⚠️ ${lista.length} comprado(s) órfão(s) — sem avaliação correspondente</strong>
         ${nInvalidos?`<span style="font-size:11px;color:#ef4444">· ${nInvalidos} com VIN inválido (erro de cadastro)</span>`:''}
       </div>
-      <div style="font-size:12px;color:var(--text3);margin-bottom:8px;line-height:1.5">
-        O <strong>VIN (chassi)</strong> destes comprados não existe na coluna <strong>VIN</strong> de nenhuma avaliação (em qualquer mês), por isso não entram como comprados no dashboard. Os marcados como <strong style="color:#ef4444">VIN inválido</strong> têm ≠ 17 caracteres ou padrão fictício — provável erro de digitação do chassi, não órfão de negócio.
+      <div style="font-size:12px;color:var(--text3);margin-bottom:10px;line-height:1.5">
+        Estes comprados não casaram com nenhuma avaliação (nem por <strong>VIN</strong> nem por <strong>placa</strong>).
+        ${master?'Digite a <strong>placa real</strong> e clique em 💾 — se ela bater com uma avaliação, o carro deixa de ser órfão. Ou use <strong>➕ Incluir manual</strong> para registrar o comprado completo.':'Entre com a senha <strong>master</strong> para corrigir a placa ou incluir manualmente.'}
+        Itens com <strong style="color:#ef4444">VIN inválido</strong> (≠ 17 caracteres/fictício) são provável erro de digitação do chassi.
       </div>
-      <div>${linhas}</div>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="text-align:left;color:var(--text3);font-size:10.5px;text-transform:uppercase">
+          <th style="padding:6px 8px">VIN (chassi)</th><th style="padding:6px 8px">Modelo</th><th style="padding:6px 8px">Loja</th>
+          <th style="padding:6px 8px">Vendedor</th><th style="padding:6px 8px">Compra</th><th style="padding:6px 8px">Placa</th><th></th>
+        </tr></thead><tbody>${linhas}</tbody></table></div>
     </div>`;
+}
+// Acha o comprado órfão correspondente (por VIN; se não houver, pela placa).
+function acharCompradoOrfao(key){
+  const k=normChassi(key)||normPlaca(key);
+  return (STATE.comprados||[]).find(c=>!isInclusaoManual(c) && (normChassi(c.chassi)===k || normPlaca(c.placa)===k));
+}
+// Master digita/corrige a placa de um órfão. Persiste e recruza (pode vincular).
+function salvarPlacaOrfao(key){
+  if(!isMaster()){ showToast('Apenas master pode editar a placa.','error'); return; }
+  const inp=document.getElementById('orf-placa-'+key);
+  const placa=normPlaca(inp?inp.value:'');
+  if(!placa){ showToast('Digite uma placa.','error'); return; }
+  const comprado=acharCompradoOrfao(key);
+  if(!comprado){ showToast('Comprado não encontrado.','error'); return; }
+  comprado.placa=placa;
+  setPlacaOverride(comprado.chassi||key, placa);   // durável entre recargas do Sheets
+  crossJoin(); applyFilters();
+  renderDashboard(); renderDetailCompradosTable();
+  const aindaOrfao=(STATE._compradosSemAv||[]).some(o=>normChassi(o.chassi)===normChassi(comprado.chassi));
+  showToast(aindaOrfao ? 'Placa salva. Ainda sem avaliação com essa placa.' : '✅ Placa salva e vinculada a uma avaliação!', aindaOrfao?'info':'success');
+}
+// Abre a aba Inclusão Manual já preenchida com os dados do órfão.
+function incluirOrfaoManualmente(key){
+  if(!isMaster()){ showToast('Apenas master pode incluir.','error'); return; }
+  const c=acharCompradoOrfao(key);
+  if(!c){ showToast('Comprado não encontrado.','error'); return; }
+  const btn=document.querySelector('#main-tabs .tab-btn[data-tab="inclusao-manual"]');
+  switchTab('inclusao-manual', btn);
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.value=v||'';};
+  const placa = c.placa && !looksLikeChassi(c.placa) ? c.placa : '';
+  set('im-placa', normPlaca(placa));
+  set('im-modelo', c.modelo||'');
+  set('im-data', c.dataCompra?dateStr(parseDate(c.dataCompra)):'');
+  // Vendedor: seleciona se existir na lista; senão usa "Outro" com o texto.
+  const selV=document.getElementById('im-vendedor-sel');
+  if(selV){
+    const existe=[...selV.options].some(o=>o.value===(c.vendedor||''));
+    if(c.vendedor && existe){ selV.value=c.vendedor; onImVendedorChange(); }
+    else if(c.vendedor){ selV.value='__outro__'; onImVendedorChange(); set('im-vendedor-novo', c.vendedor); }
+  }
+  // Loja: seleciona se existir na lista.
+  const selL=document.getElementById('im-loja');
+  if(selL && c.empresa){ const ok=[...selL.options].some(o=>o.value===c.empresa); if(ok) selL.value=c.empresa; }
+  imFeedback('Dados do órfão carregados. Complete Valor, FIPE, KM e Ano e clique em Salvar.','info');
+  showToast('Formulário pré-preenchido com o órfão.','success');
 }
 function renderDetailCompradosTable(){
   populateEditDatalists();
