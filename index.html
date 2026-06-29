@@ -446,6 +446,7 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
   <button class="tab-btn master-only" data-tab="input-avaliacoes" onclick="switchTab('input-avaliacoes',this)">📋 Input Avaliações</button>
   <button class="tab-btn master-only" data-tab="input-equipes" onclick="switchTab('input-equipes',this)">👥 Input Equipes</button>
   <button class="tab-btn master-only" data-tab="input-comprados" onclick="switchTab('input-comprados',this)">✅ Input Comprados</button>
+  <button class="tab-btn master-only" data-tab="inclusao-manual" onclick="switchTab('inclusao-manual',this)">➕ Inclusão Manual</button>
   <button class="tab-btn" data-tab="tabela" onclick="switchTab('tabela',this)">🗂️ Detalhe Avaliados</button>
   <button class="tab-btn" data-tab="tabela-comprados" onclick="switchTab('tabela-comprados',this)">✅ Detalhe Comprados</button>
   <button class="tab-btn" data-tab="comprador-vis" onclick="switchTab('comprador-vis',this)">🏷️ Visão Comprador</button>
@@ -541,6 +542,40 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
     <div class="upload-badge">Google Sheets ☁️</div>
   </div>
   <div id="comprados-status" style="margin-top:16px"></div>
+</div>
+
+<!-- TAB: INCLUSÃO MANUAL DE COMPRADO (somente master) -->
+<div id="tab-inclusao-manual" class="tab-content">
+  <div class="section-header"><h2>Inclusão Manual de Comprado</h2><span class="badge badge-amber">Somente Master</span></div>
+  <div style="font-size:13px;color:var(--text3);margin-bottom:16px;line-height:1.5">
+    Cadastre um veículo comprado que não está na planilha. Estes registros <strong>não têm chassi/VIN</strong> e, por isso, são
+    marcados como <strong>inclusão manual</strong> e ficam <strong>fora do cruzamento de órfãos</strong> (não aparecem como “comprado sem avaliação”).
+  </div>
+  <div class="card" style="max-width:880px">
+    <div class="im-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px">
+      <div class="modal-field"><label>Placa *</label><input type="text" id="im-placa" placeholder="ABC1D23" maxlength="8" oninput="this.value=this.value.toUpperCase()"/></div>
+      <div class="modal-field"><label>Modelo *</label><input type="text" id="im-modelo" placeholder="ONIX 1.0 LT"/></div>
+      <div class="modal-field"><label>Ano/Modelo *</label><input type="text" id="im-ano" placeholder="2023 ou 2022/2023"/></div>
+      <div class="modal-field"><label>KM *</label><input type="text" id="im-km" inputmode="numeric" placeholder="45000"/></div>
+      <div class="modal-field"><label>Valor Avaliado (R$) *</label><input type="text" id="im-valor" inputmode="decimal" placeholder="R$ 50.000"/></div>
+      <div class="modal-field"><label>FIPE (R$) *</label><input type="text" id="im-fipe" inputmode="decimal" placeholder="R$ 55.000"/></div>
+      <div class="modal-field"><label>Vendedor *</label>
+        <select id="im-vendedor-sel" onchange="onImVendedorChange()"></select>
+        <input type="text" id="im-vendedor-novo" placeholder="Nome do vendedor" style="display:none;margin-top:6px"/>
+      </div>
+      <div class="modal-field"><label>Loja *</label><select id="im-loja"></select></div>
+      <div class="modal-field"><label>Data da Compra</label><input type="date" id="im-data"/></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:18px;align-items:center">
+      <button class="btn btn-primary" onclick="salvarInclusaoManual()">💾 Salvar comprado</button>
+      <button class="btn btn-ghost" onclick="limparInclusaoManual()">✕ Limpar</button>
+      <span id="im-feedback" style="font-size:13px"></span>
+    </div>
+  </div>
+  <div style="margin-top:22px">
+    <div class="section-title" style="margin-bottom:10px">Veículos incluídos manualmente</div>
+    <div id="im-lista"></div>
+  </div>
 </div>
 
 <!-- TAB: DASHBOARD -->
@@ -1321,12 +1356,14 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
 </div>
 
 <datalist id="dl-compradores-manual"><option value="Rafael"></option><option value="Anderson"></option></datalist>
+<datalist id="dl-edit-vendedor"></datalist>
+<datalist id="dl-edit-loja"></datalist>
 <div class="toast-container" id="toast-container"></div>
 <script>
 // ============================================================
 // VERSÃO / BUILD — atualize a cada deploy para confirmar o que carregou
 // ============================================================
-const BUILD_TAG = '2026-06-27 20:30 · export';
+const BUILD_TAG = '2026-06-29 · órfãos por VIN + inclusão manual + edição master';
 function hardReloadApp(){
   // Recarrega forçando bypass do cache do navegador e da CDN do GitHub Pages.
   try {
@@ -1831,13 +1868,22 @@ async function loadDataFromSheets(forceRefresh) {
         getAnyField(r, 'placa', 'Placa', 'PLACA', 'Placa Veículo', 'Placa Veiculo'),
         getAnyField(r, 'chassi', 'Chassi', 'CHASSI', 'VIN', 'vin')
       );
+      const origem = getAnyField(r, 'origem', 'Origem') || '';
       return {
         placa: ids.placa,
         chassi: ids.chassi,
         empresa: getAnyField(r, 'empresa', 'Empresa', 'Loja') || '',
         dataCompra: parseDate(getAnyField(r, 'dataCompra', 'Data Compra', 'Data da Compra', 'Data compra')) || new Date(),
         modelo: getAnyField(r, 'modelo', 'Modelo') || '',
-        vendedor: getAnyField(r, 'vendedor', 'Vendedor') || ''
+        vendedor: getAnyField(r, 'vendedor', 'Vendedor') || '',
+        // Campos extras das inclusões manuais (preservados ao recarregar do cache).
+        origem,
+        anoModelo: getAnyField(r, 'anoModelo', 'Ano/Modelo', 'Ano Modelo') || '',
+        km: getAnyField(r, 'km', 'KM', 'Km') || '',
+        valorAvaliado: getAnyField(r, 'valorAvaliado', 'Valor Avaliado', 'valorAv') || '',
+        fipe: getAnyField(r, 'fipe', 'FIPE', 'Fipe') || '',
+        incluidoPor: getAnyField(r, 'incluidoPor', 'Incluído Por', 'Incluido Por') || '',
+        incluidoEm: getAnyField(r, 'incluidoEm', 'Incluído Em', 'Incluido Em') || ''
       };
     }).filter(r => r.placa || r.chassi);
     // Snapshot p/ rastreador de placas: comprados brutos (antes da dedup/restrição)
@@ -2328,6 +2374,56 @@ async function updateBuyerField(rowId, field, rawValue) {
   }, 900);
 }
 
+// ============================================================
+// EDIÇÃO MASTER DE VENDEDOR / LOJA (avaliações e comprados)
+// ============================================================
+function isMaster(){ return !!(SESSION && SESSION.perfil==='master'); }
+function populateEditDatalists(){
+  if(!isMaster()) return;
+  fillDL('dl-edit-vendedor', getVendedoresExistentes());
+  fillDL('dl-edit-loja', getLojasExistentes());
+}
+// Célula de Vendedor: editável (input+datalist, permite "Outro") só p/ master.
+function editVendedorCell(r){
+  const v=r.vendedor||'';
+  if(!isMaster()) return `<td>${escHtml(v||'—')}</td>`;
+  const rowId=String(r.__rowId||'').replace(/'/g,'&#39;');
+  return `<td><input class="edit-cell-input" list="dl-edit-vendedor" value="${escHtml(v)}" placeholder="Vendedor…" onchange="updateRecordVendorLoja('${rowId}','vendedor',this.value.trim())"></td>`;
+}
+// Célula de Loja/Empresa: editável (input+datalist) só p/ master.
+function editLojaCell(r){
+  const l=r.empresa||r.empresaEquipe||'';
+  if(!isMaster()) return `<td>${escHtml(l||'—')}</td>`;
+  const rowId=String(r.__rowId||'').replace(/'/g,'&#39;');
+  return `<td><input class="edit-cell-input" list="dl-edit-loja" value="${escHtml(r.empresa||'')}" placeholder="Loja…" onchange="updateRecordVendorLoja('${rowId}','empresa',this.value.trim())"></td>`;
+}
+async function updateRecordVendorLoja(rowId, field, value){
+  const row=(STATE.avaliacoes||[]).find(r=>r.__rowId===rowId); if(!row) return;
+  const anterior = field==='vendedor' ? (row.vendedor||'') : (row.empresa||'');
+  if(value===anterior) return;
+  row[field]=value;
+  // Ao trocar o vendedor, herda tipo/loja da equipe correspondente (se houver).
+  if(field==='vendedor' && value){
+    const eq=(STATE.equipes||[]).find(e=>e.nome && e.nome.toString().trim().toUpperCase()===value.toUpperCase());
+    if(eq){ if(eq.tipo) row.tipo=eq.tipo; if(eq.empresa) row.empresaEquipe=eq.empresa; }
+  }
+  applyFilters();
+  renderDetailTable(); renderDetailCompradosTable(); renderDashboard();
+  try{
+    await callAPI({
+      action:'updateField', idAv:row.idAv, campo:field, valorNovo:value,
+      valorAnterior:anterior, alteradoPor:SESSION.nome, alteradoEm:new Date().toISOString(),
+      usuario:SESSION.nome, perfil:SESSION.perfil,
+      placa:row.placa, empresa:row.empresa, vendedor:row.vendedor,
+      tela: field==='vendedor' ? 'Edição Vendedor (master)' : 'Edição Loja (master)'
+    });
+    setCloud('online'); showToast(field==='vendedor'?'Vendedor atualizado.':'Loja atualizada.','success');
+  }catch(e){
+    setCloud(e&&e.isApiError?'online':'offline');
+    showToast('Salvo no navegador. Não sincronizou no Sheets: '+(e&&e.message||'erro'),'error');
+  }
+}
+
 function editableBuyerCells(r) {
   const rowId = String(r.__rowId||'').replace(/'/g,"&#39;");
   const valor = r.manualValorMelhorado??r.valorMelhorado??'';
@@ -2563,6 +2659,24 @@ function escHtml(str){return(str??'').toString().replace(/[&<>'"]/g,c=>({'&':'&a
 function normPlaca(v){return(v||'').toString().trim().toUpperCase().replace(/[^A-Z0-9]/g,'');}
 function normChassi(v){return(v||'').toString().trim().toUpperCase().replace(/[^A-Z0-9]/g,'');}
 function looksLikeChassi(v){const s=normChassi(v);return s.length>=12;}
+// --- Validação de VIN / origem do comprado -------------------------------
+// Detecta placeholders óbvios digitados no lugar do chassi (ex.: 999999...,
+// GDHFJ9999..., sequências repetidas, só zeros/X).
+function isVinPlaceholder(v){
+  const s=normChassi(v);
+  if(!s) return true;
+  if(/(.)\1{5,}/.test(s)) return true;        // 6+ caracteres iguais seguidos (9999..., XXXXXX)
+  if(/^[0]+$/.test(s)) return true;            // só zeros
+  if(/9{5,}/.test(s)) return true;             // bloco 99999...
+  return false;
+}
+// VIN válido tem exatamente 17 caracteres e não é um placeholder.
+function isVinValido(v){ const s=normChassi(v); return s.length===17 && !isVinPlaceholder(s); }
+// Comprado incluído manualmente (sem VIN) — não entra no cruzamento de órfãos.
+function isInclusaoManual(c){
+  const o=normHdrEmpresa(c&&c.origem||'');
+  return o==='inclusao manual';
+}
 function getAnyField(row, ...keys) {
   if (!row) return '';
   for (const k of keys) {
@@ -2717,6 +2831,8 @@ function crossJoin(){
   STATE.comprados = dedupeInfo.rows;
   const usados = new Set();
   STATE.comprados.forEach(compra=>{
+    // Inclusões manuais não têm VIN/chassi e nunca cruzam — pulam o vínculo.
+    if(isInclusaoManual(compra)) return;
     const keyCompra = compraKey(compra);
     if(!keyCompra) return;
 
@@ -2751,23 +2867,191 @@ function crossJoin(){
       if(score > bestScore){bestAv = av; bestScore = score;}
     });
 
-    if(!bestAv) {
-      // Comprado sem avaliação correspondente — registra para diagnóstico
-      if (!STATE._compradosSemAv) STATE._compradosSemAv = [];
-      STATE._compradosSemAv.push({ placa: compra.placa||'', chassi: compra.chassi||'', empresa: compra.empresa||'', dataCompra: compra.dataCompra });
-      console.warn('[VÍNCULO] Sem avaliação para comprado:', compra.placa||compra.chassi||'(sem id)', '| empresa:', compra.empresa, '| data:', compra.dataCompra);
-      return;
-    }
+    if(!bestAv) return; // sem candidato — o status de órfão é decidido abaixo, por VIN
     bestAv.compraInput = true;
     bestAv.empresaCompraInput = compra.empresa || bestAv.empresa;
     bestAv.dataCompraInput = compra.dataCompra;
     usados.add(bestAv.__rowId);
     recomputeComprado(bestAv);
   });
-  if (STATE._compradosSemAv?.length) {
-    console.warn(`[VÍNCULO] ${STATE._compradosSemAv.length} comprado(s) sem avaliação correspondente:`,
-      STATE._compradosSemAv.map(c=>c.placa||c.chassi).join(', '));
+  // ----------------------------------------------------------------
+  // ÓRFÃOS (comprado sem avaliação) — regra de negócio definitiva:
+  // um comprado é órfão quando o seu VIN (comprados.chassi) NÃO existe no
+  // conjunto de VINs avaliados (avaliacoes.VIN, lido em av.chassi).
+  // Usa SEMPRE a coluna VIN normalizada (strip().upper()), considera toda a
+  // base de avaliações (qualquer mês) e ignora as inclusões manuais (sem VIN).
+  // ----------------------------------------------------------------
+  STATE._compradosSemAv = computeOrfaos(STATE.comprados, STATE.avaliacoes);
+  if (STATE._compradosSemAv.length) {
+    console.warn(`[VÍNCULO] ${STATE._compradosSemAv.length} comprado(s) órfão(s) (VIN sem avaliação):`,
+      STATE._compradosSemAv.map(c=>c.chassi||c.placa).join(', '));
   }
+}
+// Calcula os comprados órfãos por pertencimento ao conjunto de VINs avaliados.
+function computeOrfaos(comprados, avaliacoes){
+  const avSet = new Set();
+  (avaliacoes||[]).forEach(a=>{ const v=normChassi(a.chassi); if(v) avSet.add(v); });
+  return (comprados||[]).filter(c=>{
+    if(isInclusaoManual(c)) return false;     // inclusão manual nunca é órfã
+    const vin = normChassi(c.chassi);
+    if(!vin) return false;                    // sem VIN não há como cruzar
+    return !avSet.has(vin);
+  }).map(c=>({
+    placa: c.placa||'', chassi: c.chassi||'', empresa: c.empresa||'',
+    dataCompra: c.dataCompra, modelo: c.modelo||'', vendedor: c.vendedor||'',
+    vinInvalido: !isVinValido(c.chassi)
+  }));
+}
+// ============================================================
+// INCLUSÃO MANUAL DE COMPRADO (somente master)
+// ============================================================
+function getVendedoresExistentes(){
+  const set=new Set();
+  (STATE.equipes||[]).forEach(e=>{ if(e.nome) set.add(e.nome.toString().trim()); });
+  (STATE.avaliacoes||[]).forEach(r=>{ if(r.vendedor) set.add(r.vendedor.toString().trim()); });
+  (STATE.comprados||[]).forEach(c=>{ if(c.vendedor) set.add(c.vendedor.toString().trim()); });
+  return [...set].filter(Boolean).sort((a,b)=>a.localeCompare(b));
+}
+function getLojasExistentes(){
+  const set=new Set();
+  (STATE.equipes||[]).forEach(e=>{ if(e.empresa) set.add(e.empresa.toString().trim()); });
+  (STATE.avaliacoes||[]).forEach(r=>{ const l=r.empresaEquipe||r.empresa; if(l) set.add(l.toString().trim()); });
+  (STATE.comprados||[]).forEach(c=>{ if(c.empresa) set.add(c.empresa.toString().trim()); });
+  return [...set].filter(Boolean).sort((a,b)=>a.localeCompare(b));
+}
+function onImVendedorChange(){
+  const sel=document.getElementById('im-vendedor-sel');
+  const novo=document.getElementById('im-vendedor-novo');
+  if(!sel||!novo) return;
+  const outro = sel.value==='__outro__';
+  novo.style.display = outro ? 'block' : 'none';
+  if(outro) novo.focus();
+}
+function renderInclusaoManual(){
+  const selV=document.getElementById('im-vendedor-sel');
+  if(selV){
+    const vends=getVendedoresExistentes();
+    selV.innerHTML=`<option value="">— selecione —</option>`+vends.map(v=>`<option value="${escHtml(v)}">${escHtml(v)}</option>`).join('')+`<option value="__outro__">➕ Outro (digitar)…</option>`;
+  }
+  const selL=document.getElementById('im-loja');
+  if(selL){
+    const lojas=getLojasExistentes();
+    selL.innerHTML=`<option value="">— selecione —</option>`+lojas.map(l=>`<option value="${escHtml(l)}">${escHtml(l)}</option>`).join('');
+  }
+  renderInclusaoManualLista();
+}
+function renderInclusaoManualLista(){
+  const el=document.getElementById('im-lista'); if(!el) return;
+  const manuais=(STATE.comprados||[]).filter(isInclusaoManual);
+  if(!manuais.length){ el.innerHTML='<div style="color:var(--text3);font-size:13px;padding:10px 0">Nenhum veículo incluído manualmente ainda.</div>'; return; }
+  el.innerHTML=`<div class="table-wrap"><table><thead><tr>
+      <th>Placa</th><th>Modelo</th><th>Ano/Mod</th><th>KM</th><th>Vlr Avaliado</th><th>FIPE</th>
+      <th>Vendedor</th><th>Loja</th><th>Data Compra</th><th>Incluído por</th><th></th>
+    </tr></thead><tbody>${manuais.map(c=>`<tr>
+      <td style="font-family:monospace">${escHtml(c.placa||'—')}</td>
+      <td>${escHtml(c.modelo||'—')}</td>
+      <td>${escHtml(c.anoModelo||'—')}</td>
+      <td>${c.km?Number(c.km).toLocaleString('pt-BR'):'—'}</td>
+      <td>${c.valorAvaliado?'R$ '+Number(c.valorAvaliado).toLocaleString('pt-BR'):'—'}</td>
+      <td>${c.fipe?'R$ '+Number(c.fipe).toLocaleString('pt-BR'):'—'}</td>
+      <td>${escHtml(c.vendedor||'—')}</td>
+      <td>${escHtml(c.empresa||'—')}</td>
+      <td>${fmtDate(parseDate(c.dataCompra))}</td>
+      <td style="font-size:11px;color:var(--text3)">${escHtml(c.incluidoPor||'—')}${c.incluidoEm?'<br>'+escHtml(fmtDate(parseDate(c.incluidoEm))):''}</td>
+      <td><button class="btn btn-red" style="padding:4px 10px;font-size:12px" onclick="excluirInclusaoManual('${String(c.placa||'').replace(/'/g,'')}')">🗑️</button></td>
+    </tr>`).join('')}</tbody></table></div>`;
+}
+// KM: inteiro, aceita separador de milhar ("45.000" → 45000).
+function parseKmInput(raw){
+  const s=(raw||'').toString().replace(/[^\d]/g,'');
+  if(!s) return null;
+  const n=parseInt(s,10);
+  return Number.isFinite(n)?n:null;
+}
+// Moeda BRL: "R$ 50.000" → 50000, "50.000,50" → 50000.5, "50000" → 50000.
+function parseMoneyBR(raw){
+  let s=(raw||'').toString().replace(/R\$|\s/g,'').trim();
+  if(!s) return null;
+  if(s.includes(',')){ s=s.replace(/\./g,'').replace(',','.'); }
+  else if(/^\d{1,3}(\.\d{3})+$/.test(s)){ s=s.replace(/\./g,''); } // pontos só de milhar
+  const n=Number(s);
+  return Number.isFinite(n)?n:null;
+}
+function imFeedback(msg,tipo){
+  const el=document.getElementById('im-feedback'); if(!el) return;
+  const cor=tipo==='error'?'#ef4444':tipo==='success'?'#10b981':'var(--text3)';
+  el.style.color=cor; el.textContent=msg;
+}
+function limparInclusaoManual(){
+  ['im-placa','im-modelo','im-ano','im-km','im-valor','im-fipe','im-data','im-vendedor-novo'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  const sv=document.getElementById('im-vendedor-sel'); if(sv)sv.value='';
+  const nv=document.getElementById('im-vendedor-novo'); if(nv)nv.style.display='none';
+  const sl=document.getElementById('im-loja'); if(sl)sl.value='';
+  imFeedback('','');
+}
+async function salvarInclusaoManual(){
+  if(SESSION.perfil!=='master'){ imFeedback('Apenas a senha master pode incluir comprados.','error'); return; }
+  const placa=normPlaca(document.getElementById('im-placa')?.value);
+  const modelo=(document.getElementById('im-modelo')?.value||'').trim();
+  const ano=(document.getElementById('im-ano')?.value||'').trim();
+  const kmRaw=(document.getElementById('im-km')?.value||'').trim();
+  const valorRaw=(document.getElementById('im-valor')?.value||'').trim();
+  const fipeRaw=(document.getElementById('im-fipe')?.value||'').trim();
+  const selV=document.getElementById('im-vendedor-sel');
+  let vendedor=selV?selV.value:'';
+  if(vendedor==='__outro__') vendedor=(document.getElementById('im-vendedor-novo')?.value||'').trim();
+  const loja=(document.getElementById('im-loja')?.value||'').trim();
+  const dataInput=document.getElementById('im-data')?.value||'';
+
+  const km=parseKmInput(kmRaw);
+  const valor=parseMoneyBR(valorRaw);
+  const fipe=parseMoneyBR(fipeRaw);
+  const faltando=[];
+  if(!placa) faltando.push('Placa');
+  if(!modelo) faltando.push('Modelo');
+  if(!ano) faltando.push('Ano/Modelo');
+  if(km==null||km<0) faltando.push('KM');
+  if(valor==null||valor<=0) faltando.push('Valor Avaliado');
+  if(fipe==null||fipe<=0) faltando.push('FIPE');
+  if(!vendedor) faltando.push('Vendedor');
+  if(!loja) faltando.push('Loja');
+  if(faltando.length){ imFeedback('Preencha: '+faltando.join(', '),'error'); return; }
+
+  const dataCompra = dataInput ? new Date(dataInput+'T00:00:00') : new Date();
+  const rec={
+    placa, chassi:'', empresa:loja,
+    dataCompra: fmtDateForSheets(dataCompra), modelo, vendedor,
+    origem:'inclusão manual',
+    anoModelo:ano, km:String(km), valorAvaliado:String(valor), fipe:String(fipe),
+    incluidoPor: SESSION.nome||SESSION.usuario||'master',
+    incluidoEm: new Date().toISOString()
+  };
+  // Persiste no cache local compartilhado e no estado em memória.
+  saveCompradosImportCache([rec], 'append');
+  STATE.comprados = (STATE.comprados||[]).concat([{...rec, dataCompra}]);
+  // Recalcula vínculos/órfãos e atualiza a UI (a inclusão fica fora dos órfãos).
+  crossJoin(); applyFilters();
+  renderDashboard(); renderDetailCompradosTable(); renderInclusaoManual();
+  imFeedback('✅ Comprado incluído com sucesso.','success');
+  limparInclusaoManual();
+  // Best-effort: envia ao Google Sheets sem bloquear o feedback local.
+  try{
+    await callAPI({action:'importComprados', rows:[rec], usuario:SESSION.nome, perfil:SESSION.perfil, origem:'inclusão manual'});
+    setCloud('online');
+  }catch(e){
+    console.warn('Inclusão manual salva localmente; backend não confirmou:', e?.message);
+    imFeedback('Salvo no navegador. Não sincronizou no Sheets: '+(e?.message||'erro'),'info');
+  }
+}
+function excluirInclusaoManual(placa){
+  const pn=normPlaca(placa);
+  if(!confirm('Remover este comprado incluído manualmente?')) return;
+  STATE.comprados=(STATE.comprados||[]).filter(c=>!(isInclusaoManual(c) && normPlaca(c.placa)===pn));
+  const cache=loadCompradosImportCache().filter(c=>!(isInclusaoManual(c) && normPlaca(c.placa)===pn));
+  saveJsonLocal(LOCAL_KEYS.comprados, cache);
+  crossJoin(); applyFilters();
+  renderDashboard(); renderDetailCompradosTable(); renderInclusaoManual();
+  showToast('Inclusão manual removida.','success');
 }
 function recomputeComprado(r){r.comprado=isCompraValida(r);}
 function isCompraValida(r){if(!r||!r.compraInput)return false;return !!r.dataCompraInput;}
@@ -2788,6 +3072,7 @@ function switchTab(name,btn){
   if(name==='dashboard')renderDashboard();
   if(name==='tabela')renderDetailTable();
   if(name==='tabela-comprados')renderDetailCompradosTable();
+  if(name==='inclusao-manual')renderInclusaoManual();
   if(name==='comprador-vis')renderCompradorVis();
   if(name==='usuarios'){loadUsuarios();loadCompradores();}
   if(name==='historico')loadHistorico();
@@ -3017,6 +3302,7 @@ function sortDetail(col){
   STATE.detailPage=1;renderDetailTable();
 }
 function renderDetailTable(){
+  populateEditDatalists();
   const s=(document.getElementById('table-search')||{}).value||'';
   let data=[...(STATE.filtered||[])].filter(r=>!r.comprado);
   if(s){const sl=s.toLowerCase();data=data.filter(r=>Object.values(r).some(v=>v&&v.toString().toLowerCase().includes(sl)));}
@@ -3030,7 +3316,7 @@ function renderDetailTable(){
   tb.innerHTML=rows.map(r=>{
     const fp=r.pctFipe?r.pctFipe.toFixed(1)+'%':'—',fc=r.pctFipe?(r.pctFipe<80?'fipe-low':r.pctFipe<95?'fipe-mid':'fipe-high'):'';
     const cb=r.comprado?'<span class="badge badge-green">Sim</span>':'<span class="badge badge-gray">Não</span>';
-    return`<tr><td>${escHtml(r.idAv||'—')}</td><td>${fmtDate(r.dataAv)}</td><td>${escHtml(r.empresa||'—')}</td><td>${escHtml(r.vendedor||'—')}</td>
+    return`<tr><td>${escHtml(r.idAv||'—')}</td><td>${fmtDate(r.dataAv)}</td>${editLojaCell(r)}${editVendedorCell(r)}
       <td>${escHtml(r.precificador||'—')}</td><td>${r.objetivo?`<span class="badge badge-${r.objetivo==='REPASSE'?'purple':'blue'}">${escHtml(r.objetivo)}</span>`:'—'}</td>
       <td>${r.tipo?`<span class="badge badge-gray">${escHtml(r.tipo)}</span>`:'—'}</td>
       <td>${r.valorAv?'R$ '+Number(r.valorAv).toLocaleString('pt-BR'):'—'}</td>
@@ -3140,24 +3426,31 @@ function renderCompradosSemAvPanel(){
   if(!el)return;
   const lista=STATE._compradosSemAv||[];
   if(!lista.length){ el.innerHTML=''; return; }
+  const nInvalidos=lista.filter(c=>c.vinInvalido).length;
   const linhas=lista.map(c=>{
-    const id=c.placa||c.chassi||'(sem placa/chassi)';
-    const emp=c.empresa?` · ${escHtml(c.empresa)}`:'';
-    const dt=c.dataCompra?` · ${fmtDate(parseDate(c.dataCompra))}`:'';
-    return `<span style="display:inline-block;background:var(--bg3);border:1px solid rgba(245,158,11,0.35);border-radius:8px;padding:3px 9px;margin:3px;font-size:12px;font-family:monospace;color:var(--text2)" title="${escHtml((c.empresa||'')+' '+(c.dataCompra?fmtDate(parseDate(c.dataCompra)):''))}">${escHtml(id)}${emp}${dt}</span>`;
+    const id=c.chassi||c.placa||'(sem VIN)';
+    const invalido=c.vinInvalido;
+    const borda=invalido?'rgba(239,68,68,0.5)':'rgba(245,158,11,0.35)';
+    const selo=invalido?`<span style="display:inline-block;background:rgba(239,68,68,0.15);color:#ef4444;border-radius:6px;padding:1px 6px;margin-left:6px;font-size:10px;font-weight:700;letter-spacing:.3px">VIN INVÁLIDO</span>`:'';
+    const meta=[c.modelo,c.empresa,c.vendedor,c.dataCompra?fmtDate(parseDate(c.dataCompra)):''].filter(Boolean).map(escHtml).join(' · ');
+    return `<div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;background:var(--bg3);border:1px solid ${borda};border-radius:8px;padding:5px 10px;margin:3px;font-size:12px;color:var(--text2)" title="${escHtml(meta)}">
+      <span style="font-family:monospace;font-weight:600;color:var(--text)">${escHtml(id)}</span>${selo}
+      ${meta?`<span style="color:var(--text3);font-size:11px;margin-left:6px">${meta}</span>`:''}</div>`;
   }).join('');
   el.innerHTML=`
     <div style="margin-bottom:14px;padding:14px;border:1px solid rgba(245,158,11,0.35);background:rgba(245,158,11,0.07);border-radius:var(--r2)">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-        <strong style="color:var(--accent);font-size:14px">⚠️ ${lista.length} comprado(s) sem avaliação correspondente</strong>
+        <strong style="color:var(--accent);font-size:14px">⚠️ ${lista.length} comprado(s) órfão(s) — VIN sem avaliação</strong>
+        ${nInvalidos?`<span style="font-size:11px;color:#ef4444">· ${nInvalidos} com VIN inválido (erro de cadastro)</span>`:''}
       </div>
       <div style="font-size:12px;color:var(--text3);margin-bottom:8px;line-height:1.5">
-        Estas placas estão na aba <strong>COMPRADOS</strong> mas não têm avaliação com a mesma placa/chassi na aba <strong>AVALIAÇÕES</strong>, por isso não entram como comprados no dashboard. Verifique se a placa está grafada igual nas duas abas ou se falta cadastrar a avaliação.
+        O <strong>VIN (chassi)</strong> destes comprados não existe na coluna <strong>VIN</strong> de nenhuma avaliação (em qualquer mês), por isso não entram como comprados no dashboard. Os marcados como <strong style="color:#ef4444">VIN inválido</strong> têm ≠ 17 caracteres ou padrão fictício — provável erro de digitação do chassi, não órfão de negócio.
       </div>
       <div>${linhas}</div>
     </div>`;
 }
 function renderDetailCompradosTable(){
+  populateEditDatalists();
   renderCompradosSemAvPanel();
   const s=(document.getElementById('table-search-comprados')||{}).value||'';
   let data=[...(STATE.filtered||STATE.avaliacoes||[])].filter(r=>r.comprado);
@@ -3168,8 +3461,8 @@ function renderDetailCompradosTable(){
   const rows=data.slice((STATE.detailCompradosPage-1)*ps,STATE.detailCompradosPage*ps);
   const tb=document.getElementById('detail-comprados-tbody');if(!tb)return;
   if(!rows.length){tb.innerHTML='<tr><td colspan="14" style="text-align:center;padding:40px;color:var(--text3)">Nenhum comprado</td></tr>';return;}
-  tb.innerHTML=rows.map(r=>`<tr><td>${fmtDate(getCompraDate(r))}</td><td>${fmtDate(r.dataAv)}</td><td>${escHtml(r.empresaCompraInput||'—')}</td><td>${escHtml(r.empresa||r.empresaEquipe||'—')}</td>
-    <td>${escHtml(r.vendedor||'—')}</td><td>${escHtml(r.placa||'—')}</td><td>${escHtml(r.modelo||'—')}</td><td>${escHtml(r.objetivo||'—')}</td>
+  tb.innerHTML=rows.map(r=>`<tr><td>${fmtDate(getCompraDate(r))}</td><td>${fmtDate(r.dataAv)}</td><td>${escHtml(r.empresaCompraInput||'—')}</td>${editLojaCell(r)}
+    ${editVendedorCell(r)}<td>${escHtml(r.placa||'—')}</td><td>${escHtml(r.modelo||'—')}</td><td>${escHtml(r.objetivo||'—')}</td>
     <td>${r.valorAv?'R$ '+Number(r.valorAv).toLocaleString('pt-BR'):'—'}</td>${editableBuyerCells(r)}</tr>`).join('');
   renderPagination('detail-comprados-pagination',pages,STATE.detailCompradosPage,p=>{STATE.detailCompradosPage=p;renderDetailCompradosTable();},`${total} comprados`);
 }
