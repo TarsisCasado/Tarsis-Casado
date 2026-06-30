@@ -1363,7 +1363,7 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
 // ============================================================
 // VERSÃO / BUILD — atualize a cada deploy para confirmar o que carregou
 // ============================================================
-const BUILD_TAG = '2026-06-29c · órfãos filtrados por período; placa manual + incluir';
+const BUILD_TAG = '2026-06-30 · dedup de avaliações por período (corrige contagem do mês)';
 function hardReloadApp(){
   // Recarrega forçando bypass do cache do navegador e da CDN do GitHub Pages.
   try {
@@ -2769,14 +2769,27 @@ function dedupeAvaliacoesPorLoja(rows){
     const atual = map.get(key);
     if (!atual) { map.set(key, { ...r, __idx: idx }); return; }
     duplicates++;
-    const dAtual = parseDate(atual.dataAv);
-    const dNova = parseDate(r.dataAv);
-    // Mantém a MAIS ANTIGA. Se a nova for anterior, ela substitui.
-    if (dNova && (!dAtual || dNova < dAtual)) {
-      map.set(key, { ...r, __idx: atual.__idx });
+    // Critério de qual avaliação representa o veículo na loja:
+    // 1) prefere a que foi COMPRADA (para não esconder comprados na contagem);
+    // 2) senão, mantém a MAIS ANTIGA (menor dataAv).
+    const aComprada = !!atual.compraInput, nComprada = !!r.compraInput;
+    let substituir;
+    if (nComprada !== aComprada) {
+      substituir = nComprada; // a nova é comprada e a atual não → troca
+    } else {
+      const dAtual = parseDate(atual.dataAv), dNova = parseDate(r.dataAv);
+      substituir = dNova && (!dAtual || dNova < dAtual);
     }
+    if (substituir) map.set(key, { ...r, __idx: atual.__idx });
   });
   return { rows: Array.from(map.values()).map(({__idx, ...r}) => r), duplicates };
+}
+// Dedup de EXIBIÇÃO: aplica a regra "1 avaliação por loja para o mesmo
+// veículo" SOMENTE quando ligada, sobre o conjunto recebido — que já vem
+// filtrado pelo período. Assim a dedup acontece DENTRO do período e não
+// descarta reavaliações do mês por causa de avaliações de meses anteriores.
+function dedupAvExibicao(rows){
+  return dedupAvaliacoesAtivo() ? dedupeAvaliacoesPorLoja(rows).rows : (rows||[]);
 }
 
 // ============================================================
@@ -2829,13 +2842,15 @@ function crossJoin(){
     };
     console.log('[CONTAGEM AVALIAÇÕES]', STATE._contagem);
   })();
-  if (dedupAvaliacoesAtivo()) {
-    const dedupAv = dedupeAvaliacoesPorLoja(STATE.avaliacoes);
-    STATE.avaliacoes = dedupAv.rows;
-    STATE._avDuplicados = dedupAv.duplicates;
-  } else {
-    STATE._avDuplicados = 0;
-  }
+  // IMPORTANTE: o dedup de avaliações NÃO é mais aplicado aqui (sobre a base
+  // inteira), porque isso descartava reavaliações do mês quando o mesmo
+  // veículo já tinha avaliação em mês anterior na mesma loja. Agora o dedup é
+  // aplicado por PERÍODO, na exibição (getPeriodData / applyFilters /
+  // getAnalyticsData), via dedupAvExibicao(). Aqui só guardamos um número
+  // informativo de duplicadas na base inteira para o painel de diagnóstico.
+  STATE._avDuplicados = dedupAvaliacoesAtivo()
+    ? dedupeAvaliacoesPorLoja(STATE.avaliacoes).duplicates
+    : 0;
   // link comprados — cruzamento por PLACA e sem contar duplicidades de placa comprada
   STATE.avaliacoes.forEach(av=>{av.compraInput=false;av.empresaCompraInput=null;av.dataCompraInput=null;recomputeComprado(av);});
   const dedupeInfo = dedupeCompradosByPlaca(STATE.comprados);
@@ -3179,6 +3194,8 @@ function applyFilters(){
     // Ambas preenchidas: filtra no intervalo
     return inRange(r.dataAv,ini,fim)||inRange(getCompraDate(r),ini,fim);
   });
+  // Dedup (quando ligado) DENTRO do recorte já filtrado por período/filtros.
+  STATE.filtered=dedupAvExibicao(STATE.filtered);
   renderDashboard();renderDetailTable();renderDetailCompradosTable();renderCompradorVis();
 }
 function clearFilters(){
@@ -3237,7 +3254,8 @@ function setText(id,v){const el=document.getElementById(id);if(el)el.textContent
 function getPeriodData(){
   const{ini,fim}=getDateRange();
   const base=STATE.avaliacoes.filter(passesFilters);
-  return{base,avaliacoes:base.filter(r=>!ini&&!fim?true:inRange(r.dataAv,ini,fim)),compras:base.filter(r=>r.comprado&&(!ini&&!fim?true:inRange(getCompraDate(r),ini,fim)))};
+  const noPeriodo=base.filter(r=>!ini&&!fim?true:inRange(r.dataAv,ini,fim));
+  return{base,avaliacoes:dedupAvExibicao(noPeriodo),compras:base.filter(r=>r.comprado&&(!ini&&!fim?true:inRange(getCompraDate(r),ini,fim)))};
 }
 function getCalDays(){
   const{ini,fim}=getDateRange(),now=new Date();
@@ -4742,7 +4760,8 @@ function getAnalyticsData() {
   // COMPRA — mesmo que sejam meses diferentes. Por isso os dois conjuntos são
   // filtrados por datas independentes.
   const semData = !ini && !fim;
-  const av = base.filter(r => semData ? true : inRange(r.dataAv, ini, fim));
+  // Dedup (quando ligado) aplicado DENTRO do período da análise.
+  const av = dedupAvExibicao(base.filter(r => semData ? true : inRange(r.dataAv, ini, fim)));
   const cp = base.filter(r => r.comprado && (semData ? true : inRange(getCompraDate(r), ini, fim)));
   return { av, cp };
 }
