@@ -840,11 +840,11 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
     </div>
     <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;color:var(--text2);">
       <input type="checkbox" id="cfg-dedup-av" onchange="setDedupAvaliacoes(this.checked)" style="width:18px;height:18px;cursor:pointer"/>
-      <span>Deduplicar avaliações por loja (manter só a mais antiga por placa/chassi)</span>
+      <span>Deduplicar avaliações por loja (1 avaliação por veículo, dentro do período)</span>
     </label>
     <div style="margin-top:14px;padding:14px;border:1px solid rgba(59,130,246,0.25);background:rgba(59,130,246,0.06);border-radius:var(--r2);font-size:13px;color:var(--text2);line-height:1.5;">
-      <strong style="color:#3b82f6">Desligado (padrão):</strong> o dashboard mostra a contagem bruta, igual à sua contagem manual no Google Sheets.<br>
-      <strong style="color:#3b82f6">Ligado:</strong> aplica a regra "uma avaliação por loja para o mesmo veículo" — o total de avaliados fica menor, pois remove as placas repetidas na mesma loja.
+      <strong style="color:#3b82f6">Ligado (padrão):</strong> aplica a regra "uma avaliação por loja para o mesmo veículo", contando os <strong>veículos únicos avaliados no período</strong> selecionado. A deduplicação ocorre dentro do intervalo do filtro, sem descartar reavaliações do mês por causa de avaliações de meses anteriores.<br>
+      <strong style="color:#3b82f6">Desligado:</strong> mostra a contagem bruta (todas as avaliações), igual à contagem manual no Google Sheets.
     </div>
   </div>
 </div>
@@ -1363,7 +1363,7 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
 // ============================================================
 // VERSÃO / BUILD — atualize a cada deploy para confirmar o que carregou
 // ============================================================
-const BUILD_TAG = '2026-06-30 · dedup de avaliações por período (corrige contagem do mês)';
+const BUILD_TAG = '2026-06-30b · dedup por período LIGADO por padrão';
 function hardReloadApp(){
   // Recarrega forçando bypass do cache do navegador e da CDN do GitHub Pages.
   try {
@@ -2742,8 +2742,9 @@ function dedupeCompradosByPlaca(rows){
 }
 
 // Flag (persistido) que liga/desliga o dedup de avaliações por loja.
-// Padrão DESLIGADO: o dash mostra a contagem bruta, igual ao Google Sheets.
-function dedupAvaliacoesAtivo(){ return localStorage.getItem('carmais_dedup_avaliacoes') === '1'; }
+// Dedup de avaliações LIGADO por padrão (1 avaliação por loja/veículo, por
+// período). Só fica desligado se o usuário desmarcar explicitamente ('0').
+function dedupAvaliacoesAtivo(){ return localStorage.getItem('carmais_dedup_avaliacoes') !== '0'; }
 function setDedupAvaliacoes(on){
   localStorage.setItem('carmais_dedup_avaliacoes', on ? '1' : '0');
   // Recarrega os dados (do cache) para recomputar com a nova regra.
