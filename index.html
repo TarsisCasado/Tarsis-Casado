@@ -1363,7 +1363,7 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
 // ============================================================
 // VERSÃO / BUILD — atualize a cada deploy para confirmar o que carregou
 // ============================================================
-const BUILD_TAG = '2026-06-30b · dedup por período LIGADO por padrão';
+const BUILD_TAG = '2026-07-01 · dedup de avaliações por idAv (linhas repetidas na planilha)';
 function hardReloadApp(){
   // Recarrega forçando bypass do cache do navegador e da CDN do GitHub Pages.
   try {
@@ -1855,7 +1855,9 @@ async function loadDataFromSheets(forceRefresh) {
     diag.comprador = (comprador||[]).length;
     console.log('[DIAGNÓSTICO] Dados brutos do Sheets:', diag);
     console.log('[DIAGNÓSTICO] Primeiro comprado:', comprados && comprados[0]);
-    STATE.avaliacoes = (avaliacoes||[]).map(normalizeAvFromSheets).filter(r=>r.dataAv);
+    const avNorm = (avaliacoes||[]).map(normalizeAvFromSheets).filter(r=>r.dataAv);
+    STATE.avaliacoes = dedupAvaliacoesPorId(avNorm);
+    diag.avLinhasDuplicadasId = avNorm.length - STATE.avaliacoes.length;
     STATE.equipes = equipes || [];
     STATE.comprador = (comprador||[]).map(r => ({
       idAv: String(getAnyField(r,'idAv','ID Avaliação','ID Avaliacao')||'').trim(),
@@ -2791,6 +2793,20 @@ function dedupeAvaliacoesPorLoja(rows){
 // descarta reavaliações do mês por causa de avaliações de meses anteriores.
 function dedupAvExibicao(rows){
   return dedupAvaliacoesAtivo() ? dedupeAvaliacoesPorLoja(rows).rows : (rows||[]);
+}
+// Remove LINHAS repetidas da MESMA avaliação (mesmo idAv duplicado na planilha).
+// Isso é diferente do dedup por loja/veículo: aqui é a própria avaliação
+// aparecendo 2x/3x na base. Mantém a primeira ocorrência; linhas sem idAv
+// são preservadas (não há como identificar duplicidade).
+function dedupAvaliacoesPorId(rows){
+  const vistos=new Set(); const out=[];
+  (rows||[]).forEach(r=>{
+    const id=String(r&&r.idAv||'').trim();
+    if(!id){ out.push(r); return; }
+    if(vistos.has(id)) return;
+    vistos.add(id); out.push(r);
+  });
+  return out;
 }
 
 // ============================================================
