@@ -563,7 +563,7 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
         <select id="im-vendedor-sel" onchange="onImVendedorChange()"></select>
         <input type="text" id="im-vendedor-novo" placeholder="Nome do vendedor" style="display:none;margin-top:6px"/>
       </div>
-      <div class="modal-field"><label>Loja *</label><select id="im-loja"></select></div>
+      <div class="modal-field"><label>Loja *</label><select id="im-loja" onchange="onImLojaChange()"></select></div>
       <div class="modal-field"><label>Data da Compra</label><input type="date" id="im-data"/></div>
     </div>
     <div style="display:flex;gap:10px;margin-top:18px;align-items:center">
@@ -1363,7 +1363,7 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
 // ============================================================
 // VERSÃO / BUILD — atualize a cada deploy para confirmar o que carregou
 // ============================================================
-const BUILD_TAG = '2026-07-02b · inclusão manual sobrevive ao recarregar do Sheets';
+const BUILD_TAG = '2026-07-02c · inclusão manual: vendedores por loja, sem duplicar vendedor';
 function hardReloadApp(){
   // Recarrega forçando bypass do cache do navegador e da CDN do GitHub Pages.
   try {
@@ -3013,11 +3013,42 @@ function computeOrfaos(comprados, avaliacoes){
 // INCLUSÃO MANUAL DE COMPRADO (somente master)
 // ============================================================
 function getVendedoresExistentes(){
-  const set=new Set();
-  (STATE.equipes||[]).forEach(e=>{ if(e.nome) set.add(e.nome.toString().trim()); });
-  (STATE.avaliacoes||[]).forEach(r=>{ if(r.vendedor) set.add(r.vendedor.toString().trim()); });
-  (STATE.comprados||[]).forEach(c=>{ if(c.vendedor) set.add(c.vendedor.toString().trim()); });
-  return [...set].filter(Boolean).sort((a,b)=>a.localeCompare(b));
+  // Dedup por nome NORMALIZADO (caixa/espaços): "Ruan" e "RUAN" são o mesmo
+  // vendedor — mantém a primeira grafia encontrada (Equipes tem prioridade).
+  const nomes=new Map();
+  const add=n=>{ n=(n||'').toString().trim(); if(!n) return; const k=n.toUpperCase(); if(!nomes.has(k)) nomes.set(k,n); };
+  (STATE.equipes||[]).forEach(e=>add(e.nome));
+  (STATE.avaliacoes||[]).forEach(r=>add(r.vendedor));
+  (STATE.comprados||[]).forEach(c=>add(c.vendedor));
+  return [...nomes.values()].sort((a,b)=>a.localeCompare(b));
+}
+// Vendedores de UMA loja (Equipes + avaliações + comprados daquela unidade).
+// Sem loja selecionada, retorna todos. Usa empresaSimilarity para casar
+// grafias diferentes da mesma loja (ex.: "NOVALUZ" × "NOVA LUZ - HONDA").
+function getVendedoresDaLoja(loja){
+  if(!(loja||'').trim()) return getVendedoresExistentes();
+  const alvo=normHdrEmpresa(loja);
+  const daLoja=l=>{ l=l||''; return normHdrEmpresa(l)===alvo || empresaSimilarity(l,loja)>=90; };
+  const nomes=new Map();
+  const add=n=>{ n=(n||'').toString().trim(); if(!n) return; const k=n.toUpperCase(); if(!nomes.has(k)) nomes.set(k,n); };
+  (STATE.equipes||[]).forEach(e=>{ if(daLoja(e.empresa)) add(e.nome); });
+  (STATE.avaliacoes||[]).forEach(r=>{ if(!r.__inclusaoManual && daLoja(r.empresaEquipe||r.empresa)) add(r.vendedor); });
+  (STATE.comprados||[]).forEach(c=>{ if(daLoja(c.empresa)) add(c.vendedor); });
+  return [...nomes.values()].sort((a,b)=>a.localeCompare(b));
+}
+// Grafia canônica do vendedor: se o nome já existe na base (com outra caixa/
+// espaçamento), usa a grafia existente — evita duplicar o vendedor nos
+// rankings e na análise por causa de "Ruan" × "RUAN".
+function canonicalVendedor(nome){
+  const n=(nome||'').toString().trim(); if(!n) return '';
+  const k=n.toUpperCase();
+  const eq=(STATE.equipes||[]).find(e=>e.nome && e.nome.toString().trim().toUpperCase()===k);
+  if(eq) return eq.nome.toString().trim();
+  const av=(STATE.avaliacoes||[]).find(r=>!r.__inclusaoManual && r.vendedor && r.vendedor.toString().trim().toUpperCase()===k);
+  if(av) return av.vendedor.toString().trim();
+  const cp=(STATE.comprados||[]).find(c=>c.vendedor && c.vendedor.toString().trim().toUpperCase()===k);
+  if(cp) return cp.vendedor.toString().trim();
+  return n;
 }
 function getLojasExistentes(){
   const set=new Set();
@@ -3034,17 +3065,28 @@ function onImVendedorChange(){
   novo.style.display = outro ? 'block' : 'none';
   if(outro) novo.focus();
 }
+// Popula o dropdown de Vendedor com os vendedores da loja selecionada
+// (todos, quando nenhuma loja está escolhida). Mantém a seleção atual se o
+// vendedor continuar disponível na nova lista.
+function populateImVendedores(){
+  const selV=document.getElementById('im-vendedor-sel'); if(!selV) return;
+  const loja=(document.getElementById('im-loja')?.value||'').trim();
+  const atual=selV.value;
+  const vends=getVendedoresDaLoja(loja);
+  selV.innerHTML=`<option value="">— selecione —</option>`+vends.map(v=>`<option value="${escHtml(v)}">${escHtml(v)}</option>`).join('')+`<option value="__outro__">➕ Outro (digitar)…</option>`;
+  if(atual && (atual==='__outro__' || vends.some(v=>v===atual))) selV.value=atual; else selV.value='';
+  onImVendedorChange();
+}
+function onImLojaChange(){ populateImVendedores(); }
 function renderInclusaoManual(){
-  const selV=document.getElementById('im-vendedor-sel');
-  if(selV){
-    const vends=getVendedoresExistentes();
-    selV.innerHTML=`<option value="">— selecione —</option>`+vends.map(v=>`<option value="${escHtml(v)}">${escHtml(v)}</option>`).join('')+`<option value="__outro__">➕ Outro (digitar)…</option>`;
-  }
   const selL=document.getElementById('im-loja');
   if(selL){
+    const atual=selL.value;
     const lojas=getLojasExistentes();
     selL.innerHTML=`<option value="">— selecione —</option>`+lojas.map(l=>`<option value="${escHtml(l)}">${escHtml(l)}</option>`).join('');
+    if(atual && lojas.some(l=>l===atual)) selL.value=atual;
   }
+  populateImVendedores();
   renderInclusaoManualLista();
 }
 function renderInclusaoManualLista(){
@@ -3108,6 +3150,9 @@ async function salvarInclusaoManual(){
   const selV=document.getElementById('im-vendedor-sel');
   let vendedor=selV?selV.value:'';
   if(vendedor==='__outro__') vendedor=(document.getElementById('im-vendedor-novo')?.value||'').trim();
+  // Usa a grafia que JÁ existe na base para o mesmo nome (caixa/espaços):
+  // a compra vai para o vendedor selecionado, sem criar um duplicado.
+  vendedor=canonicalVendedor(vendedor);
   const loja=(document.getElementById('im-loja')?.value||'').trim();
   const dataInput=document.getElementById('im-data')?.value||'';
 
@@ -3629,16 +3674,19 @@ function incluirOrfaoManualmente(key){
   set('im-placa', normPlaca(placa));
   set('im-modelo', c.modelo||'');
   set('im-data', c.dataCompra?dateStr(parseDate(c.dataCompra)):'');
-  // Vendedor: seleciona se existir na lista; senão usa "Outro" com o texto.
-  const selV=document.getElementById('im-vendedor-sel');
-  if(selV){
-    const existe=[...selV.options].some(o=>o.value===(c.vendedor||''));
-    if(c.vendedor && existe){ selV.value=c.vendedor; onImVendedorChange(); }
-    else if(c.vendedor){ selV.value='__outro__'; onImVendedorChange(); set('im-vendedor-novo', c.vendedor); }
-  }
-  // Loja: seleciona se existir na lista.
+  // Loja PRIMEIRO: seleciona e repopula os vendedores daquela unidade.
   const selL=document.getElementById('im-loja');
   if(selL && c.empresa){ const ok=[...selL.options].some(o=>o.value===c.empresa); if(ok) selL.value=c.empresa; }
+  populateImVendedores();
+  // Vendedor: usa a grafia canônica; se existir na lista da loja seleciona,
+  // senão usa "Outro" com o texto.
+  const selV=document.getElementById('im-vendedor-sel');
+  if(selV && c.vendedor){
+    const canon=canonicalVendedor(c.vendedor);
+    const existe=[...selV.options].some(o=>o.value===canon);
+    if(existe){ selV.value=canon; onImVendedorChange(); }
+    else{ selV.value='__outro__'; onImVendedorChange(); set('im-vendedor-novo', canon); }
+  }
   imFeedback('Dados do órfão carregados. Complete Valor, FIPE, KM e Ano e clique em Salvar.','info');
   showToast('Formulário pré-preenchido com o órfão.','success');
 }
