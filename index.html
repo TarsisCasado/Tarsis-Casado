@@ -1363,7 +1363,7 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
 // ============================================================
 // VERSÃO / BUILD — atualize a cada deploy para confirmar o que carregou
 // ============================================================
-const BUILD_TAG = '2026-07-02 · inclusão manual conta como comprado no dash e na análise';
+const BUILD_TAG = '2026-07-02b · inclusão manual sobrevive ao recarregar do Sheets';
 function hardReloadApp(){
   // Recarrega forçando bypass do cache do navegador e da CDN do GitHub Pages.
   try {
@@ -1891,6 +1891,7 @@ async function loadDataFromSheets(forceRefresh) {
         vendedor: getAnyField(r, 'vendedor', 'Vendedor') || '',
         // Campos extras das inclusões manuais (preservados ao recarregar do cache).
         origem,
+        vinReferencia: normChassi(getAnyField(r, 'vinReferencia') || ''),
         anoModelo: getAnyField(r, 'anoModelo', 'Ano/Modelo', 'Ano Modelo') || '',
         km: getAnyField(r, 'km', 'KM', 'Km') || '',
         valorAvaliado: getAnyField(r, 'valorAvaliado', 'Valor Avaliado', 'valorAv') || '',
@@ -2733,12 +2734,21 @@ function dedupeCompradosByPlaca(rows){
       return;
     }
     duplicates++;
-    // Mantém a compra com data mais antiga; se empatar, mantém a primeira linha importada.
-    const dAtual = parseDate(atual.dataCompra);
-    const dNova = parseDate(r.dataCompra);
-    if (dNova && (!dAtual || dNova < dAtual)) {
-      map.set(key, { ...r, __firstIndex: atual.__firstIndex });
+    // Preferência 1: o registro de INCLUSÃO MANUAL vence o da planilha.
+    // A aba COMPRADOS não persiste o campo "origem", então a mesma placa pode
+    // voltar do Sheets sem a marcação — a cópia local manual é a mais completa
+    // (origem, valores, auditoria) e deve prevalecer.
+    // Preferência 2: mantém a compra com data mais antiga; empate mantém a primeira.
+    const aMan = isInclusaoManual(atual), nMan = isInclusaoManual(r);
+    let substituir;
+    if (nMan !== aMan) {
+      substituir = nMan;
+    } else {
+      const dAtual = parseDate(atual.dataCompra);
+      const dNova = parseDate(r.dataCompra);
+      substituir = !!(dNova && (!dAtual || dNova < dAtual));
     }
+    if (substituir) map.set(key, { ...r, __firstIndex: atual.__firstIndex });
   });
   return { rows: Array.from(map.values()).map(({__firstIndex, ...r}) => r), duplicates };
 }
@@ -2873,8 +2883,18 @@ function crossJoin(){
     : 0;
   // link comprados — cruzamento por PLACA e sem contar duplicidades de placa comprada
   STATE.avaliacoes.forEach(av=>{av.compraInput=false;av.empresaCompraInput=null;av.dataCompraInput=null;recomputeComprado(av);});
+  // Inclusão manual feita a partir de um órfão guarda o VIN de referência
+  // (vinReferencia): o comprado original com esse VIN é substituído pela
+  // inclusão manual e sai da base (senão apareceria duplicado e como órfão).
+  const vinsSubstituidos = new Set(
+    (STATE.comprados||[]).filter(isInclusaoManual).map(c=>normChassi(c.vinReferencia)).filter(Boolean)
+  );
+  if (vinsSubstituidos.size) {
+    STATE.comprados = STATE.comprados.filter(c=>isInclusaoManual(c) || !vinsSubstituidos.has(normChassi(c.chassi)));
+  }
   const dedupeInfo = dedupeCompradosByPlaca(STATE.comprados);
   STATE.comprados = dedupeInfo.rows;
+  STATE.comprados.forEach(c=>{c.__vinculado=false;});
   const usados = new Set();
   STATE.comprados.forEach(compra=>{
     // Inclusões manuais não têm VIN/chassi e nunca cruzam — pulam o vínculo.
@@ -2914,6 +2934,7 @@ function crossJoin(){
     });
 
     if(!bestAv) return; // sem candidato — o status de órfão é decidido abaixo, por VIN
+    compra.__vinculado = true;
     bestAv.compraInput = true;
     bestAv.empresaCompraInput = compra.empresa || bestAv.empresa;
     bestAv.dataCompraInput = compra.dataCompra;
@@ -2938,8 +2959,13 @@ function crossJoin(){
   // dashboard e na Análise Avançada (KPI Total Comprado, gráficos e rankings
   // do vendedor/loja informados), cada um vira um registro com comprado=true
   // e dataAv=null — conta como COMPRADO no mês da compra, nunca como AVALIADO.
+  // Entram aqui também os comprados SEM chassi e não vinculados: é a
+  // assinatura de uma inclusão manual que voltou da planilha COMPRADOS sem o
+  // campo "origem" (a aba não persiste esse campo) — sem este resgate, a
+  // inclusão some da contagem ao recarregar do Sheets.
   // ----------------------------------------------------------------
-  (STATE.comprados||[]).filter(isInclusaoManual).forEach((c,i)=>{
+  const contaComoManual = c => isInclusaoManual(c) || (!normChassi(c.chassi) && normPlaca(c.placa) && !c.__vinculado);
+  (STATE.comprados||[]).filter(contaComoManual).forEach((c,i)=>{
     const eq = c.vendedor ? eqMap[c.vendedor.trim().toUpperCase()] : null;
     STATE.avaliacoes.push({
       __rowId: 'MANUAL|'+(normPlaca(c.placa)||'X')+'|'+i,
@@ -2969,9 +2995,12 @@ function computeOrfaos(comprados, avaliacoes){
   return (comprados||[]).filter(c=>{
     if(isInclusaoManual(c)) return false;     // inclusão manual nunca é órfã
     const vin = normChassi(c.chassi);
+    // Sem VIN: ou é inclusão manual que voltou da planilha sem o campo
+    // "origem" (a aba COMPRADOS não persiste esse campo), ou vincula por
+    // placa — nos dois casos conta como comprado e nunca como órfão.
+    if(!vin) return false;
     const placa = normPlaca(c.placa);
-    if(!vin && !placa) return false;          // sem identificador não há como cruzar
-    const casaVin   = vin   && avVin.has(vin);
+    const casaVin   = avVin.has(vin);
     const casaPlaca = placa && avPlaca.has(placa);
     return !casaVin && !casaPlaca;            // órfão só se não casa por VIN nem por placa
   }).map(c=>({
@@ -3061,6 +3090,7 @@ function imFeedback(msg,tipo){
   el.style.color=cor; el.textContent=msg;
 }
 function limparInclusaoManual(){
+  window.__imVinReferencia='';
   ['im-placa','im-modelo','im-ano','im-km','im-valor','im-fipe','im-data','im-vendedor-novo'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   const sv=document.getElementById('im-vendedor-sel'); if(sv)sv.value='';
   const nv=document.getElementById('im-vendedor-novo'); if(nv)nv.style.display='none';
@@ -3100,10 +3130,12 @@ async function salvarInclusaoManual(){
     placa, chassi:'', empresa:loja,
     dataCompra: fmtDateForSheets(dataCompra), modelo, vendedor,
     origem:'inclusão manual',
+    vinReferencia: window.__imVinReferencia||'',   // VIN do órfão que esta inclusão substitui
     anoModelo:ano, km:String(km), valorAvaliado:String(valor), fipe:String(fipe),
     incluidoPor: SESSION.nome||SESSION.usuario||'master',
     incluidoEm: new Date().toISOString()
   };
+  window.__imVinReferencia='';
   // Persiste no cache local compartilhado e no estado em memória.
   saveCompradosImportCache([rec], 'append');
   STATE.comprados = (STATE.comprados||[]).concat([{...rec, dataCompra}]);
@@ -3589,6 +3621,9 @@ function incluirOrfaoManualmente(key){
   if(!c){ showToast('Comprado não encontrado.','error'); return; }
   const btn=document.querySelector('#main-tabs .tab-btn[data-tab="inclusao-manual"]');
   switchTab('inclusao-manual', btn);
+  // Guarda o VIN do órfão de origem: ao salvar, a inclusão manual substitui
+  // o comprado original (que some da base e do painel de órfãos).
+  window.__imVinReferencia = normChassi(c.chassi)||'';
   const set=(id,v)=>{const e=document.getElementById(id);if(e)e.value=v||'';};
   const placa = c.placa && !looksLikeChassi(c.placa) ? c.placa : '';
   set('im-placa', normPlaca(placa));
