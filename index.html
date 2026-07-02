@@ -1363,7 +1363,7 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
 // ============================================================
 // VERSÃO / BUILD — atualize a cada deploy para confirmar o que carregou
 // ============================================================
-const BUILD_TAG = '2026-07-01 · dedup de avaliações por idAv (linhas repetidas na planilha)';
+const BUILD_TAG = '2026-07-02 · inclusão manual conta como comprado no dash e na análise';
 function hardReloadApp(){
   // Recarrega forçando bypass do cache do navegador e da CDN do GitHub Pages.
   try {
@@ -2813,6 +2813,9 @@ function dedupAvaliacoesPorId(rows){
 // CROSS JOIN
 // ============================================================
 function crossJoin(){
+  // Remove os registros sintéticos de inclusão manual de execuções anteriores.
+  // Eles são recriados no fim, a partir dos comprados manuais atuais.
+  STATE.avaliacoes = (STATE.avaliacoes||[]).filter(r=>!r.__inclusaoManual);
   // Garante um identificador único ANTES de cruzar.
   // Sem isso, vários avaliados ficavam com __rowId = undefined e o Set de usados
   // bloqueava os próximos vínculos, deixando comprados fora do dashboard.
@@ -2929,6 +2932,29 @@ function crossJoin(){
     console.warn(`[VÍNCULO] ${STATE._compradosSemAv.length} comprado(s) órfão(s) (VIN sem avaliação):`,
       STATE._compradosSemAv.map(c=>c.chassi||c.placa).join(', '));
   }
+  // ----------------------------------------------------------------
+  // INCLUSÕES MANUAIS → registro sintético de COMPRA.
+  // Comprados incluídos manualmente não têm avaliação; para que contem no
+  // dashboard e na Análise Avançada (KPI Total Comprado, gráficos e rankings
+  // do vendedor/loja informados), cada um vira um registro com comprado=true
+  // e dataAv=null — conta como COMPRADO no mês da compra, nunca como AVALIADO.
+  // ----------------------------------------------------------------
+  (STATE.comprados||[]).filter(isInclusaoManual).forEach((c,i)=>{
+    const eq = c.vendedor ? eqMap[c.vendedor.trim().toUpperCase()] : null;
+    STATE.avaliacoes.push({
+      __rowId: 'MANUAL|'+(normPlaca(c.placa)||'X')+'|'+i,
+      __inclusaoManual: true,
+      idAv: '', placa: normPlaca(c.placa), chassi: '',
+      empresa: c.empresa||'', empresaEquipe: eq ? eq.empresa : (c.empresa||''),
+      tipo: eq ? eq.tipo : null,
+      vendedor: c.vendedor||'', modelo: c.modelo||'', anoModelo: c.anoModelo||'',
+      km: parseNumBR(c.km), valorAv: parseNumBR(c.valorAvaliado), fipe: parseNumBR(c.fipe),
+      dataAv: null, status:'', objetivo:'', precificador:'',
+      melhorado:'Não', negocioFechado:'Não',
+      compraInput: true, empresaCompraInput: c.empresa||'',
+      dataCompraInput: parseDate(c.dataCompra), comprado: true
+    });
+  });
 }
 // Calcula os comprados órfãos. Um comprado é órfão quando NÃO casa com
 // nenhuma avaliação — nem pelo VIN (avaliacoes.VIN) nem pela placa real.
@@ -3271,7 +3297,9 @@ function setText(id,v){const el=document.getElementById(id);if(el)el.textContent
 function getPeriodData(){
   const{ini,fim}=getDateRange();
   const base=STATE.avaliacoes.filter(passesFilters);
-  const noPeriodo=base.filter(r=>!ini&&!fim?true:inRange(r.dataAv,ini,fim));
+  // Inclusões manuais nunca contam como AVALIADO (não têm avaliação);
+  // contam apenas como COMPRADO, pelo mês da data da compra.
+  const noPeriodo=base.filter(r=>!r.__inclusaoManual&&(!ini&&!fim?true:inRange(r.dataAv,ini,fim)));
   return{base,avaliacoes:dedupAvExibicao(noPeriodo),compras:base.filter(r=>r.comprado&&(!ini&&!fim?true:inRange(getCompraDate(r),ini,fim)))};
 }
 function getCalDays(){
@@ -4778,7 +4806,8 @@ function getAnalyticsData() {
   // filtrados por datas independentes.
   const semData = !ini && !fim;
   // Dedup (quando ligado) aplicado DENTRO do período da análise.
-  const av = dedupAvExibicao(base.filter(r => semData ? true : inRange(r.dataAv, ini, fim)));
+  // Inclusões manuais não contam como avaliado, só como comprado.
+  const av = dedupAvExibicao(base.filter(r => !r.__inclusaoManual && (semData ? true : inRange(r.dataAv, ini, fim))));
   const cp = base.filter(r => r.comprado && (semData ? true : inRange(getCompraDate(r), ini, fim)));
   return { av, cp };
 }
