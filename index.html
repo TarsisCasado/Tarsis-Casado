@@ -1363,7 +1363,7 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
 // ============================================================
 // VERSÃO / BUILD — atualize a cada deploy para confirmar o que carregou
 // ============================================================
-const BUILD_TAG = '2026-07-02c · inclusão manual: vendedores por loja, sem duplicar vendedor';
+const BUILD_TAG = '2026-07-02d · vendedor sem duplicar por acento (João=JOAO) + filtro por loja';
 function hardReloadApp(){
   // Recarrega forçando bypass do cache do navegador e da CDN do GitHub Pages.
   try {
@@ -3012,14 +3012,17 @@ function computeOrfaos(comprados, avaliacoes){
 // ============================================================
 // INCLUSÃO MANUAL DE COMPRADO (somente master)
 // ============================================================
+// Chave de identidade do vendedor: ignora ACENTO, caixa e espaços duplicados
+// ("João Paixão Neto" == "JOAO PAIXAO NETO"). Reusa normHdrEmpresa (NFD).
+function normVend(n){ return normHdrEmpresa(n); }
 function getVendedoresExistentes(){
-  // Dedup por nome NORMALIZADO (caixa/espaços): "Ruan" e "RUAN" são o mesmo
-  // vendedor — mantém a primeira grafia encontrada (Equipes tem prioridade).
+  // Dedup por nome sem acento/caixa. Mantém a MELHOR grafia (Equipes >
+  // avaliações > comprados) — a que tem acentuação/caixa corretas.
   const nomes=new Map();
-  const add=n=>{ n=(n||'').toString().trim(); if(!n) return; const k=n.toUpperCase(); if(!nomes.has(k)) nomes.set(k,n); };
+  const add=n=>{ n=(n||'').toString().trim(); if(!n) return; const k=normVend(n); if(k && !nomes.has(k)) nomes.set(k,n); };
   (STATE.equipes||[]).forEach(e=>add(e.nome));
-  (STATE.avaliacoes||[]).forEach(r=>add(r.vendedor));
-  (STATE.comprados||[]).forEach(c=>add(c.vendedor));
+  (STATE.avaliacoes||[]).forEach(r=>{ if(!r.__inclusaoManual) add(r.vendedor); });
+  (STATE.comprados||[]).forEach(c=>{ if(!isInclusaoManual(c)) add(c.vendedor); });
   return [...nomes.values()].sort((a,b)=>a.localeCompare(b));
 }
 // Vendedores de UMA loja (Equipes + avaliações + comprados daquela unidade).
@@ -3030,23 +3033,23 @@ function getVendedoresDaLoja(loja){
   const alvo=normHdrEmpresa(loja);
   const daLoja=l=>{ l=l||''; return normHdrEmpresa(l)===alvo || empresaSimilarity(l,loja)>=90; };
   const nomes=new Map();
-  const add=n=>{ n=(n||'').toString().trim(); if(!n) return; const k=n.toUpperCase(); if(!nomes.has(k)) nomes.set(k,n); };
+  const add=n=>{ n=(n||'').toString().trim(); if(!n) return; const k=normVend(n); if(k && !nomes.has(k)) nomes.set(k,n); };
   (STATE.equipes||[]).forEach(e=>{ if(daLoja(e.empresa)) add(e.nome); });
   (STATE.avaliacoes||[]).forEach(r=>{ if(!r.__inclusaoManual && daLoja(r.empresaEquipe||r.empresa)) add(r.vendedor); });
-  (STATE.comprados||[]).forEach(c=>{ if(daLoja(c.empresa)) add(c.vendedor); });
+  (STATE.comprados||[]).forEach(c=>{ if(!isInclusaoManual(c) && daLoja(c.empresa)) add(c.vendedor); });
   return [...nomes.values()].sort((a,b)=>a.localeCompare(b));
 }
-// Grafia canônica do vendedor: se o nome já existe na base (com outra caixa/
-// espaçamento), usa a grafia existente — evita duplicar o vendedor nos
-// rankings e na análise por causa de "Ruan" × "RUAN".
+// Grafia canônica do vendedor: se o nome já existe na base (mesmo com acento/
+// caixa/espaços diferentes), usa a grafia existente — evita duplicar o
+// vendedor nos rankings e na análise ("Ruan"/"RUAN", "João"/"JOAO").
 function canonicalVendedor(nome){
   const n=(nome||'').toString().trim(); if(!n) return '';
-  const k=n.toUpperCase();
-  const eq=(STATE.equipes||[]).find(e=>e.nome && e.nome.toString().trim().toUpperCase()===k);
+  const k=normVend(n); if(!k) return n;
+  const eq=(STATE.equipes||[]).find(e=>e.nome && normVend(e.nome)===k);
   if(eq) return eq.nome.toString().trim();
-  const av=(STATE.avaliacoes||[]).find(r=>!r.__inclusaoManual && r.vendedor && r.vendedor.toString().trim().toUpperCase()===k);
+  const av=(STATE.avaliacoes||[]).find(r=>!r.__inclusaoManual && r.vendedor && normVend(r.vendedor)===k);
   if(av) return av.vendedor.toString().trim();
-  const cp=(STATE.comprados||[]).find(c=>c.vendedor && c.vendedor.toString().trim().toUpperCase()===k);
+  const cp=(STATE.comprados||[]).find(c=>!isInclusaoManual(c) && c.vendedor && normVend(c.vendedor)===k);
   if(cp) return cp.vendedor.toString().trim();
   return n;
 }
