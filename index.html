@@ -1363,7 +1363,7 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
 // ============================================================
 // VERSÃO / BUILD — atualize a cada deploy para confirmar o que carregou
 // ============================================================
-const BUILD_TAG = '2026-07-03 · vendedor/loja ancorados no input de Equipes (fonte de verdade)';
+const BUILD_TAG = '2026-07-03b · timeout maior para planilhas grandes (avaliações)';
 function hardReloadApp(){
   // Recarrega forçando bypass do cache do navegador e da CDN do GitHub Pages.
   try {
@@ -1448,9 +1448,17 @@ function loadSavedApiUrl() {
 
 function fetchWithTimeout(url, options = {}, ms = 45000) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), ms);
+  // Passa um "reason" explícito: sem isso, o Chrome lança a mensagem genérica
+  // "signal is aborted without reason", que não diz nada ao usuário.
+  const timeoutId = setTimeout(() => controller.abort(new Error(`Tempo esgotado (${Math.round(ms/1000)}s) aguardando resposta do Google Sheets.`)), ms);
   return fetch(url, { ...options, signal: controller.signal })
     .finally(() => clearTimeout(timeoutId));
+}
+// Ações de LEITURA (get*) podem envolver planilhas grandes (ex.: milhares de
+// avaliações) — o Apps Script demora mais para ler/montar/serializar. Dão
+// mais tempo (2 min) do que ações de escrita, que devem falhar rápido.
+function timeoutParaAcao(action){
+  return /^get/i.test(action||'') ? 120000 : 45000;
 }
 
 async function callAPI(params) {
@@ -1473,7 +1481,7 @@ async function callAPI(params) {
     // do cache HTTP e o "Atualizar agora" não traz o que mudou na planilha.
     qs.set('_ts', Date.now().toString());
     const url = API_URL + '?' + qs.toString();
-    const r = await fetchWithTimeout(url, { method: 'GET', redirect: 'follow', cache: 'no-store' }, 45000);
+    const r = await fetchWithTimeout(url, { method: 'GET', redirect: 'follow', cache: 'no-store' }, timeoutParaAcao(params.action));
     if (!r.ok) throw new Error('Erro HTTP ' + r.status);
     const text = await r.text();
     let j;
@@ -1495,6 +1503,9 @@ async function callAPI(params) {
       throw e;
     }
     setCloud('offline');
+    if (e.name === 'AbortError' || /tempo esgotado|aborted/i.test(e.message||'')) {
+      throw new Error('Tempo esgotado aguardando o Google Sheets — a planilha pode estar grande. Clique em "Atualizar agora" para tentar de novo.');
+    }
     if (e.message.includes('Failed to fetch') || e.message.includes('NetworkError') || e.message.includes('CORS')) {
       throw new Error('Não foi possível conectar. Verifique se o App está publicado como "Qualquer pessoa".');
     }
