@@ -573,7 +573,10 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
     </div>
   </div>
   <div style="margin-top:22px">
-    <div class="section-title" style="margin-bottom:10px">Veículos incluídos manualmente</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+      <div class="section-title" style="margin:0">Veículos incluídos manualmente</div>
+      <button class="btn btn-blue" style="font-size:12px;padding:6px 12px" onclick="sincronizarInclusoesManuais()" title="Reenvia ao banco (Google Sheets) as inclusões que estão neste navegador">🔄 Sincronizar com o banco</button>
+    </div>
     <div id="im-lista"></div>
   </div>
 </div>
@@ -1363,7 +1366,7 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
 // ============================================================
 // VERSÃO / BUILD — atualize a cada deploy para confirmar o que carregou
 // ============================================================
-const BUILD_TAG = '2026-07-03b · timeout maior para planilhas grandes (avaliações)';
+const BUILD_TAG = '2026-07-03c · inclusão manual salva no banco (Sheets) + sincronizar';
 function hardReloadApp(){
   // Recarrega forçando bypass do cache do navegador e da CDN do GitHub Pages.
   try {
@@ -3226,21 +3229,52 @@ async function salvarInclusaoManual(){
     incluidoEm: new Date().toISOString()
   };
   window.__imVinReferencia='';
-  // Persiste no cache local compartilhado e no estado em memória.
+  // Persiste no cache local compartilhado e no estado em memória (UX instantânea).
   saveCompradosImportCache([rec], 'append');
   STATE.comprados = (STATE.comprados||[]).concat([{...rec, dataCompra}]);
   // Recalcula vínculos/órfãos e atualiza a UI (a inclusão fica fora dos órfãos).
   crossJoin(); applyFilters();
   renderDashboard(); renderDetailCompradosTable(); renderInclusaoManual();
-  imFeedback('✅ Comprado incluído com sucesso.','success');
   limparInclusaoManual();
-  // Best-effort: envia ao Google Sheets sem bloquear o feedback local.
+  // Grava no BANCO (Google Sheets) para aparecer em qualquer acesso.
+  imFeedback('⏳ Salvando no banco de dados...','info');
   try{
-    await callAPI({action:'importComprados', rows:[rec], usuario:SESSION.nome, perfil:SESSION.perfil, origem:'inclusão manual'});
+    await callAPI({action:'importComprados', rows:[rec], usuario:SESSION.nome, perfil:SESSION.perfil});
     setCloud('online');
+    imFeedback('✅ Incluído e salvo no banco de dados — visível em qualquer acesso.','success');
+    showToast('Comprado incluído e sincronizado no banco.','success');
   }catch(e){
     console.warn('Inclusão manual salva localmente; backend não confirmou:', e?.message);
-    imFeedback('Salvo no navegador. Não sincronizou no Sheets: '+(e?.message||'erro'),'info');
+    setCloud('offline');
+    imFeedback('⚠️ Ficou só neste navegador — NÃO salvou no banco ('+(e?.message||'erro')+'). Clique em "🔄 Sincronizar com o banco".','error');
+    showToast('Não sincronizou no banco. Use "Sincronizar com o banco".','error');
+  }
+}
+// Reenvia ao banco (Google Sheets) as inclusões manuais que estão no
+// navegador — útil quando uma gravação falhou ou o Apps Script foi atualizado
+// depois. Inclusões já existentes no banco (mesma placa+loja) são ignoradas.
+async function sincronizarInclusoesManuais(){
+  if(SESSION.perfil!=='master'){ showToast('Apenas a senha master pode sincronizar.','error'); return; }
+  const manuais=(STATE.comprados||[]).filter(isInclusaoManual);
+  if(!manuais.length){ showToast('Nenhuma inclusão manual para sincronizar.','info'); return; }
+  const rows=manuais.map(c=>({
+    placa:c.placa||'', chassi:'', empresa:c.empresa||'',
+    dataCompra: fmtDateForSheets(parseDate(c.dataCompra)||new Date()),
+    modelo:c.modelo||'', vendedor:c.vendedor||'',
+    origem:'inclusão manual', vinReferencia:c.vinReferencia||'',
+    anoModelo:c.anoModelo||'', km:String(c.km||''), valorAvaliado:String(c.valorAvaliado||''), fipe:String(c.fipe||''),
+    incluidoPor:c.incluidoPor||SESSION.nome||'master', incluidoEm:c.incluidoEm||new Date().toISOString()
+  }));
+  showToast(`Sincronizando ${rows.length} inclusão(ões) manual(is) com o banco...`,'info');
+  try{
+    const res=await callAPI({action:'importComprados', rows, usuario:SESSION.nome, perfil:SESSION.perfil});
+    setCloud('online');
+    const ins=res&&res.inserted!=null?res.inserted:0;
+    const dup=res&&res.duplicates!=null?res.duplicates:0;
+    showToast(`✅ Sincronizado: ${ins} nova(s) no banco${dup?`, ${dup} já existiam`:''}.`,'success');
+  }catch(e){
+    setCloud('offline');
+    showToast('Falha ao sincronizar com o banco: '+(e?.message||'erro'),'error');
   }
 }
 function excluirInclusaoManual(placa){
