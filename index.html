@@ -1363,7 +1363,7 @@ body.export-clean .export-cover-title{display:block;background:var(--card);borde
 // ============================================================
 // VERSÃO / BUILD — atualize a cada deploy para confirmar o que carregou
 // ============================================================
-const BUILD_TAG = '2026-07-02d · vendedor sem duplicar por acento (João=JOAO) + filtro por loja';
+const BUILD_TAG = '2026-07-03 · vendedor/loja ancorados no input de Equipes (fonte de verdade)';
 function hardReloadApp(){
   // Recarrega forçando bypass do cache do navegador e da CDN do GitHub Pages.
   try {
@@ -2826,6 +2826,9 @@ function crossJoin(){
   // Remove os registros sintéticos de inclusão manual de execuções anteriores.
   // Eles são recriados no fim, a partir dos comprados manuais atuais.
   STATE.avaliacoes = (STATE.avaliacoes||[]).filter(r=>!r.__inclusaoManual);
+  // Unifica a grafia do vendedor em toda a base (fonte: input de Equipes) para
+  // o mesmo vendedor nunca duplicar no ranking por causa de acento/caixa.
+  aplicarVendCanon();
   // Garante um identificador único ANTES de cruzar.
   // Sem isso, vários avaliados ficavam com __rowId = undefined e o Set de usados
   // bloqueava os próximos vínculos, deixando comprados fora do dashboard.
@@ -3015,9 +3018,40 @@ function computeOrfaos(comprados, avaliacoes){
 // Chave de identidade do vendedor: ignora ACENTO, caixa e espaços duplicados
 // ("João Paixão Neto" == "JOAO PAIXAO NETO"). Reusa normHdrEmpresa (NFD).
 function normVend(n){ return normHdrEmpresa(n); }
+// ----------------------------------------------------------------
+// CANONIZAÇÃO DE VENDEDOR (fonte de verdade: INPUT DE EQUIPES).
+// Mapa chave-normalizada → grafia oficial. Equipes tem prioridade; para
+// nomes que não estão em Equipes, mantém a primeira grafia encontrada.
+// Aplicado na carga para que TODA a base (avaliações, comprados, sintéticos)
+// use a MESMA grafia — sem isso o mesmo vendedor duplica no ranking porque
+// as fontes escrevem o nome de formas diferentes ("João" × "JOAO").
+// ----------------------------------------------------------------
+function buildVendCanonMap(){
+  const map=new Map();
+  (STATE.equipes||[]).forEach(e=>{ const n=(e.nome||'').toString().trim(); const k=normVend(n); if(k && !map.has(k)) map.set(k,n); });
+  (STATE.avaliacoes||[]).forEach(r=>{ if(r.__inclusaoManual) return; const n=(r.vendedor||'').toString().trim(); const k=normVend(n); if(k && !map.has(k)) map.set(k,n); });
+  (STATE.comprados||[]).forEach(c=>{ if(isInclusaoManual(c)) return; const n=(c.vendedor||'').toString().trim(); const k=normVend(n); if(k && !map.has(k)) map.set(k,n); });
+  return map;
+}
+// Reescreve o vendedor de avaliações e comprados para a grafia oficial.
+function aplicarVendCanon(){
+  const m=buildVendCanonMap();
+  const fix=n=>{ const k=normVend(n); return (k && m.get(k)) || (n||''); };
+  (STATE.avaliacoes||[]).forEach(r=>{ if(r.vendedor) r.vendedor=fix(r.vendedor); });
+  (STATE.comprados||[]).forEach(c=>{ if(c.vendedor) c.vendedor=fix(c.vendedor); });
+}
+function canonicalVendedor(nome){
+  const n=(nome||'').toString().trim(); if(!n) return '';
+  const k=normVend(n); if(!k) return n;
+  return buildVendCanonMap().get(k) || n;
+}
+// Lojas para a Inclusão Manual: usa o INPUT DE EQUIPES (nomes padronizados
+// das unidades). Sem Equipes, cai para as lojas vistas na base.
+function getLojasInclusaoManual(){
+  const eqs=[...new Set((STATE.equipes||[]).map(e=>(e.empresa||'').toString().trim()).filter(Boolean))];
+  return eqs.length ? eqs.sort((a,b)=>a.localeCompare(b)) : getLojasExistentes();
+}
 function getVendedoresExistentes(){
-  // Dedup por nome sem acento/caixa. Mantém a MELHOR grafia (Equipes >
-  // avaliações > comprados) — a que tem acentuação/caixa corretas.
   const nomes=new Map();
   const add=n=>{ n=(n||'').toString().trim(); if(!n) return; const k=normVend(n); if(k && !nomes.has(k)) nomes.set(k,n); };
   (STATE.equipes||[]).forEach(e=>add(e.nome));
@@ -3025,33 +3059,30 @@ function getVendedoresExistentes(){
   (STATE.comprados||[]).forEach(c=>{ if(!isInclusaoManual(c)) add(c.vendedor); });
   return [...nomes.values()].sort((a,b)=>a.localeCompare(b));
 }
-// Vendedores de UMA loja (Equipes + avaliações + comprados daquela unidade).
-// Sem loja selecionada, retorna todos. Usa empresaSimilarity para casar
-// grafias diferentes da mesma loja (ex.: "NOVALUZ" × "NOVA LUZ - HONDA").
+// Vendedores de UMA unidade. FONTE PRINCIPAL: input de EQUIPES, casando a
+// loja de forma EXATA (nome padronizado da unidade) — assim cada loja mostra
+// só os seus vendedores. Só cai no fallback (avaliações/comprados por
+// similaridade) quando não há Equipes ou a loja não está no input de Equipes.
 function getVendedoresDaLoja(loja){
-  if(!(loja||'').trim()) return getVendedoresExistentes();
-  const alvo=normHdrEmpresa(loja);
-  const daLoja=l=>{ l=l||''; return normHdrEmpresa(l)===alvo || empresaSimilarity(l,loja)>=90; };
+  const L=(loja||'').trim();
+  const eqs=(STATE.equipes||[]).filter(e=>e && e.nome);
+  if(eqs.length){
+    const nomes=new Map();
+    const add=n=>{ n=(n||'').toString().trim(); if(!n) return; const k=normVend(n); if(k && !nomes.has(k)) nomes.set(k,n); };
+    if(!L){ eqs.forEach(e=>add(e.nome)); return [...nomes.values()].sort((a,b)=>a.localeCompare(b)); }
+    const alvo=normHdrEmpresa(L);
+    eqs.forEach(e=>{ if(normHdrEmpresa(e.empresa)===alvo) add(e.nome); });
+    if(nomes.size) return [...nomes.values()].sort((a,b)=>a.localeCompare(b));
+    // loja não está no input de Equipes → fallback abaixo.
+  }
+  if(!L) return getVendedoresExistentes();
+  const alvo=normHdrEmpresa(L);
+  const daLoja=l=>{ l=l||''; return normHdrEmpresa(l)===alvo || empresaSimilarity(l,L)>=90; };
   const nomes=new Map();
   const add=n=>{ n=(n||'').toString().trim(); if(!n) return; const k=normVend(n); if(k && !nomes.has(k)) nomes.set(k,n); };
-  (STATE.equipes||[]).forEach(e=>{ if(daLoja(e.empresa)) add(e.nome); });
   (STATE.avaliacoes||[]).forEach(r=>{ if(!r.__inclusaoManual && daLoja(r.empresaEquipe||r.empresa)) add(r.vendedor); });
   (STATE.comprados||[]).forEach(c=>{ if(!isInclusaoManual(c) && daLoja(c.empresa)) add(c.vendedor); });
   return [...nomes.values()].sort((a,b)=>a.localeCompare(b));
-}
-// Grafia canônica do vendedor: se o nome já existe na base (mesmo com acento/
-// caixa/espaços diferentes), usa a grafia existente — evita duplicar o
-// vendedor nos rankings e na análise ("Ruan"/"RUAN", "João"/"JOAO").
-function canonicalVendedor(nome){
-  const n=(nome||'').toString().trim(); if(!n) return '';
-  const k=normVend(n); if(!k) return n;
-  const eq=(STATE.equipes||[]).find(e=>e.nome && normVend(e.nome)===k);
-  if(eq) return eq.nome.toString().trim();
-  const av=(STATE.avaliacoes||[]).find(r=>!r.__inclusaoManual && r.vendedor && normVend(r.vendedor)===k);
-  if(av) return av.vendedor.toString().trim();
-  const cp=(STATE.comprados||[]).find(c=>!isInclusaoManual(c) && c.vendedor && normVend(c.vendedor)===k);
-  if(cp) return cp.vendedor.toString().trim();
-  return n;
 }
 function getLojasExistentes(){
   const set=new Set();
@@ -3085,7 +3116,7 @@ function renderInclusaoManual(){
   const selL=document.getElementById('im-loja');
   if(selL){
     const atual=selL.value;
-    const lojas=getLojasExistentes();
+    const lojas=getLojasInclusaoManual();
     selL.innerHTML=`<option value="">— selecione —</option>`+lojas.map(l=>`<option value="${escHtml(l)}">${escHtml(l)}</option>`).join('');
     if(atual && lojas.some(l=>l===atual)) selL.value=atual;
   }
@@ -3679,7 +3710,14 @@ function incluirOrfaoManualmente(key){
   set('im-data', c.dataCompra?dateStr(parseDate(c.dataCompra)):'');
   // Loja PRIMEIRO: seleciona e repopula os vendedores daquela unidade.
   const selL=document.getElementById('im-loja');
-  if(selL && c.empresa){ const ok=[...selL.options].some(o=>o.value===c.empresa); if(ok) selL.value=c.empresa; }
+  if(selL && c.empresa){
+    // A loja do comprado órfão pode ter grafia diferente da unidade em Equipes:
+    // casa exata ou por similaridade com uma das opções do dropdown.
+    const opts=[...selL.options].map(o=>o.value).filter(Boolean);
+    const match = opts.find(o=>normHdrEmpresa(o)===normHdrEmpresa(c.empresa))
+               || opts.find(o=>empresaSimilarity(o,c.empresa)>=90);
+    if(match) selL.value=match;
+  }
   populateImVendedores();
   // Vendedor: usa a grafia canônica; se existir na lista da loja seleciona,
   // senão usa "Outro" com o texto.
