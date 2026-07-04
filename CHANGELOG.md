@@ -28,6 +28,25 @@ promover para uma versão datada.
 
 ---
 
+## [1.2.0-css] — 2026-07-04
+
+Sprint 2 do `ROADMAP.md`: **separação do CSS** para arquivo externo. Recorte
+**literal**, sem alterar nenhuma regra CSS, HTML, ID, classe ou JavaScript. O
+comportamento visual permanece 100% idêntico.
+
+### Adicionado
+- `css/styles.css` — todo o conteúdo do antigo bloco `<style>` (371 linhas),
+  SHA-256 idêntico ao original (`e797543288dc5546041c6843958b1bebaebc0c820aa2502f4ad457fec9852990`).
+- `docs/baseline-stage-3.md` — baseline de regressão da Sprint 2.
+
+### Alterado
+- `index.html` — bloco `<style>…</style>` (linhas 15–387) substituído por
+  `<link rel="stylesheet" href="css/styles.css"/>`. Diff: +1 / −373 linhas.
+  Bloco JavaScript inalterado (SHA-256 `8677a45c…` mantido); IDs, abas (14),
+  handlers inline (onclick 149 / onchange 34 / oninput 27) e libs CDN idênticos.
+
+---
+
 ## [1.1.0-docs] — 2026-07-04
 
 Sprint 1 do `ROADMAP.md`: **documentação e preparação da arquitetura**.
