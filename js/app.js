@@ -4424,3 +4424,95 @@ document.addEventListener('DOMContentLoaded',()=>{
   document.addEventListener('click',closeAllMultiSelects);
   document.querySelectorAll('.multi-select-dropdown').forEach(dd=>dd.addEventListener('click',e=>e.stopPropagation()));
 });
+
+/* =========================================================
+   WINDOW COMPATIBILITY LAYER  (andaime da Sprint 5 — Stage 8)
+   ---------------------------------------------------------
+   Camada PURAMENTE ADITIVA e DOCUMENTAL. O sistema continua
+   sendo um script clássico: toda `function foo(){}` do topo já
+   é `window.foo` automaticamente. Nada aqui move, renomeia,
+   encapsula ou substitui uso interno — apenas TORNA EXPLÍCITO:
+
+     1) window.CarmaisHandlers — as 81 funções chamadas por
+        handlers inline do HTML (onclick/onchange/oninput/
+        onkeydown/drag-drop) e por handlers gerados em innerHTML.
+        Ao migrar para ES Modules (futuro), ESTAS são as funções
+        que precisarão ser reexpostas em `window`. A lista é a
+        fonte de verdade e deve bater com o grep de
+        docs/modularization-plan.md §3.
+
+     2) window.CarmaisApp — namespaces lógicos por domínio, para
+        navegação/depuração. `state`/`session`/`config` usam
+        getter porque SESSION/API_URL são reatribuídos em runtime.
+
+   IMPORTANTE: continuar chamando as funções globais diretamente.
+   NÃO passar a usar CarmaisApp.* internamente ainda (isso é a
+   modularização de fato, que virá depois).
+   ========================================================= */
+window.CarmaisHandlers = {
+  // Filtros / dashboard
+  applyFilters, clearFilters, clearAnalyticsFilters, clearCompradorFilters,
+  toggleMultiSelect, filterMsOptions, toggleMsOpt, toggleMsDropdown,
+  filterMsItems, onMsCbChange, sortDetail, sortAnalyticsTable,
+  // Navegação / tema / UI
+  switchTab, toggleTheme, closeModal, hardReloadApp,
+  // Auth
+  doLogin, doLogout,
+  // Carga / import / uploads
+  loadDataFromSheets, importFromGoogleSheets, triggerAvaliacoesImport,
+  triggerCompradosImport, loadAvaliacoes, loadEquipes, loadComprados,
+  clearAvaliacoesInput, clearCompradosInput, handleDrag, handleDrop, removeDrag,
+  setDedupAvaliacoes, exportarDiagnostico, rastrearPlacas,
+  // Config API / IA
+  saveApiUrl, resetApiUrlToDefault, testConnection,
+  saveGeminiKey, saveGeminiKeyQuiet, saveGeminiModel,
+  sendAIMessage, perguntaRapidaIA, clearAIChat,
+  // Render / tabelas
+  renderAnalytics, renderDetailTable, renderDetailCompradosTable,
+  renderCompradorVis, renderHistorico, populateCompradorFilterOptions,
+  viewFilteredInDetail, filtrarPorMarca, toggleAnSection,
+  // Edição / órfãos
+  updateBuyerField, updateRecordVendorLoja, salvarPlacaOrfao,
+  incluirOrfaoManualmente,
+  // Inclusão manual
+  salvarInclusaoManual, limparInclusaoManual, sincronizarInclusoesManuais,
+  excluirInclusaoManual, onImVendedorChange, onImLojaChange,
+  // Comprador CRUD
+  openModalNovoComprador, salvarComprador, editComprador, excluirComprador,
+  toggleComprador,
+  // Usuários
+  openModalNovoUsuario, salvarUsuario, editUsuario, toggleUsuario,
+  onPerfilChange, toggleAllLojas, syncLojasAllCheckbox,
+  // Histórico
+  loadHistorico,
+  // Alertas
+  salvarConfigAlertas, copyAlertScript,
+  // Exportações
+  exportExcel, exportPDF, exportJPEG, exportAnalyticsPDF, exportAnalyticsImage
+};
+
+window.CarmaisApp = {
+  version: BUILD_TAG,
+  // Estado vivo (getters — SESSION/API_URL são reatribuídos em runtime)
+  get state(){ return STATE; },
+  get session(){ return SESSION; },
+  get config(){ return { apiUrl: API_URL, defaultApiUrl: DEFAULT_API_URL, geminiModel: GEMINI_MODEL }; },
+  // Namespaces lógicos por domínio
+  api: { callAPI, callAPISingle, callAPIChunked, testConnection, setCloud },
+  auth: { doLogin, doLogout, openDashboard, aplicarPermissoesUsuario, aplicarAbasUI, restringirDadosPorLoja, isMaster },
+  pipeline: { loadDataFromSheets, crossJoin, computeOrfaos, normalizeAvFromSheets },
+  dashboard: { renderDashboard, getPeriodData },
+  charts: { renderLineChart, renderDoughnut, renderRanking },
+  filters: { populateFilters, applyFilters, passesFilters, clearFilters, toggleMultiSelect, closeAllMultiSelects },
+  analytics: { renderAnalytics, getAnalyticsData, sortAnalyticsTable, clearAnalyticsFilters },
+  tables: { renderDetailTable, renderDetailCompradosTable, sortDetail, renderCompradorVis },
+  comprador: { loadCompradores, salvarComprador, editComprador, excluirComprador, toggleComprador },
+  exports: { exportExcel, exportPDF, exportJPEG, exportAnalyticsPDF, exportAnalyticsImage },
+  ia: { sendAIMessage, prepareAIContext, callGeminiWithFallback, clearAIChat },
+  users: { loadUsuarios, salvarUsuario, toggleUsuario, getUserPerms, setUserPerms },
+  history: { loadHistorico, renderHistorico },
+  alerts: { salvarConfigAlertas, gerarScriptAlertas, copyAlertScript },
+  uploads: { triggerAvaliacoesImport, triggerCompradosImport, importFromGoogleSheets, processFile },
+  theme: { applyTheme, toggleTheme },
+  utils: { parseDate, fmtDate, parseNumBR, fmtBRL, escHtml, normPlaca, normChassi, showToast }
+};

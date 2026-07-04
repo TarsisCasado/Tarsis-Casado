@@ -28,6 +28,33 @@ promover para uma versão datada.
 
 ---
 
+## [1.6.0-compat-layer] — 2026-07-04
+
+Andaime da Sprint 5 (Stage 8): **camada de compatibilidade `window`** no fim de
+`js/app.js`. Alteração **puramente aditiva** — o sistema segue como script
+clássico (sem `type="module"`); nenhuma função movida, renomeada, encapsulada ou
+substituída; nenhum uso interno alterado.
+
+### Adicionado
+- `window.CarmaisHandlers` — mapa explícito das **81 funções** referenciadas por
+  handlers inline (HTML) e por handlers gerados em `innerHTML`. Documenta o que
+  precisará ser reexposto em `window` quando o projeto migrar para ES Modules.
+- `window.CarmaisApp` — 21 namespaces lógicos por domínio (`version`, `state`,
+  `session`, `config`, `api`, `auth`, `pipeline`, `dashboard`, `charts`,
+  `filters`, `analytics`, `tables`, `comprador`, `exports`, `ia`, `users`,
+  `history`, `alerts`, `uploads`, `theme`, `utils`). `state`/`session`/`config`
+  via getter (refletem o valor vivo de `STATE`/`SESSION`/`API_URL`).
+- `docs/baseline-stage-8.md` — baseline do andaime.
+
+### Validação
+- `node --check` limpo. Smoke headless: `CarmaisHandlers` com exatamente 81
+  entradas (conjunto idêntico ao grep de handlers, sem faltantes nem extras);
+  todas as 81 acessíveis em `window`; 8 funções críticas globais;
+  `CarmaisApp`/`CarmaisHandlers` existem; getters de estado retornam objetos
+  vivos; 14 abas; `PAGE_ERRORS: []`. `index.html` e `css/styles.css` intactos.
+
+---
+
 ## [1.5.0-multiselect] — 2026-07-04
 
 Micro-sprint: **auditoria e correção dos multi-selects**. Corrige os rótulos sem
