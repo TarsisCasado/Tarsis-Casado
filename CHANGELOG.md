@@ -28,6 +28,34 @@ promover para uma versão datada.
 
 ---
 
+## [1.3.0-js] — 2026-07-04
+
+Sprint 3 do `ROADMAP.md`: **separação do JavaScript** para arquivo externo.
+Extração **literal** — nenhuma função, nome, variável, ordem, comentário,
+espaçamento ou lógica alterada. Comportamento 100% preservado.
+
+### Adicionado
+- `js/app.js` — todo o conteúdo do antigo bloco `<script>` inline (4426 linhas),
+  SHA-256 idêntico ao original
+  (`5280ee6e056b33ea7bcf776175447fb54f04eede5ed9a3325eea49d2251a1f43`).
+- `docs/baseline-stage-4.md` — baseline de regressão da Sprint 3.
+
+### Alterado
+- `index.html` — bloco `<script>…</script>` (linhas 993–5420) substituído por
+  `<script src="js/app.js"></script>`. Diff: +1 / −4428 linhas. Ordem de
+  carregamento preservada (4 libs CDN no `<head>` antes do `app.js` no fim do
+  `<body>`). Funções (269), async (36), globais (30), listeners e eventos inline
+  totais idênticos (soma index.html + app.js = baseline).
+
+### Validação
+- Smoke test headless (Chromium): JS carrega/parse/executa sem `pageerror`;
+  `build-tag` renderizado; funções críticas globais (`doLogin`, `switchTab`,
+  `renderDashboard`, `crossJoin`, `sendAIMessage`, `exportPDF`); login e 14 abas
+  presentes; CSS externo aplicado. Libs CDN não exercitadas no sandbox (rede
+  bloqueia os hosts) — sem impacto no código.
+
+---
+
 ## [1.2.0-css] — 2026-07-04
 
 Sprint 2 do `ROADMAP.md`: **separação do CSS** para arquivo externo. Recorte
