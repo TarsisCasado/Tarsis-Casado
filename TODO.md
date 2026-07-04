@@ -14,14 +14,11 @@ Legenda de esforço: 🟢 baixo · 🟡 médio · 🔴 alto.
 - [x] **`updateMsLabel` duplicado** — *(Sprint 4)* removida a definição morta
   `(id,def)` (dashboard), que era sobrescrita em runtime pela `(id)` (analytics)
   via *function hoisting*. Remoção comprovadamente no-op.
-  - ⚠️ **Peculiaridade latente descoberta (NÃO corrigida — fica p/ sprint
-    funcional):** como a versão ativa `(id)` procura o elemento
-    `'ms-'+id+'-label'`, as chamadas do multi-select do **Dashboard** (ids
-    `ms-empresa`/`ms-vendedor`/`ms-precificador`, cujo label é `id+'-label'`)
-    resultam em no-op — o rótulo do gatilho no Dashboard não é atualizado por
-    `updateMsLabel`. Esse é o comportamento **atual de produção** e foi
-    preservado. Avaliar num sprint de correção funcional (fora do escopo de
-    refatoração).
+  - ✅ **Peculiaridade latente resolvida (micro-sprint multi-selects):** a
+    versão `(id)` mirava `ms-<id>-label` e colidia com o id duplicado do
+    Dashboard. Corrigido: rótulo da Análise → `ms-<id>-anlabel`
+    (`updateMsLabel`); rótulo do Dashboard → `<id>-label` via novo
+    `updateMsLabelDash`. Id duplicado `ms-empresa-label` eliminado.
 - [ ] **Segurança do login** — a senha trafega em querystring `GET`
   (`callAPI({action:'login', login, senha})`). Migrar para `POST` no Apps Script.
   Requer mudança coordenada backend + front. 🔴
@@ -35,9 +32,9 @@ Legenda de esforço: 🟢 baixo · 🟡 médio · 🔴 alto.
 
 - [ ] **Unificar os dois multi-selects** — `.multi-select`/`toggleMultiSelect`/
   `buildMs` (dashboard) vs `.ms-*`/`toggleMsDropdown`/`populateMsDropdown`
-  (analytics). Escolher uma implementação e migrar a outra. 🟡 *(parcialmente
-  tocado na Sprint 4: removida só a `updateMsLabel` morta; a unificação real
-  segue pendente.)*
+  (analytics). Escolher uma implementação e migrar a outra. 🟡 *(a micro-sprint
+  de multi-selects corrigiu os rótulos e a colisão de id, mas os dois sistemas
+  paralelos ainda coexistem — a unificação completa segue pendente.)*
 - [x] **Remover registros duplicados de listeners** — *(Sprint 4)*
   `DOMContentLoaded` consolidado em 1; `document.click → closeAllMultiSelects`
   reduzido a 1 registro (no INIT).

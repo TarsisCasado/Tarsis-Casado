@@ -28,6 +28,35 @@ promover para uma versão datada.
 
 ---
 
+## [1.5.0-multiselect] — 2026-07-04
+
+Micro-sprint: **auditoria e correção dos multi-selects**. Corrige os rótulos sem
+tocar em nenhuma lógica de filtragem.
+
+### Corrigido
+- **ID duplicado no DOM `ms-empresa-label`** (existia no Dashboard e na Análise
+  Avançada). O span da Análise foi renomeado para `ms-empresa-anlabel`
+  (`index.html`), eliminando o HTML inválido e a contaminação cruzada — antes,
+  mexer no filtro de loja da Análise reescrevia o rótulo do Dashboard.
+- **Rótulos do Dashboard não atualizavam.** Adicionada `updateMsLabelDash(id,def)`
+  (alvo `<id>-label`, estado `STATE.msSelected`, texto "N selecionados"), usada
+  por `buildMs` e `toggleMsOpt`. A `updateMsLabel(id)` da Análise passou a mirar
+  `ms-<id>-anlabel` (estado `MS_STATE`).
+
+### Impacto
+- Filtros do Dashboard e da Análise: **inalterados** (só o texto do rótulo mudou).
+- Fechar dropdown ao clicar fora: inalterado.
+- Funções nomeadas: 268 → 269 (+`updateMsLabelDash`).
+
+### Validação
+- `node --check` limpo após cada uma das 4 alterações. Smoke test funcional
+  headless: rótulo da Análise atualiza só o próprio span (Dashboard intacto);
+  rótulo do Dashboard atualiza o próprio span; abrir/fechar dropdown OK; 12
+  funções críticas globais; 14 abas; `PAGE_ERRORS: []`. `css/styles.css`
+  intacto; `index.html` alterado só em 1 atributo `id` (justificado).
+
+---
+
 ## [1.4.0-dedup] — 2026-07-04
 
 Sprint 4 do `ROADMAP.md`: **limpeza controlada de duplicações/resíduos** em

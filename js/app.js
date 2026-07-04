@@ -2060,18 +2060,25 @@ function toggleMultiSelect(id){
   if(!isOpen){dd.classList.add('open');trigger.classList.add('open');const si=dd.querySelector('.multi-select-search input');if(si){si.value='';filterMsOptions(id,'');setTimeout(()=>si.focus(),0);}}
 }
 function closeAllMultiSelects(){document.querySelectorAll('.multi-select-dropdown').forEach(dd=>dd.classList.remove('open'));document.querySelectorAll('.multi-select-trigger').forEach(t=>t.classList.remove('open'));}
+// Rótulo dos multi-selects do DASHBOARD (ids 'ms-empresa'/'ms-vendedor'/
+// 'ms-precificador', elemento '<id>-label'). Separado do updateMsLabel da
+// Análise Avançada, que usa outro estado (MS_STATE) e outro elemento.
+function updateMsLabelDash(id,def){
+  const sel=STATE.msSelected[id],span=document.getElementById(id+'-label');if(!span)return;
+  if(!sel.length)span.textContent=def;else if(sel.length===1)span.textContent=sel[0].substring(0,20);else span.textContent=`${sel.length} selecionados`;
+}
 function filterMsOptions(id,search){const term=normHdrEmpresa(search||'');document.querySelectorAll(`#${id}-opts .multi-select-option`).forEach(o=>{o.style.display=normHdrEmpresa(o.textContent||'').includes(term)?'':'none';});}
 function buildMs(id,values,label){
   const opts=document.getElementById(id+'-opts');if(!opts)return;
   opts.innerHTML=values.map(v=>`<label class="multi-select-option ${STATE.msSelected[id].includes(v)?'selected':''}" onclick="toggleMsOpt('${id}','${v.replace(/'/g,"\\'")}',this)"><input type="checkbox" ${STATE.msSelected[id].includes(v)?'checked':''}/>${escHtml(v)}</label>`).join('');
-  updateMsLabel(id,label);
+  updateMsLabelDash(id,label);
 }
 function toggleMsOpt(id,val,el){
   event.stopPropagation();
   const sel=STATE.msSelected[id],idx=sel.indexOf(val);
   if(idx>=0){sel.splice(idx,1);el.classList.remove('selected');el.querySelector('input').checked=false;}
   else{sel.push(val);el.classList.add('selected');el.querySelector('input').checked=true;}
-  updateMsLabel(id,{'ms-empresa':'Todas','ms-vendedor':'Todos','ms-precificador':'Todos'}[id]);
+  updateMsLabelDash(id,{'ms-empresa':'Todas','ms-vendedor':'Todos','ms-precificador':'Todos'}[id]);
   if(id==='ms-empresa') syncVendedoresByEmpresa();
   applyFilters();
 }
@@ -3547,7 +3554,9 @@ function clearMsSelected(id) {
 
 function updateMsLabel(id) {
   const sel = getMsSelected(id);
-  const label = document.getElementById('ms-'+id+'-label');
+  // Alvo próprio da Análise Avançada ('-anlabel'), para não colidir com o
+  // rótulo homônimo do multi-select do Dashboard (id 'ms-<x>-label').
+  const label = document.getElementById('ms-'+id+'-anlabel');
   if (!label) return;
   label.textContent = sel.length === 0 ? 'Todas' : sel.length === 1 ? sel[0] : `${sel.length} lojas selecionadas`;
 }
