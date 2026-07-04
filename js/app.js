@@ -10,10 +10,8 @@ function hardReloadApp(){
     window.location.replace(u.toString());
   } catch(e) { window.location.reload(); }
 }
-document.addEventListener('DOMContentLoaded', function(){
-  const el = document.getElementById('build-tag');
-  if (el) el.textContent = BUILD_TAG;
-});
+// O registro de DOMContentLoaded foi consolidado no bloco INIT (fim do arquivo);
+// a atualização do build-tag é a primeira ação executada lá, preservando a ordem.
 
 // ============================================================
 // CONFIG & SESSION
@@ -331,7 +329,8 @@ function openDashboard() {
   applyTheme(localStorage.getItem('carmais_theme') || 'dark');
   updateDateDisplay();
   setInterval(updateDateDisplay, 60000);
-  document.addEventListener('click', closeAllMultiSelects);
+  // O listener global de clique (closeAllMultiSelects) já é registrado uma vez
+  // no bloco INIT (DOMContentLoaded); não precisa ser re-registrado a cada login.
   loadDataFromSheets();
 }
 
@@ -2076,10 +2075,6 @@ function toggleMsOpt(id,val,el){
   if(id==='ms-empresa') syncVendedoresByEmpresa();
   applyFilters();
 }
-function updateMsLabel(id,def){
-  const sel=STATE.msSelected[id],span=document.getElementById(id+'-label');if(!span)return;
-  if(!sel.length)span.textContent=def;else if(sel.length===1)span.textContent=sel[0].substring(0,20);else span.textContent=`${sel.length} selecionados`;
-}
 
 // ============================================================
 // DASHBOARD
@@ -2851,15 +2846,10 @@ Ação recomendada:
 Responda seguindo exatamente esse formato, com no máximo 2 frases curtas por bloco.
 `;
 
-// Alias mantido para compatibilidade com o restante do código.
-const COPILOTO_CARMAIS_PROMPT = PROMPT_COPILOTO_CARMAIS;
-
-
 function saveGeminiKey(key) {
   const k = (key||'').trim();
   if (k) {
     localStorage.setItem('carmais_gemini_key', k);
-    localStorage.removeItem('carmais_claude_key');
     const lgk = document.getElementById('login-gemini-key');
     if (lgk) lgk.value = k;
     showToast('Chave API Gemini salva!', 'success');
@@ -2872,7 +2862,6 @@ function saveGeminiKeyQuiet(key) {
   const k = (key||'').trim();
   if (!k) return;
   localStorage.setItem('carmais_gemini_key', k);
-  localStorage.removeItem('carmais_claude_key');
   const inp = document.getElementById('gemini-api-key');
   if (inp) inp.value = k;
   const setup = document.getElementById('ai-key-setup');
@@ -3222,7 +3211,7 @@ async function sendAIMessage(text) {
     }));
 
     const payload = {
-      systemInstruction:{ parts:[{ text:COPILOTO_CARMAIS_PROMPT }] },
+      systemInstruction:{ parts:[{ text:PROMPT_COPILOTO_CARMAIS }] },
       contents: recentHistory,
       generationConfig:{
         temperature:0.3,
@@ -4419,6 +4408,8 @@ function copyAlertScript() {
 // INIT
 // ============================================================
 document.addEventListener('DOMContentLoaded',()=>{
+  const el = document.getElementById('build-tag');
+  if (el) el.textContent = BUILD_TAG;
   loadSavedApiUrl();
   loadSavedGeminiKey();
   document.addEventListener('click',closeAllMultiSelects);

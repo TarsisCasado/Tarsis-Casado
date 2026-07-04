@@ -28,6 +28,39 @@ promover para uma versão datada.
 
 ---
 
+## [1.4.0-dedup] — 2026-07-04
+
+Sprint 4 do `ROADMAP.md`: **limpeza controlada de duplicações/resíduos** em
+`js/app.js`. Alterações cirúrgicas e comprovadamente sem efeito no
+comportamento. `index.html` e `css/styles.css` intocados.
+
+### Removido / Consolidado
+- **`updateMsLabel` duplicado:** removida a definição morta `(id,def)` (dashboard),
+  que era sobrescrita em runtime pela declaração posterior `(id)` (analytics) —
+  *function hoisting*, a última vence. Remoção é no-op de runtime. Funções
+  nomeadas: 269 → 268.
+- **`DOMContentLoaded` duplicado:** os dois listeners viraram um só (no bloco
+  INIT), preservando a ordem de execução (build-tag primeiro).
+- **`closeAllMultiSelects` (click):** removido o registro redundante em
+  `openDashboard()`; mantido o único registro no INIT (`addEventListener`
+  deduplica referências idênticas — no-op observável).
+- **Resíduo legado `carmais_claude_key`:** removidas as 2 chamadas
+  `removeItem` (chave nunca lida/escrita).
+- **Alias redundante de prompt:** removido `COPILOTO_CARMAIS_PROMPT`; o uso passou
+  a referenciar diretamente `PROMPT_COPILOTO_CARMAIS` (mesmo valor).
+
+### Adicionado
+- `docs/baseline-stage-5.md` — baseline de regressão da Sprint 4.
+
+### Validação
+- `node --check` limpo após cada uma das 5 alterações; diff total +7/−16 linhas,
+  restrito ao escopo. Smoke test headless: sem `pageerror`; `build-tag`
+  renderizado; funções críticas globais (`doLogin`, `switchTab`,
+  `renderDashboard`, `crossJoin`, `sendAIMessage`, `exportPDF`); 14 abas; CSS
+  aplicado. `index.html`/CSS/libs CDN/handlers inline inalterados.
+
+---
+
 ## [1.3.0-js] — 2026-07-04
 
 Sprint 3 do `ROADMAP.md`: **separação do JavaScript** para arquivo externo.

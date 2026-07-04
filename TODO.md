@@ -11,9 +11,17 @@ Legenda de esforço: 🟢 baixo · 🟡 médio · 🔴 alto.
 
 ## 🔴 Alta prioridade
 
-- [ ] **Corrigir `updateMsLabel` duplicado** — há duas definições (assinaturas
-  `(id,def)` e `(id)`); a segunda sobrescreve a primeira em runtime. Investigar
-  qual comportamento é o esperado por cada chamador e unificar. 🟡
+- [x] **`updateMsLabel` duplicado** — *(Sprint 4)* removida a definição morta
+  `(id,def)` (dashboard), que era sobrescrita em runtime pela `(id)` (analytics)
+  via *function hoisting*. Remoção comprovadamente no-op.
+  - ⚠️ **Peculiaridade latente descoberta (NÃO corrigida — fica p/ sprint
+    funcional):** como a versão ativa `(id)` procura o elemento
+    `'ms-'+id+'-label'`, as chamadas do multi-select do **Dashboard** (ids
+    `ms-empresa`/`ms-vendedor`/`ms-precificador`, cujo label é `id+'-label'`)
+    resultam em no-op — o rótulo do gatilho no Dashboard não é atualizado por
+    `updateMsLabel`. Esse é o comportamento **atual de produção** e foi
+    preservado. Avaliar num sprint de correção funcional (fora do escopo de
+    refatoração).
 - [ ] **Segurança do login** — a senha trafega em querystring `GET`
   (`callAPI({action:'login', login, senha})`). Migrar para `POST` no Apps Script.
   Requer mudança coordenada backend + front. 🔴
@@ -27,9 +35,12 @@ Legenda de esforço: 🟢 baixo · 🟡 médio · 🔴 alto.
 
 - [ ] **Unificar os dois multi-selects** — `.multi-select`/`toggleMultiSelect`/
   `buildMs` (dashboard) vs `.ms-*`/`toggleMsDropdown`/`populateMsDropdown`
-  (analytics). Escolher uma implementação e migrar a outra. 🟡
-- [ ] **Remover registros duplicados de listeners** — `DOMContentLoaded` (2×) e
-  `document.click → closeAllMultiSelects` (3×). Consolidar em um único init. 🟢
+  (analytics). Escolher uma implementação e migrar a outra. 🟡 *(parcialmente
+  tocado na Sprint 4: removida só a `updateMsLabel` morta; a unificação real
+  segue pendente.)*
+- [x] **Remover registros duplicados de listeners** — *(Sprint 4)*
+  `DOMContentLoaded` consolidado em 1; `document.click → closeAllMultiSelects`
+  reduzido a 1 registro (no INIT).
 - [ ] **Otimizar `crossJoin`** — substituir o `filter` dentro do loop de
   comprados por índices `Map` (placa/chassi → avaliações), reduzindo de ~O(n²)
   para ~O(n). Manter resultado idêntico. 🟡
@@ -40,9 +51,9 @@ Legenda de esforço: 🟢 baixo · 🟡 médio · 🔴 alto.
 
 ## 🟢 Baixa prioridade
 
-- [ ] **Remover código morto** — `localStorage.removeItem('carmais_claude_key')`
-  (integração Claude removida) e o alias `COPILOTO_CARMAIS_PROMPT =
-  PROMPT_COPILOTO_CARMAIS`. 🟢
+- [x] **Remover código morto** — *(Sprint 4)* removidos
+  `localStorage.removeItem('carmais_claude_key')` (integração Claude) e o alias
+  `COPILOTO_CARMAIS_PROMPT`.
 - [ ] **Padronizar toasts/erros** — mensagens de erro de rede/IA em um único
   formatador. 🟢
 - [ ] **Comentar seções longas** — `renderDashboard` está muito compacto;
