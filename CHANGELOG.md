@@ -28,6 +28,37 @@ promover para uma versão datada.
 
 ---
 
+## [1.8.0-split-alerts] — 2026-07-04
+
+Sprint 5.2 (Stage 10): **separação física** do domínio Alertas para
+`js/alerts.js`, mantendo **script clássico** (sem `type="module"`/`import`).
+Extração literal; nenhuma lógica/nome/chamada interna alterada.
+
+### Adicionado
+- `js/alerts.js` — `salvarConfigAlertas` + `gerarScriptAlertas` + `copyAlertScript`
+  (código idêntico ao original). Carregado **antes** de `js/app.js` (após
+  `history.js`); só declara; dependências (`compradoresList`, `showToast`,
+  `window._alertScript`) acessadas em runtime.
+- `docs/baseline-stage-10.md` — baseline do domínio.
+
+### Alterado
+- `js/app.js` — seção Alertas removida; substituída por comentário-ponteiro.
+  Matches `^function ` 266 → 260 (3 funções reais + 3 matches de *template
+  string* que acompanham `gerarScriptAlertas`). `switchTab` e o compat layer
+  seguem referenciando os globais (agora de `alerts.js`), sem alteração.
+- `index.html` — **uma** linha: `<script src="js/alerts.js"></script>` antes de
+  `js/app.js`.
+
+### Validação
+- `node --check` limpo em `app.js` e `alerts.js`. Smoke headless: 3 funções de
+  Alertas globais; `gerarScriptAlertas()` executa sem lançar e popula
+  `window._alertScript` (usa `compradoresList` de app.js em runtime); Histórico
+  segue global; 81 handlers em `window`; `CarmaisApp.alerts` completo; 8 críticas
+  globais; 14 abas; `PAGE_ERRORS: []`. `css/styles.css` intacto; `index.html` só
+  a inclusão do script.
+
+---
+
 ## [1.7.0-split-history] — 2026-07-04
 
 Sprint 5.1 (Stage 9): **piloto de separação física** — domínio Histórico movido
