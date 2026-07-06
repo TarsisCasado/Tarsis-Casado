@@ -28,6 +28,45 @@ promover para uma versão datada.
 
 ---
 
+## [1.10.0-split-comprador] — 2026-07-04
+
+Sprint 5.4 (Stage 12): **separação física** do domínio Comprador (Visão
+Comprador + CRUD) para `js/comprador.js`, mantendo **script clássico**. Movidas
+**apenas** as 11 funções do escopo + `compradoresList`.
+
+### Adicionado
+- `js/comprador.js` — `populateCompradorFilterOptions`, `passesCompradorVisFilters`,
+  `clearCompradorFilters`, `renderCompradorVis` (Visão) + `compradoresList`,
+  `loadCompradores`, `renderCompradores`, `openModalNovoComprador`,
+  `editComprador`, `salvarComprador`, `toggleComprador`, `excluirComprador`
+  (CRUD). Código idêntico ao original. Carregado antes de `app.js` e depois de
+  `alerts.js`.
+- `docs/baseline-stage-12.md` — baseline do domínio.
+
+### Alterado
+- `js/app.js` — funções do escopo removidas (matches `^function ` 249 → 238);
+  **permanecem** os helpers `ensureCompradorFilterPanel`, `cvVal`,
+  `getCompradorVisData` (fora do escopo). Dois pointer comments.
+- `index.html` — **uma** linha: `<script src="js/comprador.js"></script>` antes
+  de `app.js`.
+
+### Integração Comprador ↔ Alertas
+- `compradoresList` (let global) fica em `comprador.js`; `js/alerts.js`
+  (`gerarScriptAlertas`) o lê em runtime. Script clássico → `let` global
+  compartilhado e reatribuível; a carga em `loadCompradores` propaga para
+  Alertas. Validado no smoke.
+
+### Validação
+- `node --check` limpo em `app.js` e `comprador.js`. Corpo movido **byte-idêntico**
+  ao original; contabilidade de linhas fecha exatamente. Smoke headless: 11
+  funções globais; `renderCompradores`/`renderCompradorVis` executam;
+  **`gerarScriptAlertas` gera o script lendo `compradoresList` cross-file
+  (`alertsStillWork: true`)**; splits anteriores intactos; 81 handlers;
+  `CarmaisApp.comprador` completo; 8 críticas globais; 14 abas; `PAGE_ERRORS: []`.
+  `css` intacto; `index.html` só a inclusão.
+
+---
+
 ## [1.9.0-split-users] — 2026-07-04
 
 Sprint 5.3 (Stage 11): **separação física** do domínio Usuários para
