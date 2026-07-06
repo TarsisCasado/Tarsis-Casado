@@ -28,6 +28,40 @@ promover para uma versão datada.
 
 ---
 
+## [1.9.0-split-users] — 2026-07-04
+
+Sprint 5.3 (Stage 11): **separação física** do domínio Usuários para
+`js/users.js`, mantendo **script clássico**. Movidas **apenas** as 11 funções do
+escopo + `usuariosListCache`; helpers compartilhados permanecem em `app.js`.
+
+### Adicionado
+- `js/users.js` — `loadUsuarios`, `getUserPerms`, `setUserPerms`,
+  `buildLojasCheckboxes`, `toggleAllLojas`, `syncLojasAllCheckbox`,
+  `buildAbasCheckboxes`, `onPerfilChange`, `renderUsuarios`, `salvarUsuario`,
+  `toggleUsuario` + `usuariosListCache` (código idêntico ao original). Carregado
+  antes de `app.js`; só declara; helpers acessados em runtime.
+- `docs/baseline-stage-11.md` — baseline do domínio.
+
+### Alterado
+- `js/app.js` — funções do escopo removidas (matches `^function ` 260 → 249);
+  **permanecem** `ABAS_USUARIO`, `getAllUserPerms`, `parseLista`, `getAllLojas`,
+  `getLojasSelecionadas` (compartilhados) e `openModalNovoUsuario`/`editUsuario`
+  (fora do escopo). Pointer comment no lugar. `switchTab`,
+  `aplicarPermissoesUsuario` e o compat layer seguem referenciando os globais.
+- `index.html` — **uma** linha: `<script src="js/users.js"></script>` antes de
+  `app.js`.
+
+### Validação
+- `node --check` limpo em `app.js` e `users.js`. Corpo movido **byte-idêntico**
+  ao original; contabilidade de linhas fecha exatamente (sem perda/duplicação).
+  Smoke headless: 11 funções globais; `renderUsuarios()` executa e preenche a
+  tabela (usa `parseLista` de app.js + escreve `usuariosListCache`);
+  `buildAbasCheckboxes()` usa `ABAS_USUARIO` de app.js em runtime; splits
+  anteriores intactos; 81 handlers; `CarmaisApp.users` completo; 8 críticas
+  globais; 14 abas; `PAGE_ERRORS: []`. `css` intacto; `index.html` só a inclusão.
+
+---
+
 ## [1.8.0-split-alerts] — 2026-07-04
 
 Sprint 5.2 (Stage 10): **separação física** do domínio Alertas para
