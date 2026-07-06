@@ -1,11 +1,15 @@
 # Plano Técnico de Modularização — `js/app.js`
 
-Documento de **planejamento** (Sprint 5 do `ROADMAP.md`). **Nenhum código foi
-alterado** para produzi-lo. Descreve como quebrar `js/app.js` (4432 linhas, 269
-funções) em módulos **sem perder compatibilidade** com os handlers inline do HTML
-nem com o estado global.
+Documento de **planejamento** (Sprint 5 do `ROADMAP.md`). Descreve como quebrar
+`js/app.js` em módulos **sem perder compatibilidade** com os handlers inline do
+HTML nem com o estado global.
 
-Base analisada: commit `1566d6a` (pós micro-sprint de multi-selects).
+> **Histórico do documento:** a versão original (Stage 7) foi escrita antes de
+> qualquer extração, com `js/app.js` monolítico (4432 linhas, 269 funções). As
+> seções 1–7 abaixo são esse plano inicial — preservadas para referência
+> histórica. A **seção 8 (Stage 14 — replanejamento)** substitui a sequência de
+> extração original com base no **estado real do código após 5 extrações**.
+> **Para decidir o próximo passo, use a seção 8, não as seções 1–7.**
 
 ---
 
@@ -327,3 +331,149 @@ desde a Sprint 5.0.
    `window` e registre `DOMContentLoaded` só depois de todos os imports.
 5. **Ambiente de teste (🟡):** CDNs/Apps Script bloqueados no sandbox — validação
    funcional final precisa do ambiente publicado.
+
+---
+
+## 8. Replanejamento (Stage 14) — estado real após 5 extrações
+
+> Esta seção **substitui** a sequência de extração das seções 1–7 (que foi
+> escrita antes de qualquer código ser movido). Recalculado do zero a partir do
+> `js/app.js` atual — sem reaproveitar o plano antigo às cegas. Ainda em
+> **scripts clássicos** (sem `type="module"`), conforme decidido no Stage 8.
+
+### 8.1 Progresso atual
+
+| Módulo já extraído | Sprint | Linhas | Funções reais |
+|---|---|---|---|
+| `js/history.js` | 5.1 | 34 | 2 |
+| `js/alerts.js` | 5.2 | 109 | 3 |
+| `js/users.js` | 5.3 | 107 | 11 |
+| `js/comprador.js` | 5.4 | 174 | 11 |
+| `js/exports.js` | 5.5 | 168 | 11 |
+| **`js/app.js` (restante)** | — | **4025** | **227** |
+
+**Percentual estimado concluído: ~15%**
+
+| Métrica | Cálculo | % |
+|---|---|---|
+| Por domínio (5 de ~20 blocos identificados) | 5/20 | ~25% |
+| Por função real (38 extraídas / ~265 no sistema) | 38/265 | ~14% |
+| Por linha de conteúdo real (525 movidas / ~4550 totais) | 525/4550 | ~12% |
+
+> A métrica por domínio é otimista: os domínios já extraídos são os **menores**.
+> `IA` (620 linhas) + `Analytics` (792 linhas) somam **1412 linhas** — quase 3×
+> tudo que já foi extraído (525 linhas).
+
+### 8.2 Mapa completo dos domínios restantes em `js/app.js`
+
+100% das 4025 linhas mapeadas em 21 blocos contíguos (soma verificada, sem
+lacunas nem sobreposições):
+
+| Domínio | Linhas | Funções | Refs `STATE` | Acoplamento | Risco | Ordem |
+|---|---|---|---|---|---|---|
+| Utils (data/número/string/normalização) | 183 | 24 | 0 | Nenhum — usado por todos, não depende de nada | 🟢 | 1 |
+| Toast | 15 | 1 | 0 | Só `escHtml` | 🟢 | 2 |
+| Cache Local de Apoio | 77 | 11 | 0 | `LOCAL_KEYS` | 🟢 | 3 |
+| Smart Cache | 21 | 3 | 0 | `DATA_CACHE_*` | 🟢 | 4 |
+| Build/Tema | 51 | 7 | 0 | `BUILD_TAG` | 🟢 | 5 |
+| Config API-URL (UI) | 33 | 4 | 0 | `API_URL` (escrita) | 🟡 | 6 |
+| API (rede) | 186 | 7 | 0 | `API_URL`; usado por quase todos em runtime | 🟡 | 7 |
+| Usuários — resíduo (helpers deixados pela 5.3) | 63 | 6 | 0 | `ABAS_USUARIO`; acoplado a `users.js` | 🟡 | 8 |
+| Visão Comprador (resíduo) + Paginação + Import Sheets | 134 | 7 | 1 | Acoplado a `comprador.js` | 🟡 | 9 |
+| Import/Upload | 228 | 17 | 0 | `IMPORT_MODE` | 🟡 | 10 |
+| Edição de Campos (Sheets) | 157 | 10 | 3 | Grava `STATE.avaliacoes` | 🟠 | 11 |
+| Dashboard + Charts | 86 | 7 | 1 | `CHARTS`; via `getPeriodData` | 🟠 | 12 |
+| Filtros + Multi-select Dashboard | 114 | 15 | 19 | `STATE.msSelected`/`filtered` | 🟠 | 13 |
+| IA / Copiloto | 620 | 27 | 11 | `AI_HISTORY`, `GEMINI_*`, `PROMPT_*`, `CAMPOS` | 🟠 | 14 |
+| Analytics | 792 | 31 | 4 | `AN_SORT`, `MS_STATE`, `MS_OPTIONS` | 🟠 | 15 |
+| Tabelas de Detalhe + Órfãos | 264 | 9 | 42 | `STATE` pesado | 🔴 | 16 |
+| Auth/Login/Permissões | 117 | 8 | ~4 | `SESSION` central, segurança | 🔴 | 17 |
+| Carga de Dados/Diagnóstico | 254 | 5 | 36 | `STATE` pesado | 🔴 | 18 |
+| CrossJoin + Inclusão Manual | 462 | 26 | 52 | `STATE` — coração do negócio | 🔴 | 19 |
+| Tabs/StatusBar (hub dispatcher) | 40 | 2 | — | Chama **todos** os domínios | 🔴 | 20 |
+| STATE (decl.) + INIT + Compat Layer | 112 | 0 | — | É o bootstrap/shell final | — | nunca extrair |
+
+*(soma: 183+15+77+21+51+33+186+63+134+228+157+86+114+620+792+264+117+254+462+40+112 = 4025)*
+
+### 8.3 Podem ser extraídos imediatamente (🟢)
+
+**Utils, Toast, Cache Local de Apoio, Smart Cache, Build/Tema** — zero
+referências a `STATE`/`SESSION`, nenhuma lógica de negócio. `Utils` é a
+prioridade máxima: 24 funções puras (`parseDate`, `escHtml`, `normPlaca`,
+`dedup*`, `compraKey`, `empresaSimilarity`…) usadas por praticamente todo o
+resto do sistema. Extraí-la primeiro reduz o acoplamento de **todas** as
+extrações seguintes (elas passam a depender de `utils.js`, já carregado).
+
+### 8.4 Devem permanecer em `app.js` até o final
+
+**CrossJoin + Inclusão Manual** (52 refs `STATE`; vedado alterar sem aprovação
+pelo `CLAUDE.md`), **Carga de Dados** (36 refs; orquestra o `crossJoin`),
+**Auth/Login** (segurança, `SESSION`), **Tabelas de Detalhe + Órfãos** (42 refs,
+ligada ao cruzamento), **Tabs/StatusBar** (dispatcher que chama todos os outros
+domínios — mover cedo obrigaria reteste a cada split seguinte) e o bloco
+**STATE (declaração) + INIT + Compat Layer**, que por definição é o que resta em
+`app.js` quando tudo mais tiver saído — é o "casco" do sistema.
+
+### 8.5 Nova sequência de extração (substitui a sequência antiga)
+
+```
+Onda 1 — 🟢 imediata (qualquer ordem entre si):
+  utils.js → toast.js → cache-local.js → smart-cache.js → theme.js
+
+Onda 2 — 🟡 segura (depois da Onda 1):
+  api-config.js (URL) → api.js
+  → fundir resíduo de usuários em js/users.js (já existente)
+  → fundir resíduo de comprador + paginação/import-sheets em js/comprador.js
+    (ou novo js/misc.js, conforme o tamanho resultante)
+  → uploads.js
+
+Onda 3 — 🟠 médio (depois da Onda 2):
+  edit-fields.js → dashboard.js → filters.js → ia.js → analytics.js
+
+Onda 4 — 🔴 núcleo, por último, nesta ordem interna:
+  tables.js → auth.js → loaddata.js → crossjoin.js
+  → (Tabs fica ou vai por último) → app.js final = STATE + Tabs + INIT + Compat
+```
+
+**Diferença em relação ao plano original (seções 1–7):** aquele plano listava
+Histórico → Alertas → Usuários como piloto (já executado) e não previa a
+granularidade real dos **blocos residuais** que cada extração deixa para trás em
+`app.js` (helpers que `users.js`/`comprador.js` passaram a chamar em runtime).
+Este replanejamento parte do estado real do código e incorpora esses resíduos.
+
+### 8.6 Dependências remanescentes (grafo simplificado)
+
+```
+Utils ← (usado por quase tudo; não depende de nada)
+API ← Config-URL
+Auth ← API, Utils, SESSION
+CargaDados ← API, Utils, CrossJoin, Filtros
+CrossJoin ← Utils, STATE (núcleo)
+Filtros ← STATE, Utils
+Dashboard ← Filtros, Charts, Utils
+Tabelas ← STATE, Utils, Paginação
+IA ← STATE.filtered, Utils, AI_HISTORY/GEMINI_*
+Analytics ← STATE, Utils, MS_STATE/MS_OPTIONS/AN_SORT
+Exportações (já extraído) ← STATE, Utils, libs CDN
+Alertas (já extraído) ← compradoresList (comprador.js)
+Usuários (já extraído) ← helpers-resíduo (app.js), SESSION
+Comprador (já extraído) ← helpers-resíduo (app.js)
+Tabs ← chama TODOS os domínios acima
+```
+
+### 8.7 Riscos restantes (atualizados)
+
+1. **Tamanho desproporcional:** IA (620) e Analytics (792) são >3× o tamanho de
+   qualquer domínio já extraído — mais superfície para erro por extração.
+2. **Resíduos cruzados:** `users.js`/`comprador.js` já dependem de helpers que
+   ficaram em `app.js` (`getAllUserPerms`, `parseLista`, `cvVal`,
+   `getCompradorVisData` etc.) — ao extrair esses helpers, validar que os dois
+   arquivos já extraídos continuam funcionando (regressão cruzada).
+3. **`STATE`/`SESSION` como `let`/objeto mutável:** continua válido só em script
+   clássico; se um dia migrar para ESM, vira bloqueador (ver seção 5.2).
+4. **Núcleo concentra o risco de negócio:** `crossJoin`, `computeOrfaos` e a
+   Carga de Dados não podem ser tocados sem baseline de contagens
+   (avaliações/comprados/vinculados/órfãos) idêntico ao atual.
+5. **Sandbox sem CDN/Apps Script:** todas as validações funcionais de ponta a
+   ponta (login real, Sheets, Gemini) continuam pendentes de teste no ambiente
+   publicado.
