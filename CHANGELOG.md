@@ -28,6 +28,36 @@ promover para uma versão datada.
 
 ---
 
+## [1.7.0-split-history] — 2026-07-04
+
+Sprint 5.1 (Stage 9): **piloto de separação física** — domínio Histórico movido
+para `js/history.js`, mantendo **script clássico** (sem `type="module"`, sem
+`import/export`). Extração literal; nenhuma lógica/nome/chamada interna alterada.
+
+### Adicionado
+- `js/history.js` — `historicoData` + `loadHistorico` + `renderHistorico`
+  (código idêntico ao original). Carregado **antes** de `js/app.js`; só declara
+  (sem execução no load); dependências (`callAPI`, `SESSION`, `escHtml`, etc.)
+  acessadas em runtime.
+- `docs/baseline-stage-9.md` — baseline do piloto.
+
+### Alterado
+- `js/app.js` — bloco Histórico removido (268 → 266 funções), substituído por
+  comentário-ponteiro. O compat layer e `switchTab` seguem referenciando os
+  globais (agora vindos de `history.js`), sem alteração.
+- `index.html` — **uma** linha: `<script src="js/history.js"></script>` antes de
+  `js/app.js`.
+
+### Validação
+- `node --check` limpo em `app.js` e `history.js`. Smoke headless: `loadHistorico`
+  /`renderHistorico` globais; `renderHistorico()` executa sem lançar (acessa
+  `historicoData` local e `escHtml` de app.js); as 81 funções em `window`;
+  `CarmaisHandlers` com 81; `CarmaisApp.history` completo; 8 críticas globais; 14
+  abas; `PAGE_ERRORS: []`. `css/styles.css` intacto; `index.html` só a inclusão
+  do script.
+
+---
+
 ## [1.6.0-compat-layer] — 2026-07-04
 
 Andaime da Sprint 5 (Stage 8): **camada de compatibilidade `window`** no fim de
