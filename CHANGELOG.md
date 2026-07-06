@@ -28,6 +28,38 @@ promover para uma versão datada.
 
 ---
 
+## [1.11.0-split-exports] — 2026-07-04
+
+Sprint 5.5 (Stage 13): **separação física** do domínio Exportações para
+`js/exports.js`, mantendo **script clássico**. Movidas as 11 funções do escopo
+(inclui os 3 helpers de cor + `withCleanExport`, usados exclusivamente por
+exportação).
+
+### Adicionado
+- `js/exports.js` — `exportExcel`, `getCurrentBgColor`, `getCurrentCardColor`,
+  `rgbFromCssColor`, `withCleanExport`, `exportPDF`, `exportJPEG` (Região A) +
+  `exportSectionImage`, `exportSectionWhatsApp`, `exportAnalyticsPDF`,
+  `exportAnalyticsImage` (Região B). Código idêntico ao original. Carregado antes
+  de `app.js`. XLSX/jsPDF/html2canvas usadas **só em runtime** (libs no `<head>`).
+- `docs/baseline-stage-13.md` — baseline do domínio.
+
+### Alterado
+- `js/app.js` — funções do escopo removidas (matches `^function ` 238 → 227);
+  `processFile` (import) permanece e segue usando `XLSX`. Dois pointer comments.
+- `index.html` — **uma** linha: `<script src="js/exports.js"></script>` antes de
+  `app.js`.
+
+### Validação
+- `node --check` limpo em `app.js` e `exports.js`. Corpo movido **byte-idêntico**
+  ao original; contabilidade de linhas fecha. Smoke headless: 11 funções globais;
+  helpers `getCurrentBgColor`/`rgbFromCssColor` executam; **XLSX/jsPDF/html2canvas
+  `undefined` no sandbox e ainda assim `exports.js` carrega sem erro** (libs só em
+  runtime); splits anteriores intactos; 81 handlers; `CarmaisApp.exports`
+  completo; 10 críticas globais; 14 abas; `PAGE_ERRORS: []`. `css` intacto;
+  `index.html` só a inclusão.
+
+---
+
 ## [1.10.0-split-comprador] — 2026-07-04
 
 Sprint 5.4 (Stage 12): **separação física** do domínio Comprador (Visão
