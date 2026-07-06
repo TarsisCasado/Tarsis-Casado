@@ -5,18 +5,24 @@ do Grupo Carmais. Usado diariamente em produção pela equipe de gestão para
 acompanhar captação, desempenho de vendedores/lojas, cruzamento entre veículos
 avaliados e comprados, análises avançadas e um copiloto de IA.
 
-> ⚠️ **Este documento descreve o sistema exatamente como ele é hoje.**
-> A documentação foi criada na Sprint 1 (ver `ROADMAP.md`) **sem alterar uma
-> única linha** de HTML, CSS ou JavaScript. O comportamento do sistema
-> permanece 100% idêntico ao que está em produção.
+> ⚠️ **Este documento descreve o sistema como ele é hoje** (pós Sprints 2–5.5 do
+> `ROADMAP.md`). O CSS e o JavaScript já foram extraídos do `index.html` para
+> arquivos externos — **mas o comportamento do sistema permanece 100%
+> idêntico** ao da versão monolítica original. Toda extração foi literal,
+> validada com `node --check` e smoke tests, sem alterar nenhuma regra de
+> negócio. Ver `CHANGELOG.md` para o histórico completo dessas mudanças.
 
 ---
 
 ## 1. Visão geral do sistema
 
-O sistema é uma **Single Page Application (SPA) monolítica de arquivo único**:
-todo o HTML, CSS e JavaScript vivem dentro de `index.html` (~5.800 linhas).
-Não há build, não há dependências instaladas localmente, não há `node_modules`.
+O sistema é uma **Single Page Application (SPA)** sem framework e sem build,
+hoje organizada em **múltiplos scripts clássicos** (não ES Modules — ver seção
+3.1). O HTML estrutural vive em `index.html`, o CSS em `css/styles.css` e o
+JavaScript está dividido entre `js/app.js` (núcleo, ainda a maior parte da
+lógica) e 5 módulos de domínio já extraídos (`js/history.js`, `js/alerts.js`,
+`js/users.js`, `js/comprador.js`, `js/exports.js`). Não há `node_modules`, não
+há passo de build, não há `package.json`.
 
 O "backend" é um **Google Apps Script** publicado como Web App, que lê e grava
 em uma planilha do **Google Sheets** (que funciona como banco de dados). O
@@ -61,11 +67,41 @@ Navegador (index.html)  ⇄  Google Apps Script (Web App)  ⇄  Google Sheets
 > Todas as bibliotecas de front-end são carregadas via **CDN** — não há
 > `package.json` nem instalação local.
 
+### 3.1 Arquitetura JS atual: scripts clássicos, não ES Modules
+
+Os arquivos `.js` são **scripts clássicos** (`<script src="...">`, sem
+`type="module"`) que compartilham um único escopo global — exatamente como no
+`index.html` monolítico original. Isso é uma decisão deliberada (ver
+`CLAUDE.md` e `docs/modularization-plan.md`): funções chamadas por handlers
+inline do HTML (`onclick="doLogin()"`) e por `innerHTML` gerado em runtime só
+funcionam sem alteração adicional em script clássico. Migrar para ES Modules
+exigiria reexpor manualmente dezenas de funções em `window` — está planejado,
+mas **não foi feito ainda**.
+
+Cada módulo extraído só **declara** funções/variáveis; nenhum executa lógica no
+carregamento. Dependências entre arquivos (ex.: `js/alerts.js` lendo
+`compradoresList`, que vive em `js/comprador.js`) são resolvidas **em tempo de
+execução**, nunca no momento do load — por isso a **ordem das tags `<script>`**
+importa (ver seção 4.2).
+
 ## 4. Estrutura atual
 
 ```
 Tarsis-Casado/
-├── index.html                     ← TODO o sistema (HTML + CSS + JS)
+├── index.html                     ← estrutura HTML + <link>/<script> externos
+├── css/
+│   └── styles.css                 ← todo o CSS (design system, temas, componentes)
+├── js/
+│   ├── history.js                 ← módulo: Histórico (2 funções)
+│   ├── alerts.js                  ← módulo: Alertas (3 funções)
+│   ├── users.js                   ← módulo: Usuários (11 funções)
+│   ├── comprador.js               ← módulo: Comprador — Visão + CRUD (11 funções)
+│   ├── exports.js                 ← módulo: Exportações (11 funções)
+│   └── app.js                     ← NÚCLEO: API, auth, carga, crossJoin, filtros,
+│                                     dashboard, tabelas, analytics, IA, compat layer
+├── docs/
+│   ├── baseline-stage-*.md        ← baselines de regressão de cada sprint
+│   └── modularization-plan.md     ← plano técnico de modularização (vivo)
 ├── .github/
 │   └── workflows/
 │       └── pages.yml              ← deploy automático no GitHub Pages
@@ -73,27 +109,60 @@ Tarsis-Casado/
 ├── README.md                      ← este arquivo
 ├── ARCHITECTURE.md                ← arquitetura detalhada
 ├── CLAUDE.md                      ← manual para IAs/devs que forem editar
+├── LOVABLE.md                     ← guia específico para evolução via Lovable
 ├── CHANGELOG.md                   ← histórico de versões
 ├── TODO.md                        ← backlog técnico
 └── ROADMAP.md                     ← plano de sprints
 ```
 
-Dentro de `index.html` a organização (por comentários de seção) é:
+### 4.1 Módulos JS já separados
 
-- **`<head>` → `<style>`** — todo o CSS (design system via variáveis CSS, temas
-  claro/escuro, componentes, responsividade).
-- **`<body>`** — telas: login, header, barra de abas e os 14 `.tab-content`.
-- **`<script>`** — toda a lógica: API, login, carga, pipeline de dados
-  (`crossJoin`), filtros, renderização, exportação, IA, usuários, alertas.
+| Arquivo | Domínio | Funções | Linhas |
+|---|---|---|---|
+| `js/history.js` | Histórico de ações | 2 | 34 |
+| `js/alerts.js` | Config. e geração do script de alertas | 3 | 109 |
+| `js/users.js` | CRUD de usuários e permissões | 11 | 107 |
+| `js/comprador.js` | Visão Comprador + CRUD de compradores | 11 | 174 |
+| `js/exports.js` | Excel/PDF/imagem (Dashboard e Análise) | 11 | 168 |
+| `js/app.js` | **Núcleo** — tudo o mais (API, login, carga, `crossJoin`, filtros, dashboard, tabelas, analytics, IA, e a camada de compatibilidade `window.CarmaisApp`/`window.CarmaisHandlers`) | 227 | 4025 |
+
+### 4.2 Ordem de carregamento dos arquivos
+
+A ordem no `<head>`/`<body>` do `index.html` é fixa e importa:
+
+```html
+<!-- <head> -->
+<link rel="stylesheet" href="css/styles.css"/>
+<script src="https://.../xlsx.full.min.js"></script>      <!-- SheetJS -->
+<script src="https://.../chart.umd.min.js"></script>      <!-- Chart.js -->
+<script src="https://.../html2canvas.min.js"></script>
+<script src="https://.../jspdf.umd.min.js"></script>
+
+<!-- fim do <body>, nesta ordem -->
+<script src="js/history.js"></script>
+<script src="js/alerts.js"></script>
+<script src="js/users.js"></script>
+<script src="js/comprador.js"></script>
+<script src="js/exports.js"></script>
+<script src="js/app.js"></script>   <!-- SEMPRE por último -->
+```
+
+- As 4 libs de CDN carregam **antes** de qualquer script local — usadas só
+  dentro de corpos de função (runtime), nunca no load.
+- Os 5 módulos de domínio carregam **antes** de `js/app.js`, que roda por
+  último e contém o listener único `DOMContentLoaded` (bloco `INIT`) e a
+  camada de compatibilidade (`window.CarmaisApp`, `window.CarmaisHandlers`).
+- **Não reordene** essas tags sem entender as dependências cruzadas descritas
+  em `docs/baseline-stage-9.md` a `13.md` e em `docs/modularization-plan.md`.
 
 ## 5. Como executar localmente
 
-O projeto é estático. Não há passo de build.
+O projeto é estático. Não há passo de build — mas agora tem **múltiplos
+arquivos** (`css/styles.css` + 6 arquivos em `js/`), então **servir por `file://`
+não é recomendado** (alguns navegadores bloqueiam `fetch`/scripts locais nesse
+esquema).
 
-**Opção A — abrir direto:** basta abrir `index.html` no navegador. Funciona,
-mas alguns navegadores restringem `fetch` a partir de `file://`.
-
-**Opção B (recomendada) — servidor estático local:**
+**Servidor estático local (recomendado):**
 
 ```bash
 # Python
@@ -106,7 +175,18 @@ Depois acesse `http://localhost:8080`.
 
 Para logar você precisa de uma **URL válida do Apps Script** (ver seção 7) e de
 credenciais cadastradas na planilha de usuários. A URL padrão já vem embutida na
-constante `DEFAULT_API_URL`.
+constante `DEFAULT_API_URL` (em `js/app.js`).
+
+**Validação rápida de que os arquivos estão corretos** (sem precisar de
+backend):
+
+```bash
+node --check js/app.js js/history.js js/alerts.js js/users.js js/comprador.js js/exports.js
+```
+
+Se todos passarem sem erro, os arquivos JS estão sintaticamente válidos. A tela
+de login deve aparecer estilizada (CSS carregado) e o console do navegador (F12)
+não deve mostrar `404` para nenhum `js/*.js` nem para `css/styles.css`.
 
 ## 6. Como publicar no GitHub Pages
 
@@ -178,9 +258,13 @@ Detalhamento completo em `ARCHITECTURE.md`. Em resumo:
 
 ## 10. Estrutura das pastas
 
-Hoje o código é single-file; a "estrutura de pastas" é a listada na seção 4.
-A separação física em pastas (`/css`, `/js`, `/js/modules`) está planejada para
-as Sprints 2–5 do `ROADMAP.md` e **ainda não foi executada**.
+A separação física em `css/` e `js/` (Sprints 2 e 3 do `ROADMAP.md`) **já foi
+executada** — ver seção 4. A modularização de `js/app.js` em domínios menores
+está **em andamento** (Sprint 5, 5 de ~20 domínios extraídos até agora — ver
+`docs/modularization-plan.md` §8 para o estado exato e a próxima ordem
+recomendada). Ainda faltam extrair: Utils, API, Auth, Carga de Dados,
+CrossJoin, Filtros, Dashboard, Tabelas, IA e Analytics, entre outros blocos
+menores.
 
 ## 11. Boas práticas (adotadas e a manter)
 
@@ -190,6 +274,9 @@ as Sprints 2–5 do `ROADMAP.md` e **ainda não foi executada**.
 - **Tolerar variações de cabeçalho** da planilha (`getAnyField`).
 - **Tratar erros de rede** com timeout/retry e sinalizar o estado em `setCloud`.
 - **Cache-buster `_ts`** em toda chamada de leitura ao Apps Script.
+- **Extração de módulos JS é sempre literal** (copiar/colar, sem reescrever) e
+  validada com `node --check` + smoke test antes de remover do arquivo de
+  origem — ver os `docs/baseline-stage-*.md` para o método usado em cada corte.
 
 ## 12. Convenções adotadas
 
@@ -203,7 +290,27 @@ as Sprints 2–5 do `ROADMAP.md` e **ainda não foi executada**.
 - **`action`** é sempre o primeiro parâmetro de qualquer chamada ao Apps Script.
 - **Resposta do backend:** sempre `{ok:boolean, data|error}`.
 
+## 13. Observações para uso no Lovable
+
+Este projeto pode ser importado e evoluído via **Lovable**. Antes de pedir
+qualquer mudança à IA do Lovable, leia **`LOVABLE.md`** — ele resume o que pode
+e o que não pode ser alterado, o estado atual dos módulos e os próximos passos
+sugeridos. Pontos-chave:
+
+- O projeto **não é React** e **não deve ser convertido para React** nesta
+  fase — é HTML/CSS/JS puro com scripts clássicos. Se o Lovable sugerir
+  reescrever em React automaticamente, **recuse** até que isso seja uma decisão
+  explícita e aprovada (ver `CLAUDE.md`).
+- Os 5 módulos já extraídos (`js/history.js`, `js/alerts.js`, `js/users.js`,
+  `js/comprador.js`, `js/exports.js`) e o núcleo `js/app.js` **compartilham
+  escopo global** propositalmente — não adicione `type="module"` nem
+  `import`/`export` sem revisar `docs/modularization-plan.md` primeiro.
+- A lógica de negócio crítica (`crossJoin`, cálculos de KPI, contrato com o
+  Apps Script) está descrita em `CLAUDE.md` §4 ("O que NUNCA pode ser
+  alterado") — trate essas regras como inegociáveis mesmo em um fluxo assistido
+  por IA.
+
 ---
 
-Documentos relacionados: `ARCHITECTURE.md`, `CLAUDE.md`, `CHANGELOG.md`,
-`TODO.md`, `ROADMAP.md`.
+Documentos relacionados: `ARCHITECTURE.md`, `CLAUDE.md`, `LOVABLE.md`,
+`CHANGELOG.md`, `TODO.md`, `ROADMAP.md`.

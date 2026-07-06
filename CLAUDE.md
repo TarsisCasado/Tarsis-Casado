@@ -1,9 +1,10 @@
 # CLAUDE.md — Manual permanente para IAs e desenvolvedores
 
-Este arquivo é o **manual de operação** para qualquer IA (Claude, etc.) ou
-desenvolvedor que for trabalhar neste repositório. **Leia-o inteiro antes de
-tocar em qualquer código.** Ele complementa `README.md` (visão geral) e
-`ARCHITECTURE.md` (arquitetura detalhada).
+Este arquivo é o **manual de operação** para qualquer IA (Claude, Lovable,
+etc.) ou desenvolvedor que for trabalhar neste repositório. **Leia-o inteiro
+antes de tocar em qualquer código.** Ele complementa `README.md` (visão geral),
+`ARCHITECTURE.md` (arquitetura detalhada) e `LOVABLE.md` (guia específico para
+evolução assistida via Lovable).
 
 ---
 
@@ -16,13 +17,49 @@ gestão de usuários/permissões e geração de scripts de alerta.
 
 **Está em produção e é usado diariamente. Qualquer regressão tem impacto real.**
 
-## 2. Arquitetura (resumo)
+## 2. Arquitetura (resumo — estado ATUAL, pós Sprints 2–5.5)
 
-- **Single-file:** todo o sistema vive em `index.html` (HTML + CSS + JS).
+- **HTML + CSS separados:** `index.html` (estrutura) + `css/styles.css` (todo o
+  CSS). Sem framework, sem build.
+- **JS dividido em scripts clássicos** (⚠️ **NÃO ES Modules** — ver §2.1):
+  `js/history.js`, `js/alerts.js`, `js/users.js`, `js/comprador.js`,
+  `js/exports.js` (5 módulos de domínio, carregados nesta ordem) + `js/app.js`
+  (**núcleo**, carregado por último — contém API, login, carga, `crossJoin`,
+  filtros, dashboard, tabelas, analytics, IA e a camada de compatibilidade
+  `window.CarmaisApp`/`window.CarmaisHandlers`).
 - **Backend:** Google Apps Script (Web App) sobre Google Sheets (banco).
 - **IA:** Google Gemini API, chamada direto do navegador.
-- **Estado:** objeto global `STATE` em memória + `localStorage` (cache/config).
-- Detalhes completos em `ARCHITECTURE.md`.
+- **Estado:** objeto global `STATE` em memória (vive em `js/app.js`) +
+  `localStorage` (cache/config).
+- A modularização **está em andamento** (~15% concluído — 5 de ~20 domínios
+  extraídos). Ver `docs/modularization-plan.md` §8 para o mapa completo do que
+  falta e a ordem recomendada. Detalhes de arquitetura completos em
+  `ARCHITECTURE.md`.
+
+### 2.1 ⚠️ NÃO usar `type="module"` / NÃO migrar para React ainda
+
+Duas decisões arquiteturais **explícitas e vigentes**, que qualquer IA
+(inclusive assistentes de geração de código como o Lovable) deve respeitar sem
+perguntar de novo:
+
+1. **Continuar com scripts clássicos.** `index.html` carrega os `.js` com
+   `<script src="...">` simples — **sem** `type="module"` e **sem**
+   `import`/`export`. Handlers inline do HTML (`onclick="doLogin()"`) e código
+   gerado via `innerHTML` (`onclick="editComprador(${idx})"`) dependem de
+   funções estarem no **escopo global** (`window.*`), o que só acontece
+   automaticamente em script clássico. Migrar para ES Modules é um projeto à
+   parte, já planejado em `docs/modularization-plan.md`, mas **não deve ser
+   feito de forma incremental/acidental** — exigiria reexpor dezenas de
+   funções em `window` de uma vez.
+2. **Não migrar para React (nem qualquer outro framework) por enquanto.** O
+   `ROADMAP.md` deliberadamente **não inclui** essa migração. Qualquer sugestão
+   automática de "modernizar para React" deve ser tratada como fora de escopo
+   até uma decisão explícita do responsável pelo projeto.
+
+**Se uma ferramenta de IA (Lovable ou outra) propuser `type="module"` ou uma
+reescrita em React "para facilitar a manutenção", pare e peça confirmação
+explícita antes de prosseguir.** Ver `LOVABLE.md` para o guia específico de uso
+com o Lovable.
 
 ## 3. Regras obrigatórias
 
@@ -76,17 +113,32 @@ gestão de usuários/permissões e geração de scripts de alerta.
 
 ## 7. Como criar novos módulos
 
-Enquanto o projeto for single-file (até as Sprints de modularização):
+O projeto já está parcialmente modularizado em **scripts clássicos** (ver §2).
+Ao adicionar funcionalidade nova:
 
-1. Adicione a seção com um comentário de cabeçalho claro
-   (`// ===== NOME DO MÓDULO =====`).
-2. Exponha apenas as funções necessárias (evite novos globais; se precisar de
+1. Se o código pertence a um domínio **já extraído** (`history`, `alerts`,
+   `users`, `comprador`, `exports`), adicione a função nesse arquivo.
+2. Se pertence a um domínio que **ainda está em `js/app.js`**, adicione dentro
+   da seção correspondente (comentário `// ===== NOME DO MÓDULO =====`) — **não**
+   crie um novo arquivo isolado sem seguir o processo de extração descrito em
+   `docs/modularization-plan.md` (baseline → extração literal → validação →
+   commit).
+3. Exponha apenas as funções necessárias (evite novos globais; se precisar de
    estado, encapsule dentro do módulo ou use `STATE._novoCampo`).
-3. Não crie um segundo caminho para algo que já existe (evite duplicações como o
+4. Não crie um segundo caminho para algo que já existe (evite duplicações como o
    caso do multi-select).
+5. **Continue usando `<script src="...">` clássico** — não introduza
+   `type="module"` nem `import`/`export` (ver §2.1). Se a função precisa ser
+   chamada por um handler inline (`onclick`/`onchange`/etc.), ela já fica em
+   `window.*` automaticamente por ser script clássico; não precisa de nada
+   extra, mas é boa prática também listá-la em `window.CarmaisHandlers`
+   (no fim de `js/app.js`) se for um handler inline novo.
 
-Após a Sprint 5 (modularização em ES Modules), cada módulo será um arquivo em
-`/js/modules/` com `import/export` — siga o padrão que estiver estabelecido.
+Ao extrair um novo domínio de `js/app.js` para um arquivo próprio, siga o
+mesmo processo já usado nas 5 extrações anteriores: `docs/baseline-stage-N.md`
+com contadores exatos → cópia literal → `node --check` → smoke test headless →
+remoção do original só depois de validado → tag `<script>` adicionada **antes**
+de `js/app.js` no `index.html`.
 
 ## 8. Como criar novas abas
 
@@ -190,6 +242,11 @@ Registre no `CHANGELOG.md` o que mudou.
 - [ ] KPIs e contagens do diagnóstico idênticos ao baseline.
 - [ ] `CHANGELOG.md` atualizado.
 - [ ] Se mexeu no deploy, o `pages.yml` aponta para a branch correta.
+- [ ] Nenhum `type="module"` ou `import`/`export` foi introduzido (§2.1).
+- [ ] Nenhuma migração para React (ou outro framework) foi iniciada sem
+  aprovação explícita (§2.1).
+- [ ] Se extraiu um domínio novo para `js/`, a tag `<script>` foi adicionada
+  **antes** de `js/app.js` e `docs/modularization-plan.md` foi atualizado.
 - [ ] Commit pequeno, descritivo e reversível.
 
 ## 19. Princípios de arquitetura deste projeto
