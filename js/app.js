@@ -1,0 +1,4025 @@
+// ============================================================
+// VERSÃO / BUILD — atualize a cada deploy para confirmar o que carregou
+// ============================================================
+const BUILD_TAG = '2026-07-03c · inclusão manual salva no banco (Sheets) + sincronizar';
+function hardReloadApp(){
+  // Recarrega forçando bypass do cache do navegador e da CDN do GitHub Pages.
+  try {
+    const u = new URL(window.location.href);
+    u.searchParams.set('v', Date.now().toString());
+    window.location.replace(u.toString());
+  } catch(e) { window.location.reload(); }
+}
+// O registro de DOMContentLoaded foi consolidado no bloco INIT (fim do arquivo);
+// a atualização do build-tag é a primeira ação executada lá, preservando a ordem.
+
+// ============================================================
+// CONFIG & SESSION
+// ============================================================
+// ============================================================
+// CONFIGURAÇÃO INTERNA DO SISTEMA
+// Cole a URL do Web App do Google Apps Script abaixo para que todos os usuários
+// acessem sem precisar informar o link na tela inicial.
+// Exemplo: const DEFAULT_API_URL = 'https://script.google.com/macros/s/SEU_ID/exec';
+// ============================================================
+const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbw7j5RpR2RySdRpUvUdpMhvhgVu6uuNszrhKKRNVH1ZMOML7RKTdDkXdkIU6HvazxX9/exec';
+let API_URL = (DEFAULT_API_URL && !DEFAULT_API_URL.includes('COLE_AQUI')) ? DEFAULT_API_URL : (localStorage.getItem('carmais_api_url') || '');
+let SESSION = { usuario: null, nome: null, perfil: null };
+
+function applyTheme(theme){
+  const t = theme === 'light' ? 'light' : 'dark';
+  document.body.classList.toggle('theme-light', t === 'light');
+  localStorage.setItem('carmais_theme', t);
+  const btn = document.getElementById('theme-toggle');
+  if(btn) btn.textContent = t === 'light' ? '☀️ Claro' : '🌙 Escuro';
+  refreshChartsForTheme();
+}
+function toggleTheme(){
+  const current = localStorage.getItem('carmais_theme') || 'dark';
+  applyTheme(current === 'light' ? 'dark' : 'light');
+}
+function getCssVar(name){ return getComputedStyle(document.body).getPropertyValue(name).trim(); }
+function chartGridColor(){ return getCssVar('--border') || '#2a3350'; }
+function chartTickColor(){ return getCssVar('--text3') || '#64748b'; }
+function refreshChartsForTheme(){
+  if(typeof CHARTS !== 'undefined'){
+    Object.values(CHARTS).forEach(ch=>{ try{ ch.destroy(); }catch(e){} });
+    Object.keys(CHARTS).forEach(k=>delete CHARTS[k]);
+    if((STATE||{}).filtered) setTimeout(()=>renderDashboard(),0);
+  }
+}
+
+function saveApiUrl(url) {
+  const clean = String(url || '').trim();
+  API_URL = clean || DEFAULT_API_URL || '';
+  if (clean) localStorage.setItem('carmais_api_url', clean);
+}
+function toggleApiConfig() {
+  const fields = document.getElementById('api-config-fields');
+  if (!fields) return;
+  fields.style.display = fields.style.display === 'none' ? 'block' : 'none';
+}
+function resetApiUrlToDefault() {
+  localStorage.removeItem('carmais_api_url');
+  API_URL = DEFAULT_API_URL || '';
+  const el = document.getElementById('api-url-input');
+  if (el) el.value = API_URL;
+  const status = document.getElementById('conn-status');
+  if (status) { status.textContent = '✅ Link padrão restaurado.'; status.style.color = 'var(--green2)'; }
+}
+function loadSavedApiUrl() {
+  const saved = localStorage.getItem('carmais_api_url') || '';
+  API_URL = saved || DEFAULT_API_URL || '';
+  const el = document.getElementById('api-url-input');
+  if (el) el.value = API_URL;
+  const status = document.getElementById('conn-status');
+  if (status) {
+    status.textContent = saved ? 'Link personalizado salvo neste navegador.' : 'Link padrão carregado no sistema.';
+  }
+}
+
+// ============================================================
+// API
+// ============================================================
+
+function fetchWithTimeout(url, options = {}, ms = 45000) {
+  const controller = new AbortController();
+  // Passa um "reason" explícito: sem isso, o Chrome lança a mensagem genérica
+  // "signal is aborted without reason", que não diz nada ao usuário.
+  const timeoutId = setTimeout(() => controller.abort(new Error(`Tempo esgotado (${Math.round(ms/1000)}s) aguardando resposta do Google Sheets.`)), ms);
+  return fetch(url, { ...options, signal: controller.signal })
+    .finally(() => clearTimeout(timeoutId));
+}
+// Ações de LEITURA (get*) podem envolver planilhas grandes (ex.: milhares de
+// avaliações) — o Apps Script demora mais para ler/montar/serializar. Dão
+// mais tempo (2 min) do que ações de escrita, que devem falhar rápido.
+function timeoutParaAcao(action){
+  return /^get/i.test(action||'') ? 120000 : 45000;
+}
+
+async function callAPI(params) {
+  if (!API_URL) throw new Error('URL do Apps Script não configurada. Faça login com o arquivo correto ou ajuste em Config Script após acessar.');
+  setCloud('syncing');
+
+  // Se tem 'rows' com muitos itens, envia em chunks para não estourar limite de URL
+  if (params.rows && Array.isArray(params.rows) && params.rows.length > 12) {
+    return await callAPIChunked(params);
+  }
+
+  try {
+    const qs = new URLSearchParams();
+    for (const [k, v] of Object.entries(params)) {
+      if (v !== null && v !== undefined) {
+        qs.set(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
+      }
+    }
+    // Cache-buster: sem isto, o navegador/Google podem servir a resposta antiga
+    // do cache HTTP e o "Atualizar agora" não traz o que mudou na planilha.
+    qs.set('_ts', Date.now().toString());
+    const url = API_URL + '?' + qs.toString();
+    const r = await fetchWithTimeout(url, { method: 'GET', redirect: 'follow', cache: 'no-store' }, timeoutParaAcao(params.action));
+    if (!r.ok) throw new Error('Erro HTTP ' + r.status);
+    const text = await r.text();
+    let j;
+    try { j = JSON.parse(text); } catch(pe) { throw new Error('Resposta inválida: ' + text.substring(0,120)); }
+    if (!j.ok) {
+      setCloud('online');
+      const apiErr = new Error(j.error || 'Erro desconhecido na API');
+      apiErr.isApiError = true;
+      apiErr.apiPayload = j;
+      throw apiErr;
+    }
+    setCloud('online');
+    return j.data;
+  } catch(e) {
+    // Se o Apps Script respondeu JSON com ok:false, a conexão está funcionando.
+    // Não marcar o sistema como Offline por erro de regra/campo do backend.
+    if (e && e.isApiError) {
+      setCloud('online');
+      throw e;
+    }
+    setCloud('offline');
+    if (e.name === 'AbortError' || /tempo esgotado|aborted/i.test(e.message||'')) {
+      throw new Error('Tempo esgotado aguardando o Google Sheets — a planilha pode estar grande. Clique em "Atualizar agora" para tentar de novo.');
+    }
+    if (e.message.includes('Failed to fetch') || e.message.includes('NetworkError') || e.message.includes('CORS')) {
+      throw new Error('Não foi possível conectar. Verifique se o App está publicado como "Qualquer pessoa".');
+    }
+    throw e;
+  }
+}
+
+async function callAPISingle(params) {
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== null && v !== undefined) {
+      qs.set(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
+    }
+  }
+  qs.set('_ts', Date.now().toString());
+  const url = API_URL + '?' + qs.toString();
+
+  // Aviso se URL ficar muito grande
+  if (url.length > 14000) {
+    console.warn('URL grande:', url.length, 'chars - pode causar Load failed em Safari');
+  }
+
+  // Timeout de 30s por requisição
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+  try {
+    const r = await fetch(url, {
+      method: 'GET',
+      redirect: 'follow',
+      cache: 'no-store',
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+
+    if (!r.ok) throw new Error('HTTP ' + r.status + ' ' + r.statusText);
+
+    const text = await r.text();
+    let j;
+    try { j = JSON.parse(text); }
+    catch(pe) { throw new Error('Resposta não-JSON: ' + text.substring(0,100)); }
+    if (!j.ok) {
+      const apiErr = new Error(j.error || 'Erro desconhecido');
+      apiErr.isApiError = true;
+      apiErr.apiPayload = j;
+      throw apiErr;
+    }
+    return j.data;
+  } catch(err) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') throw new Error('Timeout — Apps Script demorou demais para responder');
+    if (err.message === 'Load failed' || err.message.includes('Failed to fetch')) {
+      throw new Error('Falha de rede ou URL muito grande. Tente reduzir o lote.');
+    }
+    throw err;
+  }
+}
+
+async function callAPIChunked(params) {
+  // Chunk pequeno para garantir que URL caiba em qualquer browser
+  // Comprados/avaliações têm muitos campos, então usamos chunk de 15
+  const CHUNK = 15;
+  const allRows = params.rows;
+  const total = allRows.length;
+  let inserted = 0, duplicates = 0, errors = 0;
+
+  showLoading(`Enviando dados em lotes... 0 de ${total}`);
+
+  for (let i = 0; i < total; i += CHUNK) {
+    const chunk = allRows.slice(i, i + CHUNK);
+    const isFirst = i === 0;
+
+    // Se for replace, só o primeiro chunk substitui; os demais fazem append
+    let action = params.action;
+    if (!isFirst) {
+      if (action === 'replaceAvaliacoes') action = 'importAvaliacoes';
+      if (action === 'replaceComprados') action = 'importComprados';
+    }
+
+    const chunkParams = { ...params, rows: chunk, action };
+
+    // Retry: até 3 tentativas por chunk
+    let lastErr = null;
+    let success = false;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const result = await callAPISingle(chunkParams);
+        inserted += result.inserted || result.replaced || result.count || chunk.length;
+        duplicates += result.duplicates || 0;
+        success = true;
+        break;
+      } catch(err) {
+        lastErr = err;
+        console.warn(`Chunk ${i/CHUNK + 1}, tentativa ${attempt} falhou:`, err.message);
+        if (attempt < 3) await new Promise(res => setTimeout(res, 1000 * attempt));
+      }
+    }
+
+    if (!success) {
+      errors++;
+      console.error(`Chunk ${i/CHUNK + 1} falhou após 3 tentativas:`, lastErr?.message);
+      // Continua com os próximos chunks mesmo se um falhar
+    }
+
+    const done = Math.min(i + CHUNK, total);
+    const pct = Math.round(done/total*100);
+    showLoading(`Enviando... ${done}/${total} (${pct}%)${errors > 0 ? ' • ' + errors + ' erros' : ''}`);
+
+    // Pausa entre chunks para não sobrecarregar
+    await new Promise(res => setTimeout(res, 400));
+  }
+
+  setCloud('online');
+  if (errors > 0) {
+    showToast(`Atenção: ${errors} lote(s) falharam. Recarregue e veja se precisa reimportar.`, 'error');
+  }
+  return { inserted, duplicates, total, errors };
+}
+
+function setCloud(s) {
+  const el = document.getElementById('cloud-badge'); if (!el) return;
+  el.className = 'cloud-badge ' + s;
+  el.textContent = { online:'☁️ Online', offline:'⚠️ Offline', syncing:'🔄 Sincronizando' }[s] || s;
+}
+
+// ============================================================
+// LOGIN / LOGOUT
+// ============================================================
+async function testConnection() {
+  const btn = document.getElementById('test-conn-btn');
+  const status = document.getElementById('conn-status');
+  if (!API_URL) { status.textContent = '❌ Cole a URL primeiro.'; status.style.color = 'var(--red2)'; return; }
+  btn.textContent = '⏳ Testando...'; btn.disabled = true;
+  try {
+    const url = API_URL + '?action=getConfig';
+    const r = await fetchWithTimeout(url, { method: 'GET', redirect: 'follow' }, 45000);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const text = await r.text();
+    const j = JSON.parse(text);
+    if (j.ok !== undefined) {
+      status.textContent = '✅ Conexão OK! API respondendo corretamente.';
+      status.style.color = 'var(--green2)';
+    } else {
+      throw new Error('Resposta inesperada: ' + text.substring(0,80));
+    }
+  } catch(e) {
+    status.textContent = '❌ Falha: ' + e.message;
+    status.style.color = 'var(--red2)';
+  } finally {
+    btn.textContent = '🔌 Testar conexão'; btn.disabled = false;
+  }
+}
+
+async function doLogin() {
+  const login = document.getElementById('login-input').value.trim();
+  const senha = document.getElementById('senha-input').value.trim();
+  const btn = document.getElementById('login-btn');
+  const err = document.getElementById('login-error');
+  // Reset estado
+  err.style.display = 'none'; err.textContent = '';
+  if (!login || !senha) { showLoginErr('Preencha login e senha.'); return; }
+  if (!API_URL) { showLoginErr('Cole a URL do Google Apps Script no campo acima e clique em "Testar conexão" antes de entrar.'); return; }
+  btn.disabled = true; btn.textContent = '⏳ Verificando...';
+  try {
+    const user = await callAPI({ action:'login', login, senha });
+    if (!user || !user.perfil) throw new Error('Resposta inválida do servidor. Verifique a URL do Apps Script.');
+    SESSION = user;
+    openDashboard();
+  } catch(e) {
+    showLoginErr(e.message);
+    btn.disabled = false; btn.textContent = 'Entrar no Dashboard';
+  }
+}
+function showLoginErr(msg) { const e = document.getElementById('login-error'); e.textContent = msg; e.style.display = 'block'; }
+
+function openDashboard() {
+  document.getElementById('login-screen').style.display = 'none';
+  ['main-header','main-tabs','main-content'].forEach(id => { document.getElementById(id).style.display = id === 'main-header' ? 'flex' : id === 'main-tabs' ? 'flex' : 'block'; });
+  const av = (SESSION.nome || '?')[0].toUpperCase();
+  document.getElementById('user-avatar').textContent = av;
+  document.getElementById('user-name').textContent = SESSION.nome || SESSION.usuario;
+  document.getElementById('user-role').textContent = SESSION.perfil === 'master' ? '⭐ Master' : '👤 Usuário';
+  if (SESSION.perfil === 'master') document.body.classList.add('is-master');
+  aplicarPermissoesUsuario();
+  applyTheme(localStorage.getItem('carmais_theme') || 'dark');
+  updateDateDisplay();
+  setInterval(updateDateDisplay, 60000);
+  // O listener global de clique (closeAllMultiSelects) já é registrado uma vez
+  // no bloco INIT (DOMContentLoaded); não precisa ser re-registrado a cada login.
+  loadDataFromSheets();
+}
+
+// Calcula e aplica as permissões do usuário logado (lojas + abas).
+// Prioriza campos vindos do servidor (login); se não houver, usa o apoio local.
+function aplicarPermissoesUsuario(){
+  const login = (SESSION.usuario||SESSION.login||'').toString();
+  const perms = getUserPerms(login);
+  const lojas = (SESSION.lojas!=null && SESSION.lojas!=='') ? parseLista(SESSION.lojas) : parseLista(perms.lojas);
+  const abas  = (SESSION.abas!=null  && SESSION.abas!=='')  ? parseLista(SESSION.abas)  : parseLista(perms.abas);
+  // Master nunca é restringido.
+  SESSION.lojasPermitidas = (SESSION.perfil==='master') ? [] : lojas;
+  SESSION.abasPermitidas  = (SESSION.perfil==='master') ? [] : abas;
+  aplicarAbasUI();
+}
+// Esconde as abas de usuário comum que não foram liberadas (master vê tudo).
+function aplicarAbasUI(){
+  if(SESSION.perfil==='master') return;
+  const abas = SESSION.abasPermitidas||[];
+  if(!abas.length) return; // sem restrição definida = comportamento padrão
+  const permitidas = new Set(abas.concat(['dashboard']));
+  let ativaEscondida=false;
+  document.querySelectorAll('#main-tabs .tab-btn[data-tab]').forEach(btn=>{
+    const t=btn.getAttribute('data-tab');
+    if(ABAS_USUARIO.some(a=>a.id===t)){
+      const liberar=permitidas.has(t);
+      btn.style.display = liberar ? '' : 'none';
+      if(!liberar && btn.classList.contains('active')) ativaEscondida=true;
+    }
+  });
+  // Se a aba ativa foi escondida, volta para o Dashboard.
+  if(ativaEscondida){ const d=document.querySelector('#main-tabs .tab-btn[data-tab="dashboard"]'); if(d) switchTab('dashboard',d); }
+}
+// Restringe os dados carregados às lojas permitidas do usuário (na origem,
+// para que dashboard, tabelas, rankings e IA respeitem automaticamente).
+function restringirDadosPorLoja(){
+  const lojas = (SESSION && SESSION.lojasPermitidas) || [];
+  if(!lojas.length) return;
+  const set = new Set(lojas.map(l=>normHdrEmpresa(l)));
+  const okAv = r => set.has(normHdrEmpresa(r.empresaEquipe||r.empresa||''));
+  const okCp = r => set.has(normHdrEmpresa(r.empresa||r.empresaEquipe||''));
+  STATE.avaliacoes = (STATE.avaliacoes||[]).filter(okAv);
+  STATE.comprados  = (STATE.comprados||[]).filter(okCp);
+}
+
+async function doLogout() {
+  try { await callAPI({ action:'logout', usuario:SESSION.nome, perfil:SESSION.perfil }); } catch(e) {}
+  SESSION = {};
+  location.reload();
+}
+function closeModal(id) { document.getElementById(id)?.classList.remove('open'); }
+
+
+// ============================================================
+// CACHE LOCAL DE APOIO
+// ============================================================
+const LOCAL_KEYS = {
+  comprados: 'carmais_comprados_cache_v2',
+  manuais: 'carmais_campos_manuais_v2'
+};
+function loadJsonLocal(key, fallback){
+  try { return JSON.parse(localStorage.getItem(key) || 'null') ?? fallback; }
+  catch(e){ return fallback; }
+}
+function saveJsonLocal(key, value){
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch(e) { console.warn('Falha ao salvar cache local', key, e); }
+}
+function saveCompradosImportCache(rows, mode){
+  const atuais = mode === 'replace' ? [] : loadJsonLocal(LOCAL_KEYS.comprados, []);
+  const merged = dedupeCompradosByPlaca([...(atuais||[]), ...(rows||[])]).rows;
+  saveJsonLocal(LOCAL_KEYS.comprados, merged);
+  return merged.length;
+}
+function loadCompradosImportCache(){ return loadJsonLocal(LOCAL_KEYS.comprados, []); }
+// Placas digitadas manualmente para comprados órfãos (chave = VIN normalizado).
+// Sobrevivem a recargas do Google Sheets, que não trazem a placa real.
+const PLACA_OVERRIDE_KEY = 'carmais_placa_overrides_v1';
+function loadPlacaOverrides(){ return loadJsonLocal(PLACA_OVERRIDE_KEY, {}); }
+function setPlacaOverride(vin, placa){
+  const v=normChassi(vin); if(!v) return;
+  const m=loadPlacaOverrides(); m[v]=normPlaca(placa); saveJsonLocal(PLACA_OVERRIDE_KEY, m);
+}
+function clearCompradosImportCache(){ localStorage.removeItem(LOCAL_KEYS.comprados); }
+function manualKey(row){ return String(row?.idAv || row?.placa || row?.chassi || row?.__rowId || '').trim(); }
+function saveManualCache(row){
+  const key = manualKey(row); if(!key) return;
+  const cache = loadJsonLocal(LOCAL_KEYS.manuais, {});
+  cache[key] = {
+    manualDataMelhoria: row.manualDataMelhoria || (row.dataMelhoria ? dateStr(row.dataMelhoria) : ''),
+    manualValorMelhorado: row.manualValorMelhorado ?? row.valorMelhorado ?? '',
+    manualMelhorado: row.manualMelhorado || row.melhorado || 'Não',
+    negocioFechado: row.negocioFechado || 'Não',
+    manualCompradorNome: row.manualCompradorNome || row.compradorNome || row.comprador || ''
+  };
+  saveJsonLocal(LOCAL_KEYS.manuais, cache);
+}
+function applyManualCache(rows){
+  const cache = loadJsonLocal(LOCAL_KEYS.manuais, {});
+  (rows||[]).forEach(row=>{
+    const c = cache[manualKey(row)]; if(!c) return;
+    if(c.manualDataMelhoria !== undefined){ row.manualDataMelhoria = c.manualDataMelhoria || ''; row.dataMelhoria = c.manualDataMelhoria ? parseDate(c.manualDataMelhoria) : row.dataMelhoria; }
+    if(c.manualValorMelhorado !== undefined && c.manualValorMelhorado !== ''){ row.manualValorMelhorado = parseNumBR(c.manualValorMelhorado); row.valorMelhorado = row.manualValorMelhorado; }
+    if(c.manualMelhorado){ row.manualMelhorado = c.manualMelhorado; row.melhorado = c.manualMelhorado; }
+    if(c.negocioFechado){ row.negocioFechado = c.negocioFechado; }
+    if(c.manualCompradorNome !== undefined){ row.manualCompradorNome = c.manualCompradorNome; row.compradorNome = c.manualCompradorNome; row.comprador = c.manualCompradorNome; }
+  });
+  return rows;
+}
+
+function applyCompradorSheetData(rows, compradorRows){
+  // Fonte compartilhada entre usuários: aba COMPRADOR do Google Sheets.
+  // Prioridade de vínculo: idAv > chassi/VIN > placa.
+  const byId = new Map(), byChassi = new Map(), byPlaca = new Map();
+  (compradorRows||[]).forEach(c=>{
+    if(c.idAv) byId.set(String(c.idAv).trim(), c);
+    if(c.chassi) byChassi.set(normChassi(c.chassi), c);
+    if(c.placa) byPlaca.set(normPlaca(c.placa), c);
+  });
+  (rows||[]).forEach(row=>{
+    const c = byId.get(String(row.idAv||'').trim()) || byChassi.get(normChassi(row.chassi||'')) || byPlaca.get(normPlaca(row.placa||''));
+    if(!c) return;
+    if(c.dataMelhoria !== undefined && c.dataMelhoria !== '') { row.manualDataMelhoria = dateStr(parseDate(c.dataMelhoria)) || String(c.dataMelhoria||''); row.dataMelhoria = parseDate(c.dataMelhoria) || row.dataMelhoria; }
+    if(c.valorMelhorado !== undefined && c.valorMelhorado !== null && c.valorMelhorado !== '') { row.manualValorMelhorado = parseNumBR(c.valorMelhorado) || 0; row.valorMelhorado = row.manualValorMelhorado; }
+    if(c.melhorado) { row.manualMelhorado = c.melhorado; row.melhorado = c.melhorado; }
+    if(c.negocioFechado) row.negocioFechado = c.negocioFechado;
+    if(c.comprador !== undefined) { row.manualCompradorNome = c.comprador || ''; row.compradorNome = c.comprador || ''; row.comprador = c.comprador || ''; }
+  });
+  return rows;
+}
+
+// ============================================================
+// LOAD DATA
+// ============================================================
+async function loadDataFromSheets(forceRefresh) {
+  // Try smart cache first (instant load)
+  if (!forceRefresh) {
+    const cached = loadDataCache();
+    if (cached) {
+      try {
+        STATE.avaliacoes = (cached.data.avaliacoes||[]).map(restoreDates);
+        STATE.equipes = cached.data.equipes || [];
+        STATE.comprados = (cached.data.comprados||[]).map(r=>{ if(r.dataCompra)r.dataCompra=new Date(r.dataCompra); return r; });
+        STATE.comprador = cached.data.comprador || [];
+        restringirDadosPorLoja();
+        crossJoin();
+        applyCompradorSheetData(STATE.avaliacoes, STATE.comprador);
+        if (!STATE._filtersInitialized) { populateFilters(true); STATE._filtersInitialized = true; }
+        applyFilters();
+        updateStatusBar();
+        const bar = document.getElementById('data-status-bar');
+        const vin = STATE.avaliacoes.filter(r=>r.compraInput).length;
+        if (bar) bar.innerHTML = `<span><span class="dot-green">●</span> Cache rápido — atualizado há <strong>${cached.ageMin} min</strong></span><span><span class="dot-green">●</span> Avaliações: <strong>${STATE.avaliacoes.length}</strong></span><span><span class="dot-green">●</span> Comprados: <strong>${STATE.comprados.length}</strong></span><span><span class="dot-green">●</span> Vinculados: <strong>${vin}</strong></span><span style="margin-left:auto"><button class="btn btn-ghost" style="padding:4px 10px;font-size:12px" onclick="loadDataFromSheets(true)">🔄 Atualizar agora</button></span>`;
+        // Carregamento rápido: usa cache e só atualiza do Google Sheets quando o usuário clicar em Atualizar agora.
+        return;
+      } catch(ce) { console.warn('Cache restore failed:', ce); }
+    }
+  }
+  showLoading('Carregando dados do Google Sheets...');
+  const diag = { avaliacoes: 0, comprados: 0, equipes: 0, comprador: 0, erros: [] };
+  try {
+    const [avaliacoes, comprados, equipes, comprador] = await Promise.all([
+      callAPI({action:'getAvaliacoes'}).catch(e => { diag.erros.push('Avaliações: '+e.message); return []; }),
+      callAPI({action:'getComprados'}).catch(e => { diag.erros.push('Comprados: '+e.message); return []; }),
+      callAPI({action:'getEquipes'}).catch(e => { diag.erros.push('Equipes: '+e.message); return []; }),
+      callAPI({action:'getComprador'}).catch(e => { diag.erros.push('Comprador: '+e.message); return []; })
+    ]);
+    diag.avaliacoes = (avaliacoes||[]).length;
+    diag.comprados = (comprados||[]).length;
+    diag.equipes = (equipes||[]).length;
+    diag.comprador = (comprador||[]).length;
+    console.log('[DIAGNÓSTICO] Dados brutos do Sheets:', diag);
+    console.log('[DIAGNÓSTICO] Primeiro comprado:', comprados && comprados[0]);
+    const avNorm = (avaliacoes||[]).map(normalizeAvFromSheets).filter(r=>r.dataAv);
+    STATE.avaliacoes = dedupAvaliacoesPorId(avNorm);
+    diag.avLinhasDuplicadasId = avNorm.length - STATE.avaliacoes.length;
+    STATE.equipes = equipes || [];
+    STATE.comprador = (comprador||[]).map(r => ({
+      idAv: String(getAnyField(r,'idAv','ID Avaliação','ID Avaliacao')||'').trim(),
+      placa: normPlaca(String(getAnyField(r,'placa','Placa')||'')),
+      chassi: normChassi(String(getAnyField(r,'chassi','Chassi','VIN','vin')||'')),
+      valorMelhorado: parseNumBR(getAnyField(r,'valorMelhorado','Valor Melhorado','Vlr Melhorado')),
+      comprador: getAnyField(r,'comprador','Comprador','compradorNome') || '',
+      melhorado: getAnyField(r,'melhorado','Melhorado') || (parseNumBR(getAnyField(r,'valorMelhorado','Valor Melhorado')) ? 'Sim' : 'Não'),
+      negocioFechado: getAnyField(r,'negocioFechado','Negócio Fechado','Negocio Fechado','Neg. Fechado') || 'Não',
+      dataMelhoria: getAnyField(r,'dataMelhoria','Data Melhoria','Data da Melhoria') || ''
+    }));
+    const compradosOrigem = [...(comprados||[]), ...loadCompradosImportCache()];
+    diag.compradosLocal = loadCompradosImportCache().length;
+    const placaOverrides = loadPlacaOverrides();
+    const compradosMapeados = compradosOrigem.map(r => {
+      // A aba COMPRADOS pode vir com a coluna "placa" preenchida com o VIN/chassi.
+      // Por isso separamos placa real de chassi antes do cruzamento.
+      const ids = splitPlacaChassi(
+        getAnyField(r, 'placa', 'Placa', 'PLACA', 'Placa Veículo', 'Placa Veiculo'),
+        getAnyField(r, 'chassi', 'Chassi', 'CHASSI', 'VIN', 'vin')
+      );
+      const origem = getAnyField(r, 'origem', 'Origem') || '';
+      // Placa digitada manualmente para um órfão (a planilha não traz placa real).
+      const placaOverride = ids.chassi ? placaOverrides[normChassi(ids.chassi)] : '';
+      return {
+        placa: placaOverride || ids.placa,
+        chassi: ids.chassi,
+        empresa: getAnyField(r, 'empresa', 'Empresa', 'Loja') || '',
+        dataCompra: parseDate(getAnyField(r, 'dataCompra', 'Data Compra', 'Data da Compra', 'Data compra')) || new Date(),
+        modelo: getAnyField(r, 'modelo', 'Modelo') || '',
+        vendedor: getAnyField(r, 'vendedor', 'Vendedor') || '',
+        // Campos extras das inclusões manuais (preservados ao recarregar do cache).
+        origem,
+        vinReferencia: normChassi(getAnyField(r, 'vinReferencia') || ''),
+        anoModelo: getAnyField(r, 'anoModelo', 'Ano/Modelo', 'Ano Modelo') || '',
+        km: getAnyField(r, 'km', 'KM', 'Km') || '',
+        valorAvaliado: getAnyField(r, 'valorAvaliado', 'Valor Avaliado', 'valorAv') || '',
+        fipe: getAnyField(r, 'fipe', 'FIPE', 'Fipe') || '',
+        incluidoPor: getAnyField(r, 'incluidoPor', 'Incluído Por', 'Incluido Por') || '',
+        incluidoEm: getAnyField(r, 'incluidoEm', 'Incluído Em', 'Incluido Em') || ''
+      };
+    }).filter(r => r.placa || r.chassi);
+    // Snapshot p/ rastreador de placas: comprados brutos (antes da dedup/restrição)
+    STATE._snapCompradosRaw = compradosMapeados.map(c=>({placa:c.placa,chassi:c.chassi,empresa:c.empresa,dataCompra:c.dataCompra}));
+    const dedupeInfo = dedupeCompradosByPlaca(compradosMapeados);
+    STATE.comprados = dedupeInfo.rows;
+    diag.compradosUnicos = STATE.comprados.length;
+    diag.compradosDuplicados = dedupeInfo.duplicates;
+    STATE._snapCompradosDedup = STATE.comprados.map(c=>({placa:c.placa,chassi:c.chassi,empresa:c.empresa}));
+    restringirDadosPorLoja();
+    crossJoin();
+    diag.avDuplicados = STATE._avDuplicados || 0;
+    diag.avaliacoesUnicas = STATE.avaliacoes.length;
+    applyCompradorSheetData(STATE.avaliacoes, STATE.comprador);
+    const vinculados = STATE.avaliacoes.filter(r=>r.compraInput).length;
+    diag.vinculados = vinculados;
+    diag.vinculadosPlaca = STATE.avaliacoes.filter(r=>r.compraInput && r.placa).length;
+    diag.vinculadosChassi = STATE.avaliacoes.filter(r=>r.compraInput && r.chassi).length;
+    diag.compradosSemAv = (STATE._compradosSemAv||[]).length;
+    // Save to cache
+    try {
+      saveDataCache({
+        avaliacoes: STATE.avaliacoes.map(r=>({...r,dataAv:r.dataAv?.toISOString?.(),dataMelhoria:r.dataMelhoria?.toISOString?.(),dataCompraInput:r.dataCompraInput?.toISOString?.()})),
+        equipes: STATE.equipes,
+        comprados: STATE.comprados.map(r=>({...r,dataCompra:r.dataCompra instanceof Date?r.dataCompra.toISOString():r.dataCompra})),
+        comprador: STATE.comprador
+      });
+    } catch(ce) { console.warn('Cache save failed:', ce); }
+    if (!STATE._filtersInitialized) { populateFilters(true); STATE._filtersInitialized = true; } else { populateFilters(false); }
+    applyFilters();
+    updateStatusBar();
+    showDiagnostico(diag);
+    if (diag.erros.length) {
+      showToast('Carregado com avisos. Veja o painel de diagnóstico.', 'error');
+    } else {
+      showToast(`✅ Carregado: ${diag.avaliacoes} avaliações, ${diag.compradosUnicos || diag.comprados} comprados únicos, ${vinculados} vinculados`, 'success');
+    }
+  } catch(e) {
+    diag.erros.push('Geral: ' + e.message);
+    showDiagnostico(diag);
+    showToast('Erro ao carregar: ' + e.message,'error');
+    updateStatusBar();
+  } finally { hideLoading(); }
+}
+
+// ============================================================
+// PAINEL DE DIAGNÓSTICO
+// ============================================================
+function showDiagnostico(diag) {
+  let panel = document.getElementById('diag-panel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'diag-panel';
+    panel.style.cssText = 'position:fixed;bottom:24px;left:24px;z-index:9998;background:var(--card2);border:1px solid var(--border2);border-radius:12px;padding:16px 18px;font-size:12px;color:var(--text);box-shadow:0 4px 24px rgba(0,0,0,0.5);max-width:340px;font-family:DM Sans,sans-serif;';
+    document.body.appendChild(panel);
+  }
+  const ok = (n) => n > 0 ? '✅' : '⚠️';
+  const errosHtml = diag.erros && diag.erros.length
+    ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);color:var(--red2)"><strong>Erros:</strong><br>${diag.erros.map(e=>'• '+e).join('<br>')}</div>`
+    : '';
+  panel.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <strong style="font-size:13px;color:var(--accent)">📊 Status da Importação</strong>
+      <span onclick="document.getElementById('diag-panel').remove()" style="cursor:pointer;color:var(--text3);font-size:16px;">×</span>
+    </div>
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 10px;">
+      <span>${ok(diag.avaliacoes)} Avaliações (linhas brutas):</span><strong>${diag.avaliacoes.toLocaleString('pt-BR')}</strong>
+      <span>🚗 Únicas por placa (global):</span><strong>${((STATE._contagem?.unicoPlaca)||0).toLocaleString('pt-BR')}</strong>
+      <span>🏬 Únicas por placa+loja:</span><strong>${((STATE._contagem?.unicoPlacaLoja)||0).toLocaleString('pt-BR')}</strong>
+      <span>🚫 Removidas pelo dedup:</span><strong>${(diag.avDuplicados||0).toLocaleString('pt-BR')}</strong>
+      <span>✅ Avaliações no dash:</span><strong>${(diag.avaliacoesUnicas!=null?diag.avaliacoesUnicas:diag.avaliacoes).toLocaleString('pt-BR')}</strong>
+      <span>${ok(diag.comprados)} Comprados Sheets:</span><strong>${diag.comprados.toLocaleString('pt-BR')}</strong>
+      <span>💾 Cache local:</span><strong>${(diag.compradosLocal||0).toLocaleString('pt-BR')}</strong>
+      <span>${ok(diag.compradosUnicos||0)} Comprados únicos:</span><strong>${(diag.compradosUnicos||0).toLocaleString('pt-BR')}</strong>
+      <span>🚫 Duplicados ignorados:</span><strong>${(diag.compradosDuplicados||0).toLocaleString('pt-BR')}</strong>
+      <span>${ok(diag.equipes)} Equipes:</span><strong>${diag.equipes.toLocaleString('pt-BR')}</strong>
+      <span>${ok(diag.comprador)} Comprador:</span><strong>${diag.comprador.toLocaleString('pt-BR')}</strong>
+      <span>${ok(diag.vinculados||0)} Vinculados:</span><strong>${(diag.vinculados||0).toLocaleString('pt-BR')}</strong>
+      <span>🔗 Placa/Chassi:</span><strong>${(diag.vinculadosPlaca||0).toLocaleString('pt-BR')} / ${(diag.vinculadosChassi||0).toLocaleString('pt-BR')}</strong>
+      <span>⚠️ Comprados sem avaliação:</span><strong>${(diag.compradosSemAv||0).toLocaleString('pt-BR')}</strong>
+    </div>
+    ${errosHtml}
+    <div style="margin-top:10px;font-size:11px;color:var(--text3)">Abra o Console (F12) para detalhes técnicos.</div>
+  `;
+  // Auto-remove após 12 segundos
+  clearTimeout(window._diagTimer);
+  window._diagTimer = setTimeout(() => { const p = document.getElementById('diag-panel'); if(p) p.style.opacity='0.4'; }, 12000);
+}
+
+function normalizeAvFromSheets(r) {
+  // Função auxiliar: busca valor pelo nome da coluna, aceita múltiplos nomes possíveis
+  function getField(row, ...keys) {
+    for (const k of keys) {
+      // Tenta exato
+      if (row[k] !== undefined && row[k] !== null && row[k] !== '') return row[k];
+      // Tenta case-insensitive e sem acento
+      const kn = normHdrEmpresa(k);
+      for (const rk of Object.keys(row)) {
+        if (normHdrEmpresa(rk) === kn && row[rk] !== undefined && row[rk] !== null && row[rk] !== '') {
+          return row[rk];
+        }
+      }
+    }
+    return '';
+  }
+
+  const o = {
+    // ID — aceita 'idAv', 'ID Avaliação', 'Id avaliacao', etc.
+    idAv: getField(r, 'idAv', 'ID Avaliação', 'Id avaliação', 'id avaliacao', 'ID', 'Código'),
+
+    // Data de avaliação
+    dataAv: parseDate(getField(r, 'dataAv', 'Data de Avaliação', 'Data de avaliacao', 'Data Avaliação', 'Data')),
+
+    // Empresa
+    empresa: getField(r, 'empresa', 'Empresa', 'Loja'),
+
+    // Vendedor
+    vendedor: getField(r, 'vendedor', 'Vendedor'),
+
+    // Precificador — na planilha Carmais pode ser 'Avaliador' ou 'precificador'
+    precificador: getField(r, 'precificador', 'Avaliador', 'Avaliador/Precificador', 'Precificador'),
+
+    // Status
+    status: getField(r, 'status', 'Status', 'Instancias', 'Instância'),
+
+    // Objetivo
+    objetivo: getField(r, 'objetivo', 'Objetivo', 'Classificação', 'Classificacao', 'Tipo Negócio'),
+
+    // Valores
+    valorAv: parseNumBR(getField(r, 'valorAv', 'Valor da avaliação', 'Valor da Avaliação', 'Valor Avaliação', 'Valor')),
+    fipe: parseNumBR(getField(r, 'fipe', 'FIPE', 'Fipe', 'Valor FIPE')),
+
+    // Veículo
+    placa: normPlaca(String(getField(r, 'placa', 'Placa', 'PLACA', 'Placa Veículo', 'Placa Veiculo', 'Placa do Veículo', 'Placa do Veiculo') || '')),
+    marca: getField(r, 'marca', 'Marca'),
+    modelo: getField(r, 'modelo', 'Modelo'),
+    versao: getField(r, 'versao', 'Versão', 'Versao', 'Versão/Trim'),
+    anoModelo: getField(r, 'anoModelo', 'Ano Modelo', 'Ano/Modelo', 'Ano'),
+    km: parseNumBR(getField(r, 'km', 'KM', 'Km', 'Quilometragem')),
+    aa: parseNumBR(getField(r, 'aa', 'AA')),
+    b2b: parseNumBR(getField(r, 'b2b', 'B2B')),
+
+    // Chassi/VIN do veículo avaliado (para vínculo alternativo com comprados)
+    // Importante: na aba AVALIAÇÕES o cabeçalho do chassi costuma vir como VIN.
+    chassi: normChassi(getField(r, 'VIN', 'vin', 've_chassi', 'Chassi', 'chassi', 'CHASSI', 'chassis', 'Chassi/VIN', 'Número Chassi', 'Numero Chassi') || ''),
+
+    // Campos editáveis — vêm do Sheets se já foram preenchidos
+    valorMelhorado: parseNumBR(getField(r, 'valorMelhorado', 'Valor Melhorado')),
+    melhorado: getField(r, 'melhorado', 'Melhorado') || 'Não',
+    negocioFechado: getField(r, 'negocioFechado', 'Negócio Fechado', 'Negocio Fechado') || 'Não',
+    comprador: getField(r, 'comprador', 'Comprador'),
+    dataMelhoria: parseDate(getField(r, 'dataMelhoria', 'Data Melhoria', 'Data da Melhoria')) || null,
+
+    compraInput:false, empresaCompraInput:null, dataCompraInput:null
+  };
+
+  o.pctFipe = (o.valorAv && o.fipe && o.fipe > 0) ? (o.valorAv / o.fipe * 100) : null;
+  o.compradorNome = o.comprador;
+  o.manualMelhorado = o.melhorado;
+  o.manualValorMelhorado = o.valorMelhorado;
+  o.manualCompradorNome = o.compradorNome;
+  o.manualDataMelhoria = o.dataMelhoria ? dateStr(o.dataMelhoria) : '';
+  recomputeComprado(o);
+  return o;
+}
+
+function showLoading(m) { document.getElementById('loading-text').textContent = m||'Carregando...'; document.getElementById('loading-overlay').classList.add('active'); }
+function hideLoading() { document.getElementById('loading-overlay').classList.remove('active'); }
+
+// ============================================================
+// IMPORT / UPLOAD
+// ============================================================
+const IMPORT_MODE = { avaliacoes:'append', comprados:'append' };
+function triggerAvaliacoesImport(m) { IMPORT_MODE.avaliacoes=m; document.getElementById('av-file-picker').click(); }
+function triggerCompradosImport(m) { IMPORT_MODE.comprados=m; document.getElementById('co-file-picker').click(); }
+function loadAvaliacoes(inp) { processFile(inp.files[0],'avaliacoes'); inp.value=''; }
+function loadEquipes(inp) { processFile(inp.files[0],'equipes'); inp.value=''; }
+function loadComprados(inp) { processFile(inp.files[0],'comprados'); inp.value=''; }
+function handleDrag(e,id) { e.preventDefault(); document.getElementById(id).classList.add('drag-over'); }
+function removeDrag(id) { document.getElementById(id).classList.remove('drag-over'); }
+function handleDrop(e,type) {
+  e.preventDefault();
+  const m = {avaliacoes:'upload-av-zone',equipes:'upload-eq-zone',comprados:'upload-co-zone'};
+  if(m[type]) removeDrag(m[type]);
+  const f=e.dataTransfer.files[0]; if(f) processFile(f,type);
+}
+
+function processFile(file, type) {
+  if (!file) return;
+
+  // Lê o arquivo como ArrayBuffer e como BinaryString ao mesmo tempo
+  // e usa o primeiro que conseguir parsear com XLSX.js
+  const readAs = (method) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result);
+    reader.onerror = () => reject(new Error('Falha na leitura do arquivo'));
+    if (method === 'array') reader.readAsArrayBuffer(file);
+    else reader.readAsBinaryString(file);
+  });
+
+  const parseXLSX = (data, type_) => {
+    return XLSX.read(data, {
+      type: type_,
+      cellDates: true,
+      cellNF: false,
+      cellStyles: false,
+      WTF: false
+    });
+  };
+
+  (async () => {
+    let wb = null;
+    let lastError = '';
+
+    // Tenta 1: ArrayBuffer (xlsx moderno)
+    try {
+      const data = await readAs('array');
+      wb = parseXLSX(data, 'array');
+    } catch(e1) {
+      lastError = e1.message;
+      // Tenta 2: BinaryString (xls antigo, WPS)
+      try {
+        const data = await readAs('binary');
+        wb = parseXLSX(data, 'binary');
+      } catch(e2) {
+        lastError = e2.message;
+        // Tenta 3: ArrayBuffer com opções mínimas (sem cellDates)
+        try {
+          const data = await readAs('array');
+          wb = XLSX.read(data, { type: 'array' });
+        } catch(e3) {
+          showToast('Não foi possível ler o arquivo. Salve como .xlsx no Excel e tente novamente. Detalhe: ' + lastError, 'error');
+          return;
+        }
+      }
+    }
+
+    try {
+      if (!wb || !wb.SheetNames || !wb.SheetNames.length) {
+        showToast('Arquivo sem abas válidas.', 'error');
+        return;
+      }
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: false });
+      if (!raw || !raw.length) { showToast('Arquivo vazio!', 'error'); return; }
+      if (type === 'avaliacoes') await sendAvaliacoes(raw);
+      else if (type === 'equipes') await sendEquipes(raw);
+      else if (type === 'comprados') await sendComprados(raw);
+    } catch(err) {
+      showToast('Erro ao processar planilha: ' + err.message, 'error');
+    }
+  })();
+}
+
+
+// ============================================================
+// HELPERS DE LEITURA DE PLANILHA
+// ============================================================
+function normHdrCol(v) {
+  return (v||'').toString().trim()
+    .normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .replace(/\s+/g,' ').toLowerCase();
+}
+
+function findColIdx(hdrs, variants) {
+  const nh = hdrs.map(normHdrCol);
+  for (const v of variants) {
+    const i = nh.indexOf(normHdrCol(v));
+    if (i !== -1) return i;
+  }
+  return -1;
+}
+
+function getCell(row, hdrs, variants) {
+  const i = findColIdx(hdrs, variants);
+  return (i >= 0 && row[i] !== undefined && row[i] !== null) ? row[i] : null;
+}
+
+
+async function sendAvaliacoes(raw) {
+  showLoading('Processando avaliações...');
+  try {
+    const hdrs = raw[0].map(h=>h?h.toString().trim():'');
+    const rows = raw.slice(1).filter(r=>r.some(c=>c!==null&&c!=='')).map(r=>{
+      const o={};
+      for(const[k,v] of Object.entries(COL_MAP)){const i=findColIdx(hdrs,v);o[k]=i>=0?r[i]:null;}
+      o.dataAv = fmtDateForSheets(parseDate(o.dataAv));
+      o.valorAv=parseNumBR(o.valorAv); o.fipe=parseNumBR(o.fipe);
+      o.km=parseNumBR(o.km); o.aa=parseNumBR(o.aa); o.b2b=parseNumBR(o.b2b);
+      o.placa=normPlaca(String(o.placa||''));
+      return o;
+    }).filter(r=>r.dataAv);
+    const action = IMPORT_MODE.avaliacoes==='replace'?'replaceAvaliacoes':'importAvaliacoes';
+    showLoading(`Enviando ${rows.length} avaliações...`);
+    const res = await callAPI({action,rows,usuario:SESSION.nome,perfil:SESSION.perfil});
+    showToast(`✅ ${res.inserted||res.replaced||0} avaliações salvas! ${res.duplicates?res.duplicates+' duplicatas ignoradas':''}`, 'success');
+    await loadDataFromSheets();
+  } catch(e) { showToast('Erro: '+e.message,'error'); } finally { hideLoading(); }
+}
+
+async function sendEquipes(raw) {
+  showLoading('Processando planilha de equipes...');
+  try {
+    const hdrs=raw[0].map(h=>h?h.toString().trim():'');
+    const rows=raw.slice(1).filter(r=>r.some(c=>c!==null&&c!=='')).map(r=>({
+      nome:getCell(r,hdrs,['nome','Nome'])||'',
+      tipo:getCell(r,hdrs,['tipo','Tipo'])||'',
+      empresa:getCell(r,hdrs,['empresa','Empresa'])||''
+    })).filter(r=>r.nome);
+    if(!rows.length){showToast('Nenhuma linha válida encontrada na planilha.','error');return;}
+    const result = await callAPI({action:'importEquipes',rows,usuario:SESSION.nome,perfil:SESSION.perfil});
+    showToast(`✅ ${result.inserted||rows.length} equipes salvas no Google Sheets!`,'success');
+    await loadDataFromSheets();
+  } catch(e){showToast('Erro: '+e.message,'error');}finally{hideLoading();}
+}
+
+async function sendComprados(raw) {
+  showLoading('Processando planilha de comprados...');
+  try {
+    const hdrs = raw[0].map(h => h ? h.toString().trim() : '');
+    if (!hdrs.some(h => h)) { showToast('Cabeçalho não encontrado.', 'error'); return; }
+
+    const rows = raw.slice(1).filter(r => r.some(c => c !== null && c !== '')).map(r => {
+      // PLACA — tenta coluna de placa primeiro
+      const placa = getCell(r, hdrs, [
+        'Placa','placa','PLACA','Placa Veículo','Placa Veiculo','ve_placa','placa_veiculo','nr_placa'
+      ]);
+      // CHASSI/VIN — identificador usado na planilha Carmais
+      const chassi = getCell(r, hdrs, ['VIN','vin','ve_chassi','Chassi','chassi','CHASSI','chassis']);
+
+      // EMPRESA
+      const empresa = getCell(r, hdrs, [
+        'Empresa','empresa','EMPRESA','Loja','loja','Concessionária','Unidade','filial'
+      ]);
+      // DATA COMPRA — nf_dtent é a data de entrada da NF no sistema Carmais
+      const dc = getCell(r, hdrs, [
+        'nf_dtent','nf_dtems','nf_lanc',
+        'Data Compra','Data da Compra','Data compra','dataCompra','Data Entrada','Data NF','Data'
+      ]);
+      // MODELO
+      const modelo = getCell(r, hdrs, ['mod_ds','Modelo','modelo','MODELO','Descrição','mod']);
+      // VENDEDOR
+      const vendedor = getCell(r, hdrs, ['fun_nmguerra','fun_nnjuerra','Vendedor','vendedor','fun_nm']);
+
+      // Precisa de pelo menos chassi ou placa
+      if (!placa && !chassi) return null;
+
+      // Identificador para vínculo: separa placa real de chassi/VIN.
+      // Algumas planilhas de comprados trazem o VIN dentro da coluna "placa".
+      const ids = splitPlacaChassi(placa, chassi);
+
+      return {
+        // Compatibilidade com Apps Script antigo: algumas rotinas do backend só salvam/lêem
+        // a linha se a coluna A (placa) estiver preenchida. Quando a planilha não tem placa
+        // e só tem chassi/VIN, gravamos o VIN também em placa. Na leitura, splitPlacaChassi()
+        // reconhece que é chassi e faz o vínculo correto pelo VIN, sem tratar como placa real.
+        placa: ids.placa || ids.chassi,
+        chassi: ids.chassi,
+        empresa: String(empresa || '').trim(),
+        dataCompra: fmtDateForSheets(parseDate(dc) || new Date()),
+        modelo: String(modelo || '').trim(),
+        vendedor: String(vendedor || '').trim()
+      };
+    }).filter(r => r && ((r.placa && r.placa.length >= 4) || (r.chassi && r.chassi.length >= 12)));
+
+    if (!rows.length) {
+      showToast('Nenhuma linha válida. Colunas encontradas: ' + hdrs.filter(h=>h).slice(0,10).join(', '), 'error');
+      return;
+    }
+
+    const dedupeInfo = dedupeCompradosByPlaca(rows);
+    const rowsUnicos = dedupeInfo.rows;
+    showLoading(`Enviando ${rowsUnicos.length} comprados únicos...`);
+    const action = IMPORT_MODE.comprados === 'replace' ? 'replaceComprados' : 'importComprados';
+    saveCompradosImportCache(rowsUnicos, IMPORT_MODE.comprados);
+    const res = await callAPI({ action, rows: rowsUnicos, usuario: SESSION.nome, perfil: SESSION.perfil });
+    showToast(`✅ ${res.inserted || res.replaced || 0} comprados salvos!` + (dedupeInfo.duplicates ? ' ' + dedupeInfo.duplicates + ' placas duplicadas ignoradas antes do envio.' : '') + (res.duplicates ? ' ' + res.duplicates + ' duplicatas já existentes ignoradas.' : ''), 'success');
+    await loadDataFromSheets();
+  } catch(e) { showToast('Erro: ' + e.message, 'error'); } finally { hideLoading(); }
+}
+
+async function clearAvaliacoesInput() {
+  if(!confirm('Apagar TODOS os dados de avaliações no Google Sheets? Esta ação não pode ser desfeita.'))return;
+  showLoading('Apagando...');
+  try{ await callAPI({action:'clearAvaliacoes',usuario:SESSION.nome,perfil:SESSION.perfil}); showToast('Avaliações apagadas.','success'); await loadDataFromSheets();}
+  catch(e){showToast('Erro: '+e.message,'error');}finally{hideLoading();}
+}
+async function clearCompradosInput() {
+  if(!confirm('Apagar TODOS os dados de comprados no Google Sheets?'))return;
+  showLoading('Apagando...');
+  try{ clearCompradosImportCache(); await callAPI({action:'clearComprados',usuario:SESSION.nome,perfil:SESSION.perfil}); showToast('Comprados apagados.','success'); await loadDataFromSheets();}
+  catch(e){showToast('Erro: '+e.message,'error');}finally{hideLoading();}
+}
+
+// ============================================================
+// EDIÇÃO DE CAMPOS — SALVA NO SHEETS
+// ============================================================
+let saveTimer = null;
+function buyerFieldCandidates(field){
+  // Sempre enviar nomes técnicos/canônicos para o Apps Script.
+  // Isso evita erro de "Campo não permitido" quando a tela usa rótulos como "Valor Melhorado".
+  const map = {
+    manualValorMelhorado: ['valorMelhorado'],
+    manualMelhorado: ['melhorado'],
+    negocioFechado: ['negocioFechado'],
+    manualCompradorNome: ['comprador'],
+    manualDataMelhoria: ['dataMelhoria']
+  };
+  return map[field] || [field];
+}
+function isFieldMappingError(err){
+  const msg = (err && err.message ? err.message : '').toLowerCase();
+  return msg.includes('coluna') || msg.includes('column') ||
+    msg.includes('não encontrada') || msg.includes('nao encontrada') ||
+    msg.includes('campo não permitido') || msg.includes('campo nao permitido') ||
+    msg.includes('not allowed') || msg.includes('field not allowed') ||
+    msg.includes('permitido para edição') || msg.includes('permitido para edicao');
+}
+async function persistBuyerField(row, field, valorParaSheets){
+  // Primeiro salva na aba COMPRADOR, que é a base compartilhada entre todos os usuários.
+  const manualPayload = {
+    valorMelhorado: row.valorMelhorado ?? row.manualValorMelhorado ?? '',
+    melhorado: row.melhorado || row.manualMelhorado || 'Não',
+    negocioFechado: row.negocioFechado || 'Não',
+    comprador: row.compradorNome || row.manualCompradorNome || '',
+    dataMelhoria: row.manualDataMelhoria || (row.dataMelhoria ? dateStr(row.dataMelhoria) : '')
+  };
+  try {
+    const campoCanonico = buyerFieldCandidates(field)[0];
+    await callAPI({
+      action:'updateBuyerManual',
+      idAv:row.idAv,
+      placa:row.placa,
+      chassi:row.chassi,
+      campo:campoCanonico,
+      valorNovo:valorParaSheets,
+      manual:manualPayload,
+      usuario:SESSION.nome,
+      perfil:SESSION.perfil,
+      empresa:row.empresaEquipe||row.empresa,
+      vendedor:row.vendedor,
+      tela:'Visão Detalhada'
+    });
+    setCloud('online');
+    return {ok:true,campo:campoCanonico,shared:true};
+  } catch(primaryErr) {
+    // Compatibilidade com Apps Script antigo: tenta updateField.
+    let lastErr = primaryErr;
+    const candidatos = buyerFieldCandidates(field);
+    for (const campo of candidatos) {
+      try {
+        await callAPI({action:'updateField',idAv:row.idAv,campo,valorNovo:valorParaSheets,usuario:SESSION.nome,perfil:SESSION.perfil,placa:row.placa,empresa:row.empresa,vendedor:row.vendedor,tela:'Visão Detalhada'});
+        setCloud('online');
+        return {ok:true,campo,legacy:true};
+      } catch(e) {
+        lastErr = e;
+        if (isFieldMappingError(e) || e.isApiError) { setCloud('online'); continue; }
+        setCloud('offline');
+        throw e;
+      }
+    }
+    setCloud('online');
+    console.warn('Campo salvo localmente; backend não aceitou updateBuyerManual/updateField:', field, lastErr?.message);
+    return {ok:false,localOnly:true,error:lastErr};
+  }
+}
+async function updateBuyerField(rowId, field, rawValue) {
+  const row = (STATE.avaliacoes||[]).find(r=>r.__rowId===rowId); if(!row) return;
+  let valorParaSheets = rawValue;
+  let alsoSaveMelhorado = false;
+  if(field==='manualValorMelhorado'){
+    row.manualValorMelhorado=parseNumBR(rawValue)||0; row.valorMelhorado=row.manualValorMelhorado; valorParaSheets=row.valorMelhorado;
+    if(row.valorMelhorado>0 && (!row.manualMelhorado || row.manualMelhorado==='Não')){ row.manualMelhorado='Sim'; row.melhorado='Sim'; alsoSaveMelhorado = true; }
+  }
+  else if(field==='manualDataMelhoria'){row.manualDataMelhoria=rawValue||'';row.dataMelhoria=rawValue?parseDate(rawValue):null;valorParaSheets=rawValue||'';}
+  else if(field==='manualMelhorado'){row.manualMelhorado=rawValue;row.melhorado=rawValue;valorParaSheets=rawValue;}
+  else if(field==='manualCompradorNome'){row.manualCompradorNome=rawValue;row.compradorNome=rawValue;row.comprador=rawValue;valorParaSheets=rawValue;}
+  else{row[field]=rawValue;}
+  saveManualCache(row);
+  renderDashboard(); renderDetailTable(); renderDetailCompradosTable(); renderCompradorVis();
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async()=>{
+    try{
+      const res = await persistBuyerField(row, field, valorParaSheets);
+      if(alsoSaveMelhorado) await persistBuyerField(row, 'manualMelhorado', 'Sim');
+      if(res.localOnly) showToast('Salvo no navegador. Para sincronizar com outros usuários, libere esse campo no Apps Script.', 'info');
+    }catch(e){ setCloud(e.isApiError ? 'online' : 'offline'); showToast('Salvo no navegador. Não sincronizou no Sheets: '+e.message,'error');}
+  }, 900);
+}
+
+// ============================================================
+// EDIÇÃO MASTER DE VENDEDOR / LOJA (avaliações e comprados)
+// ============================================================
+function isMaster(){ return !!(SESSION && SESSION.perfil==='master'); }
+function populateEditDatalists(){
+  if(!isMaster()) return;
+  fillDL('dl-edit-vendedor', getVendedoresExistentes());
+  fillDL('dl-edit-loja', getLojasExistentes());
+}
+// Célula de Vendedor: editável (input+datalist, permite "Outro") só p/ master.
+function editVendedorCell(r){
+  const v=r.vendedor||'';
+  if(!isMaster()) return `<td>${escHtml(v||'—')}</td>`;
+  const rowId=String(r.__rowId||'').replace(/'/g,'&#39;');
+  return `<td><input class="edit-cell-input" list="dl-edit-vendedor" value="${escHtml(v)}" placeholder="Vendedor…" onchange="updateRecordVendorLoja('${rowId}','vendedor',this.value.trim())"></td>`;
+}
+// Célula de Loja/Empresa: editável (input+datalist) só p/ master.
+function editLojaCell(r){
+  const l=r.empresa||r.empresaEquipe||'';
+  if(!isMaster()) return `<td>${escHtml(l||'—')}</td>`;
+  const rowId=String(r.__rowId||'').replace(/'/g,'&#39;');
+  return `<td><input class="edit-cell-input" list="dl-edit-loja" value="${escHtml(r.empresa||'')}" placeholder="Loja…" onchange="updateRecordVendorLoja('${rowId}','empresa',this.value.trim())"></td>`;
+}
+async function updateRecordVendorLoja(rowId, field, value){
+  const row=(STATE.avaliacoes||[]).find(r=>r.__rowId===rowId); if(!row) return;
+  const anterior = field==='vendedor' ? (row.vendedor||'') : (row.empresa||'');
+  if(value===anterior) return;
+  row[field]=value;
+  // Ao trocar o vendedor, herda tipo/loja da equipe correspondente (se houver).
+  if(field==='vendedor' && value){
+    const eq=(STATE.equipes||[]).find(e=>e.nome && e.nome.toString().trim().toUpperCase()===value.toUpperCase());
+    if(eq){ if(eq.tipo) row.tipo=eq.tipo; if(eq.empresa) row.empresaEquipe=eq.empresa; }
+  }
+  applyFilters();
+  renderDetailTable(); renderDetailCompradosTable(); renderDashboard();
+  try{
+    await callAPI({
+      action:'updateField', idAv:row.idAv, campo:field, valorNovo:value,
+      valorAnterior:anterior, alteradoPor:SESSION.nome, alteradoEm:new Date().toISOString(),
+      usuario:SESSION.nome, perfil:SESSION.perfil,
+      placa:row.placa, empresa:row.empresa, vendedor:row.vendedor,
+      tela: field==='vendedor' ? 'Edição Vendedor (master)' : 'Edição Loja (master)'
+    });
+    setCloud('online'); showToast(field==='vendedor'?'Vendedor atualizado.':'Loja atualizada.','success');
+  }catch(e){
+    setCloud(e&&e.isApiError?'online':'offline');
+    showToast('Salvo no navegador. Não sincronizou no Sheets: '+(e&&e.message||'erro'),'error');
+  }
+}
+
+function editableBuyerCells(r) {
+  const rowId = String(r.__rowId||'').replace(/'/g,"&#39;");
+  const valor = r.manualValorMelhorado??r.valorMelhorado??'';
+  const dataMel = r.manualDataMelhoria||(r.dataMelhoria?dateStr(r.dataMelhoria):'');
+  const mel = r.manualMelhorado||r.melhorado||'Não';
+  const neg = r.negocioFechado||'Não';
+  const comp = r.manualCompradorNome||r.compradorNome||'';
+  return `<td><input class="edit-cell-input" type="date" value="${dataMel}" onchange="updateBuyerField('${rowId}','manualDataMelhoria',this.value)"></td>
+    <td><input class="edit-cell-input" type="text" inputmode="decimal" value="${valor?Number(valor).toLocaleString('pt-BR'):''}" placeholder="R$ 0" onchange="updateBuyerField('${rowId}','manualValorMelhorado',this.value)"></td>
+    <td><select class="edit-cell-select" onchange="updateBuyerField('${rowId}','manualMelhorado',this.value)"><option value="Sim" ${mel==='Sim'?'selected':''}>Sim</option><option value="Não" ${mel!=='Sim'?'selected':''}>Não</option></select></td>
+    <td><select class="edit-cell-select" onchange="updateBuyerField('${rowId}','negocioFechado',this.value)"><option value="Sim" ${neg==='Sim'?'selected':''}>Sim</option><option value="Não" ${neg!=='Sim'?'selected':''}>Não</option></select></td>
+    <td><input class="edit-cell-input" list="dl-compradores-manual" value="${escHtml(comp)}" placeholder="Comprador..." onchange="updateBuyerField('${rowId}','manualCompradorNome',this.value.trim())"></td>`;
+}
+
+// ============================================================
+// STATE
+// ============================================================
+const STATE = {
+  avaliacoes:[],equipes:[],comprador:[],comprados:[],filtered:[],
+  detailSort:{col:'dataAv',asc:false}, detailPage:1, detailPageSize:50,
+  detailCompradosPage:1, msSelected:{'ms-empresa':[],'ms-vendedor':[],'ms-precificador':[]}
+};
+const CHARTS = {};
+
+// ============================================================
+// USUARIOS
+// ============================================================
+// Funções movidas para js/users.js (Sprint 5.3 — separação física, script
+// clássico, carregado ANTES deste arquivo): loadUsuarios, getUserPerms,
+// setUserPerms, buildLojasCheckboxes, toggleAllLojas, syncLojasAllCheckbox,
+// buildAbasCheckboxes, onPerfilChange, renderUsuarios, salvarUsuario,
+// toggleUsuario e a variável usuariosListCache. Permanecem aqui os helpers
+// compartilhados (ABAS_USUARIO, getAllUserPerms, parseLista, getAllLojas,
+// getLojasSelecionadas) e openModalNovoUsuario/editUsuario.
+// Abas que podem ser liberadas para um usuário comum (master sempre vê todas).
+const ABAS_USUARIO = [
+  {id:'dashboard', label:'📊 Dashboard'},
+  {id:'tabela', label:'🗂️ Detalhe Avaliados'},
+  {id:'tabela-comprados', label:'✅ Detalhe Comprados'},
+  {id:'comprador-vis', label:'🏷️ Visão Comprador'},
+  {id:'analytics', label:'📈 Análise Avançada'},
+  {id:'ia', label:'🤖 IA'}
+];
+
+// Permissões por usuário (loja + abas). Persistidas no navegador como apoio;
+// também enviadas ao backend para persistência cloud quando suportado.
+function getAllUserPerms(){ return loadJsonLocal('carmais_user_perms', {}) || {}; }
+function parseLista(v){ return Array.isArray(v) ? v.filter(Boolean) : (v||'').toString().split(',').map(s=>s.trim()).filter(Boolean); }
+
+// Lista todas as lojas presentes nos dados (avaliações + comprados), únicas e ordenadas.
+function getAllLojas(){
+  const s=new Set();
+  (STATE.avaliacoes||[]).forEach(r=>{const v=(r.empresaEquipe||r.empresa||'').toString().trim(); if(v)s.add(v);});
+  (STATE.comprados||[]).forEach(r=>{const v=(r.empresa||r.empresaEquipe||'').toString().trim(); if(v)s.add(v);});
+  return [...s].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+}
+function getLojasSelecionadas(){ return [...document.querySelectorAll('.mu-loja-chk:checked')].map(c=>c.value); }
+
+function openModalNovoUsuario(){
+  document.getElementById('modal-usuario-title').textContent='Novo Usuário';
+  ['mu-login','mu-nome','mu-senha'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('mu-perfil').value='usuario';
+  document.getElementById('mu-ativo').value='Sim';
+  document.getElementById('mu-login').dataset.editMode='';
+  buildLojasCheckboxes(null);
+  buildAbasCheckboxes(null);
+  onPerfilChange();
+  document.getElementById('modal-usuario').classList.add('open');
+}
+function editUsuario(login){
+  const u = usuariosListCache.find(x=>x.login===login) || {login,nome:'',perfil:'usuario',ativo:'Sim'};
+  const perms = getUserPerms(login);
+  document.getElementById('modal-usuario-title').textContent='Editar Usuário';
+  document.getElementById('mu-login').value=u.login;
+  document.getElementById('mu-nome').value=u.nome||'';
+  document.getElementById('mu-senha').value='';
+  document.getElementById('mu-perfil').value=u.perfil||'usuario';
+  document.getElementById('mu-ativo').value=u.ativo||'Sim';
+  document.getElementById('mu-login').dataset.editMode=login;
+  const lojas=parseLista(u.lojas!=null&&u.lojas!==''?u.lojas:perms.lojas);
+  const abas=parseLista(u.abas!=null&&u.abas!==''?u.abas:perms.abas);
+  buildLojasCheckboxes(lojas);
+  buildAbasCheckboxes(abas.length?abas:null);
+  onPerfilChange();
+  document.getElementById('modal-usuario').classList.add('open');
+}
+
+// ============================================================
+// HISTORICO
+// ============================================================
+// Domínio movido para js/history.js (Sprint 5.1 — separação física, script
+// clássico, carregado ANTES deste arquivo). loadHistorico/renderHistorico e a
+// variável historicoData vivem lá; permanecem globais (window.*) e são chamadas
+// normalmente por switchTab, pelos handlers inline e pelo compat layer.
+
+// ============================================================
+// DATE & NUMBER UTILS
+// ============================================================
+function updateDateDisplay(){
+  const now=new Date();
+  const meses=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const dias=['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+  const hm=document.getElementById('header-mes');if(hm)hm.textContent=meses[now.getMonth()]+' '+now.getFullYear();
+  const hd=document.getElementById('header-dia');if(hd)hd.textContent=now.getDate();
+  const hdd=document.getElementById('header-data');if(hdd)hdd.textContent=dias[now.getDay()]+', '+now.toLocaleDateString('pt-BR');
+}
+function parseDate(val){
+  if(!val)return null; if(val instanceof Date)return isNaN(val)?null:val;
+  if(typeof val==='number'){const d=new Date((val-25569)*86400*1000);return isNaN(d)?null:d;}
+  const s=val.toString().trim(); if(!s)return null;
+  let m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m)return new Date(+m[1],+m[2]-1,+m[3]);
+  m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(m)return new Date(+m[3],+m[2]-1,+m[1]);
+  const d=new Date(s);return isNaN(d)?null:d;
+}
+function fmtDate(d){if(!d)return'—';if(!(d instanceof Date))d=parseDate(d);if(!d||isNaN(d))return'—';return d.toLocaleDateString('pt-BR');}
+function dateStr(d){if(!d)return'';if(!(d instanceof Date))d=parseDate(d);if(!d||isNaN(d))return'';return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function fmtDateForSheets(d){return dateStr(d);}
+function parseNumBR(val){
+  if(val===null||val===undefined||val==='')return null;
+  if(typeof val==='number')return val;
+  let s=val.toString().trim().replace(/R\$|%/g,'').trim();
+  if(!s)return null;
+  if(s.includes(',')&&s.includes('.'))s=s.replace(/\./g,'').replace(',','.');
+  else if(s.includes(','))s=s.replace(',','.');
+  const n=Number(s);return Number.isFinite(n)?n:null;
+}
+function escHtml(str){return(str??'').toString().replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
+function normPlaca(v){return(v||'').toString().trim().toUpperCase().replace(/[^A-Z0-9]/g,'');}
+function normChassi(v){return(v||'').toString().trim().toUpperCase().replace(/[^A-Z0-9]/g,'');}
+function looksLikeChassi(v){const s=normChassi(v);return s.length>=12;}
+// --- Validação de VIN / origem do comprado -------------------------------
+// Detecta placeholders óbvios digitados no lugar do chassi (ex.: 999999...,
+// GDHFJ9999..., sequências repetidas, só zeros/X).
+function isVinPlaceholder(v){
+  const s=normChassi(v);
+  if(!s) return true;
+  if(/(.)\1{5,}/.test(s)) return true;        // 6+ caracteres iguais seguidos (9999..., XXXXXX)
+  if(/^[0]+$/.test(s)) return true;            // só zeros
+  if(/9{5,}/.test(s)) return true;             // bloco 99999...
+  return false;
+}
+// VIN válido tem exatamente 17 caracteres e não é um placeholder.
+function isVinValido(v){ const s=normChassi(v); return s.length===17 && !isVinPlaceholder(s); }
+// Comprado incluído manualmente (sem VIN) — não entra no cruzamento de órfãos.
+function isInclusaoManual(c){
+  const o=normHdrEmpresa(c&&c.origem||'');
+  return o==='inclusao manual';
+}
+function getAnyField(row, ...keys) {
+  if (!row) return '';
+  for (const k of keys) {
+    if (row[k] !== undefined && row[k] !== null && row[k] !== '') return row[k];
+    const kn = normHdrEmpresa(k);
+    for (const rk of Object.keys(row)) {
+      if (normHdrEmpresa(rk) === kn && row[rk] !== undefined && row[rk] !== null && row[rk] !== '') return row[rk];
+    }
+  }
+  return '';
+}
+function splitPlacaChassi(rawPlaca, rawChassi) {
+  const pRaw = normPlaca(rawPlaca);
+  const cRaw = normChassi(rawChassi);
+  const pIsChassi = looksLikeChassi(pRaw);
+  return { placa: pIsChassi ? '' : pRaw, chassi: cRaw || (pIsChassi ? pRaw : '') };
+}
+function normHdrEmpresa(v){return(v||'').toString().trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').toLowerCase();}
+function empresaSimilarity(a,b){
+  const ka=normHdrEmpresa(a).replace(/\b(honda|renault|byd|nissan|carmais|sanauto|vouga|seminovos|grupo|loja|ltda|me)\b/g,'').replace(/[^a-z0-9]+/g,'');
+  const kb=normHdrEmpresa(b).replace(/\b(honda|renault|byd|nissan|carmais|sanauto|vouga|seminovos|grupo|loja|ltda|me)\b/g,'').replace(/[^a-z0-9]+/g,'');
+  if(!ka||!kb)return 0; if(ka===kb)return 100;
+  if(ka.includes(kb)||kb.includes(ka))return 90; return 0;
+}
+function compraKey(c){
+  // Regra principal do cruzamento: PLACA. Só usa chassi quando não existe placa.
+  const placa = normPlaca(c && c.placa);
+  if (placa) return 'P:' + placa;
+  const chassi = normChassi(c && c.chassi);
+  return chassi ? 'C:' + chassi : '';
+}
+function dedupeCompradosByPlaca(rows){
+  const map = new Map();
+  let duplicates = 0;
+  (rows||[]).forEach((r, idx) => {
+    const key = compraKey(r);
+    if (!key) return;
+    const atual = map.get(key);
+    if (!atual) {
+      map.set(key, { ...r, __firstIndex: idx });
+      return;
+    }
+    duplicates++;
+    // Preferência 1: o registro de INCLUSÃO MANUAL vence o da planilha.
+    // A aba COMPRADOS não persiste o campo "origem", então a mesma placa pode
+    // voltar do Sheets sem a marcação — a cópia local manual é a mais completa
+    // (origem, valores, auditoria) e deve prevalecer.
+    // Preferência 2: mantém a compra com data mais antiga; empate mantém a primeira.
+    const aMan = isInclusaoManual(atual), nMan = isInclusaoManual(r);
+    let substituir;
+    if (nMan !== aMan) {
+      substituir = nMan;
+    } else {
+      const dAtual = parseDate(atual.dataCompra);
+      const dNova = parseDate(r.dataCompra);
+      substituir = !!(dNova && (!dAtual || dNova < dAtual));
+    }
+    if (substituir) map.set(key, { ...r, __firstIndex: atual.__firstIndex });
+  });
+  return { rows: Array.from(map.values()).map(({__firstIndex, ...r}) => r), duplicates };
+}
+
+// Flag (persistido) que liga/desliga o dedup de avaliações por loja.
+// Dedup de avaliações LIGADO por padrão (1 avaliação por loja/veículo, por
+// período). Só fica desligado se o usuário desmarcar explicitamente ('0').
+function dedupAvaliacoesAtivo(){ return localStorage.getItem('carmais_dedup_avaliacoes') !== '0'; }
+function setDedupAvaliacoes(on){
+  localStorage.setItem('carmais_dedup_avaliacoes', on ? '1' : '0');
+  // Recarrega os dados (do cache) para recomputar com a nova regra.
+  loadDataFromSheets(false);
+}
+
+// Regra de negócio: só pode haver UMA avaliação por loja para o mesmo veículo.
+// Se a mesma placa (ou chassi, quando não há placa) se repete na MESMA loja,
+// mantemos apenas uma — a avaliação MAIS ANTIGA (menor dataAv). Empate mantém a
+// primeira linha carregada. Lojas diferentes contam separadamente.
+// A "loja" considerada é a exibida no painel: empresaEquipe || empresa.
+function dedupeAvaliacoesPorLoja(rows){
+  const map = new Map();
+  let duplicates = 0;
+  (rows||[]).forEach((r, idx) => {
+    const veic = compraKey(r); // 'P:placa' ou 'C:chassi'
+    if (!veic) { // sem placa e sem chassi: não há como identificar duplicidade
+      map.set('__semid__' + idx, { ...r, __idx: idx });
+      return;
+    }
+    const loja = normHdrEmpresa(r.empresaEquipe || r.empresa || '');
+    const key = loja + '||' + veic;
+    const atual = map.get(key);
+    if (!atual) { map.set(key, { ...r, __idx: idx }); return; }
+    duplicates++;
+    // Critério de qual avaliação representa o veículo na loja:
+    // 1) prefere a que foi COMPRADA (para não esconder comprados na contagem);
+    // 2) senão, mantém a MAIS ANTIGA (menor dataAv).
+    const aComprada = !!atual.compraInput, nComprada = !!r.compraInput;
+    let substituir;
+    if (nComprada !== aComprada) {
+      substituir = nComprada; // a nova é comprada e a atual não → troca
+    } else {
+      const dAtual = parseDate(atual.dataAv), dNova = parseDate(r.dataAv);
+      substituir = dNova && (!dAtual || dNova < dAtual);
+    }
+    if (substituir) map.set(key, { ...r, __idx: atual.__idx });
+  });
+  return { rows: Array.from(map.values()).map(({__idx, ...r}) => r), duplicates };
+}
+// Dedup de EXIBIÇÃO: aplica a regra "1 avaliação por loja para o mesmo
+// veículo" SOMENTE quando ligada, sobre o conjunto recebido — que já vem
+// filtrado pelo período. Assim a dedup acontece DENTRO do período e não
+// descarta reavaliações do mês por causa de avaliações de meses anteriores.
+function dedupAvExibicao(rows){
+  return dedupAvaliacoesAtivo() ? dedupeAvaliacoesPorLoja(rows).rows : (rows||[]);
+}
+// Remove LINHAS repetidas da MESMA avaliação (mesmo idAv duplicado na planilha).
+// Isso é diferente do dedup por loja/veículo: aqui é a própria avaliação
+// aparecendo 2x/3x na base. Mantém a primeira ocorrência; linhas sem idAv
+// são preservadas (não há como identificar duplicidade).
+function dedupAvaliacoesPorId(rows){
+  const vistos=new Set(); const out=[];
+  (rows||[]).forEach(r=>{
+    const id=String(r&&r.idAv||'').trim();
+    if(!id){ out.push(r); return; }
+    if(vistos.has(id)) return;
+    vistos.add(id); out.push(r);
+  });
+  return out;
+}
+
+// ============================================================
+// CROSS JOIN
+// ============================================================
+function crossJoin(){
+  // Remove os registros sintéticos de inclusão manual de execuções anteriores.
+  // Eles são recriados no fim, a partir dos comprados manuais atuais.
+  STATE.avaliacoes = (STATE.avaliacoes||[]).filter(r=>!r.__inclusaoManual);
+  // Unifica a grafia do vendedor em toda a base (fonte: input de Equipes) para
+  // o mesmo vendedor nunca duplicar no ranking por causa de acento/caixa.
+  aplicarVendCanon();
+  // Garante um identificador único ANTES de cruzar.
+  // Sem isso, vários avaliados ficavam com __rowId = undefined e o Set de usados
+  // bloqueava os próximos vínculos, deixando comprados fora do dashboard.
+  STATE.avaliacoes.forEach((r,i)=>{
+    if(!r.__rowId) r.__rowId = `${r.idAv||'AV'}|${r.placa||r.chassi||'X'}|${dateStr(r.dataAv)||'D'}|${i}`;
+  });
+
+  const eqMap={};
+  STATE.equipes.forEach(e=>{if(e.nome)eqMap[e.nome.trim().toUpperCase()]=e;});
+  const cpMap={};
+  STATE.comprador.forEach(c=>{if(c.placa)cpMap[c.placa]=c;});
+  STATE.avaliacoes=(STATE.avaliacoes||[]).map(av=>{
+    const eq=av.vendedor?eqMap[av.vendedor.trim().toUpperCase()]:null;
+    const cp=av.placa?cpMap[av.placa]:null;
+    const out={...av,tipo:eq?eq.tipo:(av.tipo||null),empresaEquipe:eq?eq.empresa:(av.empresaEquipe||null),compraInput:false,empresaCompraInput:null,dataCompraInput:null};
+    if(cp&&!av.melhorado&&cp.melhorado){out.melhorado=cp.melhorado;out.manualMelhorado=cp.melhorado;}
+    if(cp&&!av.valorMelhorado&&cp.valorMelhorado){out.valorMelhorado=cp.valorMelhorado;out.manualValorMelhorado=cp.valorMelhorado;}
+    if(cp&&!av.compradorNome&&cp.comprador){out.compradorNome=cp.comprador;out.manualCompradorNome=cp.comprador;}
+    recomputeComprado(out); return out;
+  });
+  // DEDUP: uma avaliação por loja para o mesmo veículo (mantém a mais antiga).
+  // OPCIONAL — desligado por padrão para o dash bater com a contagem bruta do
+  // Sheets. Ligue em "Config" se quiser aplicar a regra "uma avaliação por loja".
+  // Quando ligado, roda ANTES do vínculo para que a compra cruze com a avaliação
+  // que sobreviveu e nenhuma compra fique órfã.
+  STATE._compradosSemAv = []; // reset a cada crossJoin
+  // Diagnóstico de contagem — calcula SEMPRE (independe do dedup estar ligado)
+  // para esclarecer de onde vem cada total (bruto vs únicos).
+  (function(){
+    const bruto = STATE.avaliacoes.length;
+    const setPlaca = new Set(), setPlacaLoja = new Set(), setPlacaChassi = new Set();
+    STATE.avaliacoes.forEach(r=>{
+      const veic = compraKey(r); // 'P:placa' ou 'C:chassi'
+      const loja = normHdrEmpresa(r.empresaEquipe||r.empresa||'');
+      if(veic){ setPlaca.add(veic); setPlacaLoja.add(loja+'||'+veic); }
+      const pc = normPlaca(r.placa)+'|'+normChassi(r.chassi);
+      setPlacaChassi.add(pc);
+    });
+    STATE._contagem = {
+      bruto,
+      unicoPlaca: setPlaca.size,
+      unicoPlacaLoja: setPlacaLoja.size,
+      unicoPlacaChassi: setPlacaChassi.size
+    };
+    console.log('[CONTAGEM AVALIAÇÕES]', STATE._contagem);
+  })();
+  // IMPORTANTE: o dedup de avaliações NÃO é mais aplicado aqui (sobre a base
+  // inteira), porque isso descartava reavaliações do mês quando o mesmo
+  // veículo já tinha avaliação em mês anterior na mesma loja. Agora o dedup é
+  // aplicado por PERÍODO, na exibição (getPeriodData / applyFilters /
+  // getAnalyticsData), via dedupAvExibicao(). Aqui só guardamos um número
+  // informativo de duplicadas na base inteira para o painel de diagnóstico.
+  STATE._avDuplicados = dedupAvaliacoesAtivo()
+    ? dedupeAvaliacoesPorLoja(STATE.avaliacoes).duplicates
+    : 0;
+  // link comprados — cruzamento por PLACA e sem contar duplicidades de placa comprada
+  STATE.avaliacoes.forEach(av=>{av.compraInput=false;av.empresaCompraInput=null;av.dataCompraInput=null;recomputeComprado(av);});
+  // Inclusão manual feita a partir de um órfão guarda o VIN de referência
+  // (vinReferencia): o comprado original com esse VIN é substituído pela
+  // inclusão manual e sai da base (senão apareceria duplicado e como órfão).
+  const vinsSubstituidos = new Set(
+    (STATE.comprados||[]).filter(isInclusaoManual).map(c=>normChassi(c.vinReferencia)).filter(Boolean)
+  );
+  if (vinsSubstituidos.size) {
+    STATE.comprados = STATE.comprados.filter(c=>isInclusaoManual(c) || !vinsSubstituidos.has(normChassi(c.chassi)));
+  }
+  const dedupeInfo = dedupeCompradosByPlaca(STATE.comprados);
+  STATE.comprados = dedupeInfo.rows;
+  STATE.comprados.forEach(c=>{c.__vinculado=false;});
+  const usados = new Set();
+  STATE.comprados.forEach(compra=>{
+    // Inclusões manuais não têm VIN/chassi e nunca cruzam — pulam o vínculo.
+    if(isInclusaoManual(compra)) return;
+    const keyCompra = compraKey(compra);
+    if(!keyCompra) return;
+
+    const placaNorm = normPlaca(compra.placa);
+    const chassiNorm = normChassi(compra.chassi);
+
+    let candidatos = STATE.avaliacoes.filter(av => {
+      if(usados.has(av.__rowId)) return false;
+      const avPlaca = normPlaca(av.placa);
+      const avChassi = normChassi(av.chassi);
+      if (placaNorm && avPlaca && avPlaca === placaNorm) return true;
+      if (chassiNorm && avChassi && avChassi === chassiNorm) return true;
+      return false;
+    });
+
+    if (!candidatos.length) return;
+
+    let bestAv = null, bestScore = -999999;
+    candidatos.forEach(av=>{
+      let score = 0;
+      const dias = diffDays(av.dataAv, compra.dataCompra);
+      // Prioriza avaliação anterior à compra, mas não bloqueia por empresa.
+      if (dias !== null) {
+        if (dias >= 0) score += 10000 - Math.min(dias, 9999); // quanto mais perto, melhor
+        else score += -5000 + dias; // avaliação depois da compra perde prioridade
+      }
+      // Empresa ajuda no desempate, mas não impede o vínculo.
+      score += Math.max(
+        empresaSimilarity(compra.empresa, av.empresa||''),
+        empresaSimilarity(compra.empresa, av.empresaEquipe||'')
+      );
+      if(score > bestScore){bestAv = av; bestScore = score;}
+    });
+
+    if(!bestAv) return; // sem candidato — o status de órfão é decidido abaixo, por VIN
+    compra.__vinculado = true;
+    bestAv.compraInput = true;
+    bestAv.empresaCompraInput = compra.empresa || bestAv.empresa;
+    bestAv.dataCompraInput = compra.dataCompra;
+    usados.add(bestAv.__rowId);
+    recomputeComprado(bestAv);
+  });
+  // ----------------------------------------------------------------
+  // ÓRFÃOS (comprado sem avaliação) — regra de negócio definitiva:
+  // um comprado é órfão quando o seu VIN (comprados.chassi) NÃO existe no
+  // conjunto de VINs avaliados (avaliacoes.VIN, lido em av.chassi).
+  // Usa SEMPRE a coluna VIN normalizada (strip().upper()), considera toda a
+  // base de avaliações (qualquer mês) e ignora as inclusões manuais (sem VIN).
+  // ----------------------------------------------------------------
+  STATE._compradosSemAv = computeOrfaos(STATE.comprados, STATE.avaliacoes);
+  if (STATE._compradosSemAv.length) {
+    console.warn(`[VÍNCULO] ${STATE._compradosSemAv.length} comprado(s) órfão(s) (VIN sem avaliação):`,
+      STATE._compradosSemAv.map(c=>c.chassi||c.placa).join(', '));
+  }
+  // ----------------------------------------------------------------
+  // INCLUSÕES MANUAIS → registro sintético de COMPRA.
+  // Comprados incluídos manualmente não têm avaliação; para que contem no
+  // dashboard e na Análise Avançada (KPI Total Comprado, gráficos e rankings
+  // do vendedor/loja informados), cada um vira um registro com comprado=true
+  // e dataAv=null — conta como COMPRADO no mês da compra, nunca como AVALIADO.
+  // Entram aqui também os comprados SEM chassi e não vinculados: é a
+  // assinatura de uma inclusão manual que voltou da planilha COMPRADOS sem o
+  // campo "origem" (a aba não persiste esse campo) — sem este resgate, a
+  // inclusão some da contagem ao recarregar do Sheets.
+  // ----------------------------------------------------------------
+  const contaComoManual = c => isInclusaoManual(c) || (!normChassi(c.chassi) && normPlaca(c.placa) && !c.__vinculado);
+  (STATE.comprados||[]).filter(contaComoManual).forEach((c,i)=>{
+    const eq = c.vendedor ? eqMap[c.vendedor.trim().toUpperCase()] : null;
+    STATE.avaliacoes.push({
+      __rowId: 'MANUAL|'+(normPlaca(c.placa)||'X')+'|'+i,
+      __inclusaoManual: true,
+      idAv: '', placa: normPlaca(c.placa), chassi: '',
+      empresa: c.empresa||'', empresaEquipe: eq ? eq.empresa : (c.empresa||''),
+      tipo: eq ? eq.tipo : null,
+      vendedor: c.vendedor||'', modelo: c.modelo||'', anoModelo: c.anoModelo||'',
+      km: parseNumBR(c.km), valorAv: parseNumBR(c.valorAvaliado), fipe: parseNumBR(c.fipe),
+      dataAv: null, status:'', objetivo:'', precificador:'',
+      melhorado:'Não', negocioFechado:'Não',
+      compraInput: true, empresaCompraInput: c.empresa||'',
+      dataCompraInput: parseDate(c.dataCompra), comprado: true
+    });
+  });
+}
+// Calcula os comprados órfãos. Um comprado é órfão quando NÃO casa com
+// nenhuma avaliação — nem pelo VIN (avaliacoes.VIN) nem pela placa real.
+// A checagem por placa permite que, ao digitar manualmente a placa de um
+// órfão, ele se vincule a uma avaliação existente e deixe de ser órfão.
+function computeOrfaos(comprados, avaliacoes){
+  const avVin = new Set(), avPlaca = new Set();
+  (avaliacoes||[]).forEach(a=>{
+    const v=normChassi(a.chassi); if(v) avVin.add(v);
+    const p=normPlaca(a.placa);   if(p) avPlaca.add(p);
+  });
+  return (comprados||[]).filter(c=>{
+    if(isInclusaoManual(c)) return false;     // inclusão manual nunca é órfã
+    const vin = normChassi(c.chassi);
+    // Sem VIN: ou é inclusão manual que voltou da planilha sem o campo
+    // "origem" (a aba COMPRADOS não persiste esse campo), ou vincula por
+    // placa — nos dois casos conta como comprado e nunca como órfão.
+    if(!vin) return false;
+    const placa = normPlaca(c.placa);
+    const casaVin   = avVin.has(vin);
+    const casaPlaca = placa && avPlaca.has(placa);
+    return !casaVin && !casaPlaca;            // órfão só se não casa por VIN nem por placa
+  }).map(c=>({
+    placa: c.placa||'', chassi: c.chassi||'', empresa: c.empresa||'',
+    dataCompra: c.dataCompra, modelo: c.modelo||'', vendedor: c.vendedor||'',
+    vinInvalido: !isVinValido(c.chassi)
+  }));
+}
+// ============================================================
+// INCLUSÃO MANUAL DE COMPRADO (somente master)
+// ============================================================
+// Chave de identidade do vendedor: ignora ACENTO, caixa e espaços duplicados
+// ("João Paixão Neto" == "JOAO PAIXAO NETO"). Reusa normHdrEmpresa (NFD).
+function normVend(n){ return normHdrEmpresa(n); }
+// ----------------------------------------------------------------
+// CANONIZAÇÃO DE VENDEDOR (fonte de verdade: INPUT DE EQUIPES).
+// Mapa chave-normalizada → grafia oficial. Equipes tem prioridade; para
+// nomes que não estão em Equipes, mantém a primeira grafia encontrada.
+// Aplicado na carga para que TODA a base (avaliações, comprados, sintéticos)
+// use a MESMA grafia — sem isso o mesmo vendedor duplica no ranking porque
+// as fontes escrevem o nome de formas diferentes ("João" × "JOAO").
+// ----------------------------------------------------------------
+function buildVendCanonMap(){
+  const map=new Map();
+  (STATE.equipes||[]).forEach(e=>{ const n=(e.nome||'').toString().trim(); const k=normVend(n); if(k && !map.has(k)) map.set(k,n); });
+  (STATE.avaliacoes||[]).forEach(r=>{ if(r.__inclusaoManual) return; const n=(r.vendedor||'').toString().trim(); const k=normVend(n); if(k && !map.has(k)) map.set(k,n); });
+  (STATE.comprados||[]).forEach(c=>{ if(isInclusaoManual(c)) return; const n=(c.vendedor||'').toString().trim(); const k=normVend(n); if(k && !map.has(k)) map.set(k,n); });
+  return map;
+}
+// Reescreve o vendedor de avaliações e comprados para a grafia oficial.
+function aplicarVendCanon(){
+  const m=buildVendCanonMap();
+  const fix=n=>{ const k=normVend(n); return (k && m.get(k)) || (n||''); };
+  (STATE.avaliacoes||[]).forEach(r=>{ if(r.vendedor) r.vendedor=fix(r.vendedor); });
+  (STATE.comprados||[]).forEach(c=>{ if(c.vendedor) c.vendedor=fix(c.vendedor); });
+}
+function canonicalVendedor(nome){
+  const n=(nome||'').toString().trim(); if(!n) return '';
+  const k=normVend(n); if(!k) return n;
+  return buildVendCanonMap().get(k) || n;
+}
+// Lojas para a Inclusão Manual: usa o INPUT DE EQUIPES (nomes padronizados
+// das unidades). Sem Equipes, cai para as lojas vistas na base.
+function getLojasInclusaoManual(){
+  const eqs=[...new Set((STATE.equipes||[]).map(e=>(e.empresa||'').toString().trim()).filter(Boolean))];
+  return eqs.length ? eqs.sort((a,b)=>a.localeCompare(b)) : getLojasExistentes();
+}
+function getVendedoresExistentes(){
+  const nomes=new Map();
+  const add=n=>{ n=(n||'').toString().trim(); if(!n) return; const k=normVend(n); if(k && !nomes.has(k)) nomes.set(k,n); };
+  (STATE.equipes||[]).forEach(e=>add(e.nome));
+  (STATE.avaliacoes||[]).forEach(r=>{ if(!r.__inclusaoManual) add(r.vendedor); });
+  (STATE.comprados||[]).forEach(c=>{ if(!isInclusaoManual(c)) add(c.vendedor); });
+  return [...nomes.values()].sort((a,b)=>a.localeCompare(b));
+}
+// Vendedores de UMA unidade. FONTE PRINCIPAL: input de EQUIPES, casando a
+// loja de forma EXATA (nome padronizado da unidade) — assim cada loja mostra
+// só os seus vendedores. Só cai no fallback (avaliações/comprados por
+// similaridade) quando não há Equipes ou a loja não está no input de Equipes.
+function getVendedoresDaLoja(loja){
+  const L=(loja||'').trim();
+  const eqs=(STATE.equipes||[]).filter(e=>e && e.nome);
+  if(eqs.length){
+    const nomes=new Map();
+    const add=n=>{ n=(n||'').toString().trim(); if(!n) return; const k=normVend(n); if(k && !nomes.has(k)) nomes.set(k,n); };
+    if(!L){ eqs.forEach(e=>add(e.nome)); return [...nomes.values()].sort((a,b)=>a.localeCompare(b)); }
+    const alvo=normHdrEmpresa(L);
+    eqs.forEach(e=>{ if(normHdrEmpresa(e.empresa)===alvo) add(e.nome); });
+    if(nomes.size) return [...nomes.values()].sort((a,b)=>a.localeCompare(b));
+    // loja não está no input de Equipes → fallback abaixo.
+  }
+  if(!L) return getVendedoresExistentes();
+  const alvo=normHdrEmpresa(L);
+  const daLoja=l=>{ l=l||''; return normHdrEmpresa(l)===alvo || empresaSimilarity(l,L)>=90; };
+  const nomes=new Map();
+  const add=n=>{ n=(n||'').toString().trim(); if(!n) return; const k=normVend(n); if(k && !nomes.has(k)) nomes.set(k,n); };
+  (STATE.avaliacoes||[]).forEach(r=>{ if(!r.__inclusaoManual && daLoja(r.empresaEquipe||r.empresa)) add(r.vendedor); });
+  (STATE.comprados||[]).forEach(c=>{ if(!isInclusaoManual(c) && daLoja(c.empresa)) add(c.vendedor); });
+  return [...nomes.values()].sort((a,b)=>a.localeCompare(b));
+}
+function getLojasExistentes(){
+  const set=new Set();
+  (STATE.equipes||[]).forEach(e=>{ if(e.empresa) set.add(e.empresa.toString().trim()); });
+  (STATE.avaliacoes||[]).forEach(r=>{ const l=r.empresaEquipe||r.empresa; if(l) set.add(l.toString().trim()); });
+  (STATE.comprados||[]).forEach(c=>{ if(c.empresa) set.add(c.empresa.toString().trim()); });
+  return [...set].filter(Boolean).sort((a,b)=>a.localeCompare(b));
+}
+function onImVendedorChange(){
+  const sel=document.getElementById('im-vendedor-sel');
+  const novo=document.getElementById('im-vendedor-novo');
+  if(!sel||!novo) return;
+  const outro = sel.value==='__outro__';
+  novo.style.display = outro ? 'block' : 'none';
+  if(outro) novo.focus();
+}
+// Popula o dropdown de Vendedor com os vendedores da loja selecionada
+// (todos, quando nenhuma loja está escolhida). Mantém a seleção atual se o
+// vendedor continuar disponível na nova lista.
+function populateImVendedores(){
+  const selV=document.getElementById('im-vendedor-sel'); if(!selV) return;
+  const loja=(document.getElementById('im-loja')?.value||'').trim();
+  const atual=selV.value;
+  const vends=getVendedoresDaLoja(loja);
+  selV.innerHTML=`<option value="">— selecione —</option>`+vends.map(v=>`<option value="${escHtml(v)}">${escHtml(v)}</option>`).join('')+`<option value="__outro__">➕ Outro (digitar)…</option>`;
+  if(atual && (atual==='__outro__' || vends.some(v=>v===atual))) selV.value=atual; else selV.value='';
+  onImVendedorChange();
+}
+function onImLojaChange(){ populateImVendedores(); }
+function renderInclusaoManual(){
+  const selL=document.getElementById('im-loja');
+  if(selL){
+    const atual=selL.value;
+    const lojas=getLojasInclusaoManual();
+    selL.innerHTML=`<option value="">— selecione —</option>`+lojas.map(l=>`<option value="${escHtml(l)}">${escHtml(l)}</option>`).join('');
+    if(atual && lojas.some(l=>l===atual)) selL.value=atual;
+  }
+  populateImVendedores();
+  renderInclusaoManualLista();
+}
+function renderInclusaoManualLista(){
+  const el=document.getElementById('im-lista'); if(!el) return;
+  const manuais=(STATE.comprados||[]).filter(isInclusaoManual);
+  if(!manuais.length){ el.innerHTML='<div style="color:var(--text3);font-size:13px;padding:10px 0">Nenhum veículo incluído manualmente ainda.</div>'; return; }
+  el.innerHTML=`<div class="table-wrap"><table><thead><tr>
+      <th>Placa</th><th>Modelo</th><th>Ano/Mod</th><th>KM</th><th>Vlr Avaliado</th><th>FIPE</th>
+      <th>Vendedor</th><th>Loja</th><th>Data Compra</th><th>Incluído por</th><th></th>
+    </tr></thead><tbody>${manuais.map(c=>`<tr>
+      <td style="font-family:monospace">${escHtml(c.placa||'—')}</td>
+      <td>${escHtml(c.modelo||'—')}</td>
+      <td>${escHtml(c.anoModelo||'—')}</td>
+      <td>${c.km?Number(c.km).toLocaleString('pt-BR'):'—'}</td>
+      <td>${c.valorAvaliado?'R$ '+Number(c.valorAvaliado).toLocaleString('pt-BR'):'—'}</td>
+      <td>${c.fipe?'R$ '+Number(c.fipe).toLocaleString('pt-BR'):'—'}</td>
+      <td>${escHtml(c.vendedor||'—')}</td>
+      <td>${escHtml(c.empresa||'—')}</td>
+      <td>${fmtDate(parseDate(c.dataCompra))}</td>
+      <td style="font-size:11px;color:var(--text3)">${escHtml(c.incluidoPor||'—')}${c.incluidoEm?'<br>'+escHtml(fmtDate(parseDate(c.incluidoEm))):''}</td>
+      <td><button class="btn btn-red" style="padding:4px 10px;font-size:12px" onclick="excluirInclusaoManual('${String(c.placa||'').replace(/'/g,'')}')">🗑️</button></td>
+    </tr>`).join('')}</tbody></table></div>`;
+}
+// KM: inteiro, aceita separador de milhar ("45.000" → 45000).
+function parseKmInput(raw){
+  const s=(raw||'').toString().replace(/[^\d]/g,'');
+  if(!s) return null;
+  const n=parseInt(s,10);
+  return Number.isFinite(n)?n:null;
+}
+// Moeda BRL: "R$ 50.000" → 50000, "50.000,50" → 50000.5, "50000" → 50000.
+function parseMoneyBR(raw){
+  let s=(raw||'').toString().replace(/R\$|\s/g,'').trim();
+  if(!s) return null;
+  if(s.includes(',')){ s=s.replace(/\./g,'').replace(',','.'); }
+  else if(/^\d{1,3}(\.\d{3})+$/.test(s)){ s=s.replace(/\./g,''); } // pontos só de milhar
+  const n=Number(s);
+  return Number.isFinite(n)?n:null;
+}
+function imFeedback(msg,tipo){
+  const el=document.getElementById('im-feedback'); if(!el) return;
+  const cor=tipo==='error'?'#ef4444':tipo==='success'?'#10b981':'var(--text3)';
+  el.style.color=cor; el.textContent=msg;
+}
+function limparInclusaoManual(){
+  window.__imVinReferencia='';
+  ['im-placa','im-modelo','im-ano','im-km','im-valor','im-fipe','im-data','im-vendedor-novo'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  const sv=document.getElementById('im-vendedor-sel'); if(sv)sv.value='';
+  const nv=document.getElementById('im-vendedor-novo'); if(nv)nv.style.display='none';
+  const sl=document.getElementById('im-loja'); if(sl)sl.value='';
+  imFeedback('','');
+}
+async function salvarInclusaoManual(){
+  if(SESSION.perfil!=='master'){ imFeedback('Apenas a senha master pode incluir comprados.','error'); return; }
+  const placa=normPlaca(document.getElementById('im-placa')?.value);
+  const modelo=(document.getElementById('im-modelo')?.value||'').trim();
+  const ano=(document.getElementById('im-ano')?.value||'').trim();
+  const kmRaw=(document.getElementById('im-km')?.value||'').trim();
+  const valorRaw=(document.getElementById('im-valor')?.value||'').trim();
+  const fipeRaw=(document.getElementById('im-fipe')?.value||'').trim();
+  const selV=document.getElementById('im-vendedor-sel');
+  let vendedor=selV?selV.value:'';
+  if(vendedor==='__outro__') vendedor=(document.getElementById('im-vendedor-novo')?.value||'').trim();
+  // Usa a grafia que JÁ existe na base para o mesmo nome (caixa/espaços):
+  // a compra vai para o vendedor selecionado, sem criar um duplicado.
+  vendedor=canonicalVendedor(vendedor);
+  const loja=(document.getElementById('im-loja')?.value||'').trim();
+  const dataInput=document.getElementById('im-data')?.value||'';
+
+  const km=parseKmInput(kmRaw);
+  const valor=parseMoneyBR(valorRaw);
+  const fipe=parseMoneyBR(fipeRaw);
+  const faltando=[];
+  if(!placa) faltando.push('Placa');
+  if(!modelo) faltando.push('Modelo');
+  if(!ano) faltando.push('Ano/Modelo');
+  if(km==null||km<0) faltando.push('KM');
+  if(valor==null||valor<=0) faltando.push('Valor Avaliado');
+  if(fipe==null||fipe<=0) faltando.push('FIPE');
+  if(!vendedor) faltando.push('Vendedor');
+  if(!loja) faltando.push('Loja');
+  if(faltando.length){ imFeedback('Preencha: '+faltando.join(', '),'error'); return; }
+
+  const dataCompra = dataInput ? new Date(dataInput+'T00:00:00') : new Date();
+  const rec={
+    placa, chassi:'', empresa:loja,
+    dataCompra: fmtDateForSheets(dataCompra), modelo, vendedor,
+    origem:'inclusão manual',
+    vinReferencia: window.__imVinReferencia||'',   // VIN do órfão que esta inclusão substitui
+    anoModelo:ano, km:String(km), valorAvaliado:String(valor), fipe:String(fipe),
+    incluidoPor: SESSION.nome||SESSION.usuario||'master',
+    incluidoEm: new Date().toISOString()
+  };
+  window.__imVinReferencia='';
+  // Persiste no cache local compartilhado e no estado em memória (UX instantânea).
+  saveCompradosImportCache([rec], 'append');
+  STATE.comprados = (STATE.comprados||[]).concat([{...rec, dataCompra}]);
+  // Recalcula vínculos/órfãos e atualiza a UI (a inclusão fica fora dos órfãos).
+  crossJoin(); applyFilters();
+  renderDashboard(); renderDetailCompradosTable(); renderInclusaoManual();
+  limparInclusaoManual();
+  // Grava no BANCO (Google Sheets) para aparecer em qualquer acesso.
+  imFeedback('⏳ Salvando no banco de dados...','info');
+  try{
+    await callAPI({action:'importComprados', rows:[rec], usuario:SESSION.nome, perfil:SESSION.perfil});
+    setCloud('online');
+    imFeedback('✅ Incluído e salvo no banco de dados — visível em qualquer acesso.','success');
+    showToast('Comprado incluído e sincronizado no banco.','success');
+  }catch(e){
+    console.warn('Inclusão manual salva localmente; backend não confirmou:', e?.message);
+    setCloud('offline');
+    imFeedback('⚠️ Ficou só neste navegador — NÃO salvou no banco ('+(e?.message||'erro')+'). Clique em "🔄 Sincronizar com o banco".','error');
+    showToast('Não sincronizou no banco. Use "Sincronizar com o banco".','error');
+  }
+}
+// Reenvia ao banco (Google Sheets) as inclusões manuais que estão no
+// navegador — útil quando uma gravação falhou ou o Apps Script foi atualizado
+// depois. Inclusões já existentes no banco (mesma placa+loja) são ignoradas.
+async function sincronizarInclusoesManuais(){
+  if(SESSION.perfil!=='master'){ showToast('Apenas a senha master pode sincronizar.','error'); return; }
+  const manuais=(STATE.comprados||[]).filter(isInclusaoManual);
+  if(!manuais.length){ showToast('Nenhuma inclusão manual para sincronizar.','info'); return; }
+  const rows=manuais.map(c=>({
+    placa:c.placa||'', chassi:'', empresa:c.empresa||'',
+    dataCompra: fmtDateForSheets(parseDate(c.dataCompra)||new Date()),
+    modelo:c.modelo||'', vendedor:c.vendedor||'',
+    origem:'inclusão manual', vinReferencia:c.vinReferencia||'',
+    anoModelo:c.anoModelo||'', km:String(c.km||''), valorAvaliado:String(c.valorAvaliado||''), fipe:String(c.fipe||''),
+    incluidoPor:c.incluidoPor||SESSION.nome||'master', incluidoEm:c.incluidoEm||new Date().toISOString()
+  }));
+  showToast(`Sincronizando ${rows.length} inclusão(ões) manual(is) com o banco...`,'info');
+  try{
+    const res=await callAPI({action:'importComprados', rows, usuario:SESSION.nome, perfil:SESSION.perfil});
+    setCloud('online');
+    const ins=res&&res.inserted!=null?res.inserted:0;
+    const dup=res&&res.duplicates!=null?res.duplicates:0;
+    showToast(`✅ Sincronizado: ${ins} nova(s) no banco${dup?`, ${dup} já existiam`:''}.`,'success');
+  }catch(e){
+    setCloud('offline');
+    showToast('Falha ao sincronizar com o banco: '+(e?.message||'erro'),'error');
+  }
+}
+function excluirInclusaoManual(placa){
+  const pn=normPlaca(placa);
+  if(!confirm('Remover este comprado incluído manualmente?')) return;
+  STATE.comprados=(STATE.comprados||[]).filter(c=>!(isInclusaoManual(c) && normPlaca(c.placa)===pn));
+  const cache=loadCompradosImportCache().filter(c=>!(isInclusaoManual(c) && normPlaca(c.placa)===pn));
+  saveJsonLocal(LOCAL_KEYS.comprados, cache);
+  crossJoin(); applyFilters();
+  renderDashboard(); renderDetailCompradosTable(); renderInclusaoManual();
+  showToast('Inclusão manual removida.','success');
+}
+function recomputeComprado(r){r.comprado=isCompraValida(r);}
+function isCompraValida(r){if(!r||!r.compraInput)return false;return !!r.dataCompraInput;}
+function getCompraDate(r){return r&&r.compraInput?(r.dataCompraInput||null):null;}
+function diffDays(a,b){
+  const sa=parseDate(a),sb=parseDate(b);if(!sa||!sb)return null;
+  return Math.floor((new Date(sb.getFullYear(),sb.getMonth(),sb.getDate())-new Date(sa.getFullYear(),sa.getMonth(),sa.getDate()))/86400000);
+}
+
+// ============================================================
+// TABS
+// ============================================================
+function switchTab(name,btn){
+  document.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el=>el.classList.remove('active'));
+  const tab=document.getElementById('tab-'+name);if(tab)tab.classList.add('active');
+  if(btn)btn.classList.add('active');
+  if(name==='dashboard')renderDashboard();
+  if(name==='tabela')renderDetailTable();
+  if(name==='tabela-comprados')renderDetailCompradosTable();
+  if(name==='inclusao-manual')renderInclusaoManual();
+  if(name==='comprador-vis')renderCompradorVis();
+  if(name==='usuarios'){loadUsuarios();loadCompradores();}
+  if(name==='historico')loadHistorico();
+  if(name==='ia')initAIKeyUI();
+  if(name==='config-script'){ const _cd=document.getElementById('cfg-dedup-av'); if(_cd)_cd.checked=dedupAvaliacoesAtivo(); }
+  if(name==='analytics'){ const _ai=document.getElementById('an-f-ini'); if(_ai&&!_ai.value)initAnalyticsDates(); renderAnalytics(); }
+  if(name==='alertas'){
+    const cfg=JSON.parse(localStorage.getItem('carmais_alert_config')||'{}');
+    if(cfg.primeiroDisparo){const el=document.getElementById('alert-primeiro');if(el)el.value=cfg.primeiroDisparo;}
+    if(cfg.segundoDisparo){const el=document.getElementById('alert-segundo');if(el)el.value=cfg.segundoDisparo;}
+    if(cfg.canal){const el=document.getElementById('alert-canal');if(el)el.value=cfg.canal;}
+    loadCompradores().then(()=>gerarScriptAlertas(cfg.canal?cfg:{primeiroDisparo:30,segundoDisparo:24,canal:'email'}));
+  }
+}
+
+// ============================================================
+// STATUS BAR
+// ============================================================
+function updateStatusBar(){
+  const bar=document.getElementById('data-status-bar');if(!bar)return;
+  const vin=STATE.avaliacoes.filter(r=>r.compraInput).length;
+  bar.innerHTML=`<span><span class="dot-green">●</span> Avaliações: <strong>${STATE.avaliacoes.length}</strong></span>
+    <span><span class="${STATE.equipes.length?'dot-green':'dot-amber'}">●</span> Equipes: <strong>${STATE.equipes.length}</strong></span>
+    <span><span class="${STATE.comprados.length?'dot-green':'dot-amber'}">●</span> Comprados: <strong>${STATE.comprados.length}</strong></span>
+    <span><span class="dot-green">●</span> Vinculados: <strong>${vin}</strong></span>
+    <span style="margin-left:auto;font-size:12px;color:var(--text3)">☁️ Google Sheets</span>`;
+}
+
+// ============================================================
+// FILTERS
+// ============================================================
+function populateFilters(setDefaultDates=false){
+  const data=STATE.avaliacoes; if(!data.length)return;
+  const uniq=arr=>[...new Set(arr.filter(Boolean).map(s=>s.toString().trim()))].sort();
+  // Sempre popula com TODOS os dados independente de filtro de data
+  const emp=STATE.equipes.length?uniq(STATE.equipes.map(r=>r.empresa)):uniq(data.map(r=>r.empresaEquipe||r.empresa));
+  buildMs('ms-empresa',emp,'Todas');
+  syncVendedoresByEmpresa();
+  buildMs('ms-precificador',uniq(data.map(r=>r.precificador)),'Todos');
+  fillDL('dl-objetivo',uniq(data.map(r=>r.objetivo)));
+  fillDL('dl-tipo',uniq(data.map(r=>r.tipo)));
+  fillDL('dl-comprador',uniq(data.map(r=>r.compradorNome)));
+  fillDL('dl-modelo',uniq(data.map(r=>r.modelo)));
+  // Só seta datas padrão na primeira carga
+  if(setDefaultDates){
+    const now=new Date();
+    const fd=document.getElementById('f-data-ini'),ff=document.getElementById('f-data-fim');
+    if(fd&&!fd.value)fd.value=dateStr(new Date(now.getFullYear(),now.getMonth(),1));
+    if(ff&&!ff.value)ff.value=dateStr(now);
+  }
+}
+function fillDL(id,vals){const dl=document.getElementById(id);if(!dl)return;dl.innerHTML=vals.map(v=>`<option value="${escHtml(v)}"></option>`).join('');}
+function getDateRange(){
+  const iv=document.getElementById('f-data-ini')?.value||'',fv=document.getElementById('f-data-fim')?.value||'';
+  return{ini:iv?new Date(iv+'T00:00:00'):null,fim:fv?new Date(fv+'T23:59:59'):null};
+}
+function inRange(d,ini,fim){d=parseDate(d);if(!d)return false;if(ini&&d<ini)return false;if(fim&&d>fim)return false;return true;}
+function passesFilters(r){
+  const norm=v=>normHdrEmpresa(v||''),contains=(v,t)=>!t||norm(v).includes(norm(t));
+  const e=STATE.msSelected['ms-empresa']||[],v2=STATE.msSelected['ms-vendedor']||[],p=STATE.msSelected['ms-precificador']||[];
+  const er=r.empresaEquipe||r.empresa||'';
+  if(e.length&&!e.includes(er))return false;
+  if(v2.length&&!v2.includes(r.vendedor||''))return false;
+  if(p.length&&!p.includes(r.precificador||''))return false;
+  if(!contains(r.modelo,document.getElementById('f-modelo')?.value||''))return false;
+  if(!contains(r.objetivo,document.getElementById('f-objetivo')?.value||''))return false;
+  if(!contains(r.tipo,document.getElementById('f-tipo')?.value||''))return false;
+  if(!contains(r.placa,document.getElementById('f-placa')?.value||''))return false;
+  if(!contains(r.compradorNome,document.getElementById('f-comprador')?.value||''))return false;
+  const mel=document.getElementById('f-melhorado')?.value||'';
+  if(mel&&(r.melhorado||'Não')!==mel)return false;
+  return true;
+}
+function applyFilters(){
+  const{ini,fim}=getDateRange();
+  STATE.filtered=STATE.avaliacoes.filter(r=>{
+    if(!passesFilters(r))return false;
+    // Se ambas as datas estão vazias, mostra tudo
+    if(!ini&&!fim)return true;
+    // Se só data ini: mostra a partir dela
+    if(ini&&!fim)return inRange(r.dataAv,ini,null)||inRange(getCompraDate(r),ini,null);
+    // Se só data fim: mostra até ela
+    if(!ini&&fim)return inRange(r.dataAv,null,fim)||inRange(getCompraDate(r),null,fim);
+    // Ambas preenchidas: filtra no intervalo
+    return inRange(r.dataAv,ini,fim)||inRange(getCompraDate(r),ini,fim);
+  });
+  // Dedup (quando ligado) DENTRO do recorte já filtrado por período/filtros.
+  STATE.filtered=dedupAvExibicao(STATE.filtered);
+  renderDashboard();renderDetailTable();renderDetailCompradosTable();renderCompradorVis();
+}
+function clearFilters(){
+  ['f-data-ini','f-data-fim','f-modelo','f-objetivo','f-tipo','f-placa','f-melhorado','f-comprador'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  STATE.msSelected={'ms-empresa':[],'ms-vendedor':[],'ms-precificador':[]};
+  populateFilters();
+  applyFilters();
+}
+
+// MULTI-SELECT
+
+function getVendedoresPermitidosPorEmpresa(){
+  const empresasSel = STATE.msSelected['ms-empresa'] || [];
+  let base = STATE.avaliacoes || [];
+  if(empresasSel.length){
+    base = base.filter(r=>empresasSel.includes(r.empresaEquipe||r.empresa||''));
+  }
+  return [...new Set(base.map(r=>r.vendedor).filter(Boolean).map(v=>v.toString().trim()))].sort();
+}
+function syncVendedoresByEmpresa(){
+  const permitidos = getVendedoresPermitidosPorEmpresa();
+  STATE.msSelected['ms-vendedor'] = (STATE.msSelected['ms-vendedor']||[]).filter(v=>permitidos.includes(v));
+  buildMs('ms-vendedor', permitidos, 'Todos');
+}
+function toggleMultiSelect(id){
+  if(event)event.stopPropagation();
+  const dd=document.getElementById(id+'-dd'),trigger=document.querySelector(`#${id} .multi-select-trigger`);
+  const isOpen=dd.classList.contains('open');closeAllMultiSelects();
+  if(!isOpen){dd.classList.add('open');trigger.classList.add('open');const si=dd.querySelector('.multi-select-search input');if(si){si.value='';filterMsOptions(id,'');setTimeout(()=>si.focus(),0);}}
+}
+function closeAllMultiSelects(){document.querySelectorAll('.multi-select-dropdown').forEach(dd=>dd.classList.remove('open'));document.querySelectorAll('.multi-select-trigger').forEach(t=>t.classList.remove('open'));}
+// Rótulo dos multi-selects do DASHBOARD (ids 'ms-empresa'/'ms-vendedor'/
+// 'ms-precificador', elemento '<id>-label'). Separado do updateMsLabel da
+// Análise Avançada, que usa outro estado (MS_STATE) e outro elemento.
+function updateMsLabelDash(id,def){
+  const sel=STATE.msSelected[id],span=document.getElementById(id+'-label');if(!span)return;
+  if(!sel.length)span.textContent=def;else if(sel.length===1)span.textContent=sel[0].substring(0,20);else span.textContent=`${sel.length} selecionados`;
+}
+function filterMsOptions(id,search){const term=normHdrEmpresa(search||'');document.querySelectorAll(`#${id}-opts .multi-select-option`).forEach(o=>{o.style.display=normHdrEmpresa(o.textContent||'').includes(term)?'':'none';});}
+function buildMs(id,values,label){
+  const opts=document.getElementById(id+'-opts');if(!opts)return;
+  opts.innerHTML=values.map(v=>`<label class="multi-select-option ${STATE.msSelected[id].includes(v)?'selected':''}" onclick="toggleMsOpt('${id}','${v.replace(/'/g,"\\'")}',this)"><input type="checkbox" ${STATE.msSelected[id].includes(v)?'checked':''}/>${escHtml(v)}</label>`).join('');
+  updateMsLabelDash(id,label);
+}
+function toggleMsOpt(id,val,el){
+  event.stopPropagation();
+  const sel=STATE.msSelected[id],idx=sel.indexOf(val);
+  if(idx>=0){sel.splice(idx,1);el.classList.remove('selected');el.querySelector('input').checked=false;}
+  else{sel.push(val);el.classList.add('selected');el.querySelector('input').checked=true;}
+  updateMsLabelDash(id,{'ms-empresa':'Todas','ms-vendedor':'Todos','ms-precificador':'Todos'}[id]);
+  if(id==='ms-empresa') syncVendedoresByEmpresa();
+  applyFilters();
+}
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+function setText(id,v){const el=document.getElementById(id);if(el)el.textContent=v;}
+function getPeriodData(){
+  const{ini,fim}=getDateRange();
+  const base=STATE.avaliacoes.filter(passesFilters);
+  // Inclusões manuais nunca contam como AVALIADO (não têm avaliação);
+  // contam apenas como COMPRADO, pelo mês da data da compra.
+  const noPeriodo=base.filter(r=>!r.__inclusaoManual&&(!ini&&!fim?true:inRange(r.dataAv,ini,fim)));
+  return{base,avaliacoes:dedupAvExibicao(noPeriodo),compras:base.filter(r=>r.comprado&&(!ini&&!fim?true:inRange(getCompraDate(r),ini,fim)))};
+}
+function getCalDays(){
+  const{ini,fim}=getDateRange(),now=new Date();
+  const s=ini||new Date(now.getFullYear(),now.getMonth(),1),e=fim||new Date(now.getFullYear(),now.getMonth()+1,0);
+  const days=[],d=new Date(s);while(d<=e){days.push(dateStr(new Date(d)));d.setDate(d.getDate()+1);}return days;
+}
+function renderDashboard(){
+  const{avaliacoes:av,compras:cp}=getPeriodData();
+  const ta=av.length,tc=cp.length;
+  const pct=ta>0?(tc/ta*100).toFixed(1):'0.0';
+  const sf=av.reduce((s,r)=>s+(parseFloat(r.fipe)||0),0),sv=av.reduce((s,r)=>s+(parseFloat(r.valorAv)||0),0);
+  const mfipe=sf>0?(sv/sf*100).toFixed(1):'—';
+  const tm=av.filter(r=>r.melhorado==='Sim').length;
+  setText('kpi-avaliados',ta.toLocaleString('pt-BR'));setText('kpi-comprado',tc.toLocaleString('pt-BR'));
+  setText('kpi-captacao',pct+'%');setText('kpi-fipe',mfipe!=='—'?mfipe+'%':'—');setText('kpi-melhorados',tm.toLocaleString('pt-BR'));
+  const dm=new Set(av.map(r=>dateStr(r.dataAv)).filter(Boolean)).size;
+  const med=dm>0?(ta/dm).toFixed(1):'0.0',pm=ta>0?(tm/ta*100).toFixed(1):'0.0';
+  const lm={};av.forEach(r=>{const l=r.empresaEquipe||r.empresa||'N/D';lm[l]=(lm[l]||0)+1;});
+  const topL=Object.entries(lm).sort((a,b)=>b[1]-a[1])[0];
+  setText('cmp-av-cp',`${tc}/${ta}`);setText('cmp-av-cp-sub',`${pct}% captação`);
+  setText('cmp-media-dia',med);setText('cmp-melhorado',`${tm}/${ta}`);setText('cmp-melhorado-sub',`${pm}% dos avaliados`);
+  setText('cmp-top-loja',topL?topL[1].toLocaleString('pt-BR'):'—');setText('cmp-top-loja-sub',topL?topL[0]:'maior volume');
+  const om={};cp.forEach(r=>{if(r.objetivo)om[r.objetivo]=(om[r.objetivo]||0)+1;});
+  const od=document.getElementById('obj-cards');
+  if(od)od.innerHTML=Object.entries(om).sort((a,b)=>b[1]-a[1]).map(([o,n])=>`<div class="obj-card"><div class="obj-num">${n}</div><div class="obj-name">${escHtml(o)}</div><div class="obj-pct">${tc>0?(n/tc*100).toFixed(1):0}%</div></div>`).join('')||'<span class="no-data">Nenhum comprado no período.</span>';
+  const cal=getCalDays(),bav={},bcp={};
+  av.forEach(r=>{const d=dateStr(r.dataAv);if(d)bav[d]=(bav[d]||0)+1;});
+  cp.forEach(r=>{const d=dateStr(getCompraDate(r));if(d)bcp[d]=(bcp[d]||0)+1;});
+  renderLineChart('chart-diario-av',cal,cal.map(d=>bav[d]||0),'Avaliações','#3b82f6');
+  renderLineChart('chart-diario-cp',cal,cal.map(d=>bcp[d]||0),'Compras','#10b981');
+  const apv={},cpv={};
+  av.forEach(r=>{const v=r.vendedor||'N/D';apv[v]=(apv[v]||0)+1;});
+  cp.forEach(r=>{const v=r.vendedor||'N/D';cpv[v]=(cpv[v]||0)+1;});
+  const conv=Object.keys(apv).map(v=>[v,apv[v]?(cpv[v]||0)/apv[v]*100:0,apv[v],cpv[v]||0]).filter(x=>x[2]>0).sort((a,b)=>b[1]-a[1]);
+  const rf=(rows,f)=>{const m={};rows.forEach(r=>{const k=r[f]||'N/D';m[k]=(m[k]||0)+1;});return Object.entries(m).sort((a,b)=>b[1]-a[1]);};
+  renderRanking('rank-vendedor-av',rf(av,'vendedor'));
+  renderRanking('rank-vendedor-cp',rf(cp,'vendedor'),'#10b981');
+  renderRanking('rank-vendedor-conv',conv,'#3b82f6','percent');
+  renderRanking('rank-empresa',Object.entries(lm).sort((a,b)=>b[1]-a[1]),'#8b5cf6');
+  const comprasLojaMap={};
+  cp.forEach(r=>{const loja=r.empresaEquipe||r.empresa||'N/D';comprasLojaMap[loja]=(comprasLojaMap[loja]||0)+1;});
+  renderRanking('rank-loja-compras',Object.entries(comprasLojaMap).sort((a,b)=>b[1]-a[1]),'#10b981');
+  const avLoja={},cpLoja={};
+  av.forEach(r=>{const loja=r.empresaEquipe||r.empresa||'N/D';avLoja[loja]=(avLoja[loja]||0)+1;});
+  cp.forEach(r=>{const loja=r.empresaEquipe||r.empresa||'N/D';cpLoja[loja]=(cpLoja[loja]||0)+1;});
+  const convLoja=Object.keys(avLoja).map(loja=>[loja,avLoja[loja]?(cpLoja[loja]||0)/avLoja[loja]*100:0,avLoja[loja],cpLoja[loja]||0]).filter(x=>x[2]>0).sort((a,b)=>b[1]-a[1]);
+  renderRanking('rank-loja-captacao',convLoja,'#10b981','percent');
+  const pm2={};av.forEach(r=>{if(r.precificador)pm2[r.precificador]=(pm2[r.precificador]||0)+1;});
+  renderRanking('rank-precificador',Object.entries(pm2).sort((a,b)=>b[1]-a[1]),'#f59e0b');
+  renderDoughnut('chart-objetivo',Object.keys(om),Object.values(om));
+  const tm2={};av.forEach(r=>{if(r.tipo)tm2[r.tipo]=(tm2[r.tipo]||0)+1;});
+  renderDoughnut('chart-tipo',Object.keys(tm2),Object.values(tm2),['#3b82f6','#f59e0b','#10b981','#8b5cf6','#ef4444']);
+}
+
+// CHARTS
+function renderLineChart(id,labels,data,label,color){
+  const c=document.getElementById(id);if(!c)return;if(CHARTS[id])CHARTS[id].destroy();
+  CHARTS[id]=new Chart(c,{type:'line',data:{labels:labels.map(d=>{const[y,m,dd]=d.split('-');return`${dd}/${m}`;}),datasets:[{label,data,borderColor:color,backgroundColor:color+'20',borderWidth:2,fill:true,tension:0.4,pointBackgroundColor:color,pointRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:chartGridColor()},ticks:{color:chartTickColor(),font:{size:11}}},y:{grid:{color:chartGridColor()},ticks:{color:chartTickColor(),font:{size:11}},beginAtZero:true}}}});
+}
+function renderDoughnut(id,labels,data,colors){
+  const c=document.getElementById(id);if(!c)return;if(CHARTS[id])CHARTS[id].destroy();
+  CHARTS[id]=new Chart(c,{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors||['#f59e0b','#3b82f6','#10b981','#8b5cf6','#ef4444'],borderWidth:0,hoverOffset:6}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{color:chartTickColor(),font:{size:12},padding:12}}},cutout:'65%'}});
+}
+function renderRanking(id,entries,color='#f59e0b',mode='number'){
+  const el=document.getElementById(id);if(!el)return;
+  if(!entries.length){el.innerHTML='<div class="no-data">Sem dados</div>';return;}
+  const max=Math.max(...entries.map(e=>Number(e[1])||0),1);
+  el.innerHTML=entries.map((e,i)=>{
+    const val=Number(e[1])||0,w=Math.max(2,Math.min(100,val/max*100));
+    const dv=mode==='percent'?`${val.toFixed(1)}%`:Number(val).toLocaleString('pt-BR');
+    const sub=mode==='percent'&&e.length>=4?`<div class="rank-sub">${Number(e[3]).toLocaleString('pt-BR')} cp / ${Number(e[2]).toLocaleString('pt-BR')} av</div>`:'';
+    return`<div class="rank-row"><div class="rank-num ${i<3?'top':''}">${i+1}</div><div class="rank-info"><div class="rank-name" title="${escHtml(e[0])}">${escHtml(e[0])}</div>${sub}</div><div class="rank-bar-wrap"><div class="rank-bar"><div class="rank-bar-fill" style="width:${w.toFixed(0)}%;background:${color}"></div></div></div><div class="rank-val">${dv}</div></div>`;
+  }).join('');
+}
+
+// ============================================================
+// DETAIL TABLES
+// ============================================================
+function sortDetail(col){
+  if(STATE.detailSort.col===col)STATE.detailSort.asc=!STATE.detailSort.asc;
+  else{STATE.detailSort.col=col;STATE.detailSort.asc=false;}
+  STATE.detailPage=1;renderDetailTable();
+}
+function renderDetailTable(){
+  populateEditDatalists();
+  const s=(document.getElementById('table-search')||{}).value||'';
+  let data=[...(STATE.filtered||[])].filter(r=>!r.comprado);
+  if(s){const sl=s.toLowerCase();data=data.filter(r=>Object.values(r).some(v=>v&&v.toString().toLowerCase().includes(sl)));}
+  const col=STATE.detailSort.col;
+  data.sort((a,b)=>{let va=a[col],vb=b[col];if(va instanceof Date)va=va.getTime();if(vb instanceof Date)vb=vb.getTime();if(va==null)return 1;if(vb==null)return-1;if(typeof va==='string')return STATE.detailSort.asc?va.localeCompare(vb):vb.localeCompare(va);return STATE.detailSort.asc?va-vb:vb-va;});
+  const total=data.length,pages=Math.max(1,Math.ceil(total/STATE.detailPageSize));
+  if(STATE.detailPage>pages)STATE.detailPage=pages;
+  const rows=data.slice((STATE.detailPage-1)*STATE.detailPageSize,STATE.detailPage*STATE.detailPageSize);
+  const tb=document.getElementById('detail-tbody');if(!tb)return;
+  if(!rows.length){tb.innerHTML='<tr><td colspan="20" style="text-align:center;padding:40px;color:var(--text3)">Nenhum avaliado</td></tr>';return;}
+  tb.innerHTML=rows.map(r=>{
+    const fp=r.pctFipe?r.pctFipe.toFixed(1)+'%':'—',fc=r.pctFipe?(r.pctFipe<80?'fipe-low':r.pctFipe<95?'fipe-mid':'fipe-high'):'';
+    const cb=r.comprado?'<span class="badge badge-green">Sim</span>':'<span class="badge badge-gray">Não</span>';
+    return`<tr><td>${escHtml(r.idAv||'—')}</td><td>${fmtDate(r.dataAv)}</td>${editLojaCell(r)}${editVendedorCell(r)}
+      <td>${escHtml(r.precificador||'—')}</td><td>${r.objetivo?`<span class="badge badge-${r.objetivo==='REPASSE'?'purple':'blue'}">${escHtml(r.objetivo)}</span>`:'—'}</td>
+      <td>${r.tipo?`<span class="badge badge-gray">${escHtml(r.tipo)}</span>`:'—'}</td>
+      <td>${r.valorAv?'R$ '+Number(r.valorAv).toLocaleString('pt-BR'):'—'}</td>
+      <td>${r.fipe?'R$ '+Number(r.fipe).toLocaleString('pt-BR'):'—'}</td>
+      <td class="${fc}">${fp}</td><td>${escHtml(r.placa||'—')}</td>
+      <td>${escHtml(r.marca||'—')}</td><td>${escHtml(r.modelo||'—')}</td>
+      <td>${r.km?Number(r.km).toLocaleString('pt-BR'):'—'}</td>
+      <td>${cb}</td>${editableBuyerCells(r)}</tr>`;
+  }).join('');
+  renderPagination('detail-pagination',pages,STATE.detailPage,p=>{STATE.detailPage=p;renderDetailTable();},`${total} avaliados não comprados`);
+}
+
+function exportarDiagnostico(){
+  // Exporta um retrato compacto do pipeline para o Claude analisar a planilha
+  // inteira. Inclui SOMENTE identificadores e datas — nenhum valor financeiro.
+  const av = (STATE.avaliacoes||[]).map(r=>({
+    idAv: r.idAv||'', placa: normPlaca(r.placa), chassi: normChassi(r.chassi),
+    empresa: r.empresa||'', empresaEquipe: r.empresaEquipe||'',
+    dataAv: dateStr(r.dataAv)||'', comprado: !!r.comprado,
+    dataCompra: r.compraInput?(dateStr(r.dataCompraInput)||''):''
+  }));
+  const cpRaw = (STATE._snapCompradosRaw||[]).map(c=>({
+    placa: normPlaca(c.placa), chassi: normChassi(c.chassi), empresa: c.empresa||'', dataCompra: dateStr(c.dataCompra)||''
+  }));
+  const cpFinal = (STATE.comprados||[]).map(c=>({
+    placa: normPlaca(c.placa), chassi: normChassi(c.chassi), empresa: c.empresa||'', dataCompra: dateStr(c.dataCompra)||''
+  }));
+  const payload = {
+    build: BUILD_TAG,
+    geradoEm: new Date().toISOString(),
+    dedupLigado: dedupAvaliacoesAtivo(),
+    lojasPermitidas: (SESSION&&SESSION.lojasPermitidas)||[],
+    contagem: STATE._contagem||null,
+    totais: {
+      avaliacoes: av.length,
+      compradosBrutos: cpRaw.length,
+      compradosFinais: cpFinal.length,
+      vinculados: av.filter(r=>r.comprado).length,
+      compradosSemAvaliacao: (STATE._compradosSemAv||[]).length
+    },
+    compradosSemAvaliacao: (STATE._compradosSemAv||[]).map(c=>({placa:normPlaca(c.placa),chassi:normChassi(c.chassi),empresa:c.empresa||'',dataCompra:dateStr(c.dataCompra)||''})),
+    avaliacoes: av,
+    compradosBrutos: cpRaw,
+    compradosFinais: cpFinal
+  };
+  const blob = new Blob([JSON.stringify(payload,null,1)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'diagnostico-dados.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  showToast('Arquivo diagnostico-dados.json baixado. Suba-o no repositório para o Claude analisar.', 'success');
+}
+
+function rastrearPlacas(){
+  const out = document.getElementById('rastreio-resultado');
+  if(!out) return;
+  const txt = (document.getElementById('rastreio-placas')||{}).value || '';
+  const entradas = txt.split(/[\s,;]+/).map(s=>s.trim()).filter(Boolean);
+  if(!entradas.length){ out.innerHTML='<span style="color:var(--text3);font-size:13px">Cole ao menos uma placa.</span>'; return; }
+
+  const raw = STATE._snapCompradosRaw || [];
+  const dedup = STATE._snapCompradosDedup || [];
+  const finalCp = STATE.comprados || []; // após dedup + restrição por loja
+  const avs = STATE.avaliacoes || [];
+  const orfaos = STATE._compradosSemAv || [];
+
+  const achaPorPlaca = (lista, pn) => lista.filter(c => normPlaca(c.placa)===pn || normChassi(c.chassi)===pn);
+  const linhas = entradas.map(orig=>{
+    const pn = normPlaca(orig); // normaliza como placa
+    const inRaw = achaPorPlaca(raw, pn);
+    const inDedup = achaPorPlaca(dedup, pn);
+    const inFinal = achaPorPlaca(finalCp, pn);
+    const avMatch = avs.filter(a => normPlaca(a.placa)===pn || normChassi(a.chassi)===pn);
+    const linked = avs.filter(a => a.compraInput && (normPlaca(a.placa)===pn || normChassi(a.chassi)===pn));
+    const orf = orfaos.filter(c => normPlaca(c.placa)===pn || normChassi(c.chassi)===pn);
+
+    // Determina o veredito / onde some
+    let verdict='', cor='';
+    if(linked.length){ verdict='✅ Vinculada e contada como comprada'; cor='#10b981'; }
+    else if(!inRaw.length){ verdict='❌ NÃO está na aba COMPRADOS (verifique grafia/coluna)'; cor='#ef4444'; }
+    else if(inRaw.length && !inDedup.length){ verdict='⚠️ Removida como DUPLICADA na aba COMPRADOS'; cor='#f59e0b'; }
+    else if(inDedup.length && !inFinal.length){ verdict='⚠️ Removida pela RESTRIÇÃO POR LOJA (loja não permitida p/ seu usuário)'; cor='#f59e0b'; }
+    else if(inFinal.length && !avMatch.length){ verdict='❌ Sem AVALIAÇÃO com essa placa/chassi (placa só existe em COMPRADOS)'; cor='#ef4444'; }
+    else if(orf.length){ verdict='❌ Comprado órfão — não casou com avaliação'; cor='#ef4444'; }
+    else { verdict='ℹ️ Está em comprados e há avaliação, mas não vinculou (verifique data/empresa)'; cor='#3b82f6'; }
+
+    const det = `bruto:${inRaw.length} · pós-dedup:${inDedup.length} · pós-loja:${inFinal.length} · avaliações:${avMatch.length} · vinculada:${linked.length?'sim':'não'}`;
+    const empresas = [...new Set(inRaw.map(c=>c.empresa).filter(Boolean))].join(', ');
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:6px 10px;font-family:monospace;font-weight:600">${escHtml(orig)}</td>
+      <td style="padding:6px 10px;color:${cor};font-size:12px">${verdict}</td>
+      <td style="padding:6px 10px;color:var(--text3);font-size:11px;font-family:monospace">${det}</td>
+      <td style="padding:6px 10px;color:var(--text3);font-size:11px">${escHtml(empresas||'—')}</td>
+    </tr>`;
+  }).join('');
+
+  const semSnap = (!STATE._snapCompradosRaw) ? '<div style="color:#f59e0b;font-size:12px;margin-bottom:8px">⚠️ Dados carregados do cache — clique em "Atualizar agora" para um rastreio completo (bruto/dedup).</div>' : '';
+  out.innerHTML = semSnap + `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead><tr style="text-align:left;color:var(--text3);font-size:11px;text-transform:uppercase">
+      <th style="padding:6px 10px">Placa</th><th style="padding:6px 10px">Diagnóstico</th><th style="padding:6px 10px">Detalhe (contagens)</th><th style="padding:6px 10px">Empresa(s)</th>
+    </tr></thead><tbody>${linhas}</tbody></table></div>`;
+}
+
+function renderCompradosSemAvPanel(){
+  const el=document.getElementById('comprados-sem-av-panel');
+  if(!el)return;
+  const todos=STATE._compradosSemAv||[];
+  // Respeita o filtro de datas do dashboard: mostra só os órfãos cuja DATA DE
+  // COMPRA está no intervalo selecionado (Data Inicial/Final). Sem datas = todos.
+  const {ini,fim}=getDateRange();
+  const lista=(ini||fim) ? todos.filter(c=>inRange(c.dataCompra,ini,fim)) : todos;
+  if(!lista.length){ el.innerHTML=''; return; }
+  const filtrado=(ini||fim) && lista.length!==todos.length;
+  const nInvalidos=lista.filter(c=>c.vinInvalido).length;
+  const master=isMaster();
+  const linhas=lista.map(c=>{
+    const vin=c.chassi||'';
+    const keyArg=String(vin||c.placa||'').replace(/'/g,'');
+    const invalido=c.vinInvalido;
+    const selo=invalido?`<span style="display:inline-block;background:rgba(239,68,68,0.15);color:#ef4444;border-radius:6px;padding:1px 6px;margin-left:6px;font-size:10px;font-weight:700;letter-spacing:.3px">VIN INVÁLIDO</span>`:'';
+    // Placa do comprado órfão. Em geral vem vazia (a planilha repete o VIN na
+    // coluna placa), então o master pode digitar a placa real e salvar.
+    const placaAtual = c.placa && !looksLikeChassi(c.placa) ? c.placa : '';
+    const placaCell = master
+      ? `<div style="display:flex;gap:4px;align-items:center">
+           <input class="edit-cell-input" id="orf-placa-${escHtml(keyArg)}" value="${escHtml(placaAtual)}" placeholder="Placa…" style="width:110px;text-transform:uppercase" maxlength="8" oninput="this.value=this.value.toUpperCase()">
+           <button class="btn btn-blue" style="padding:3px 8px;font-size:11px" onclick="salvarPlacaOrfao('${escHtml(keyArg)}')">💾</button>
+         </div>`
+      : (placaAtual ? `<span style="font-family:monospace">${escHtml(placaAtual)}</span>` : '<span style="color:var(--text3)">—</span>');
+    const incluirBtn = master
+      ? `<button class="btn btn-primary" style="padding:3px 9px;font-size:11px;white-space:nowrap" onclick="incluirOrfaoManualmente('${escHtml(keyArg)}')">➕ Incluir manual</button>`
+      : '';
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:6px 8px;font-family:monospace;font-weight:600;color:var(--text)">${escHtml(vin||'(sem VIN)')}${selo}</td>
+      <td style="padding:6px 8px">${escHtml(c.modelo||'—')}</td>
+      <td style="padding:6px 8px">${escHtml(c.empresa||'—')}</td>
+      <td style="padding:6px 8px">${escHtml(c.vendedor||'—')}</td>
+      <td style="padding:6px 8px">${c.dataCompra?fmtDate(parseDate(c.dataCompra)):'—'}</td>
+      <td style="padding:6px 8px">${placaCell}</td>
+      <td style="padding:6px 8px;text-align:right">${incluirBtn}</td>
+    </tr>`;
+  }).join('');
+  el.innerHTML=`
+    <div style="margin-bottom:14px;padding:14px;border:1px solid rgba(245,158,11,0.35);background:rgba(245,158,11,0.07);border-radius:var(--r2)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <strong style="color:var(--accent);font-size:14px">⚠️ ${lista.length} comprado(s) órfão(s) — sem avaliação correspondente</strong>
+        ${nInvalidos?`<span style="font-size:11px;color:#ef4444">· ${nInvalidos} com VIN inválido (erro de cadastro)</span>`:''}
+        ${filtrado?`<span style="font-size:11px;color:var(--text3)">· filtrado pelo período (${todos.length} no total)</span>`:''}
+      </div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:10px;line-height:1.5">
+        Estes comprados não casaram com nenhuma avaliação (nem por <strong>VIN</strong> nem por <strong>placa</strong>).
+        ${master?'Digite a <strong>placa real</strong> e clique em 💾 — se ela bater com uma avaliação, o carro deixa de ser órfão. Ou use <strong>➕ Incluir manual</strong> para registrar o comprado completo.':'Entre com a senha <strong>master</strong> para corrigir a placa ou incluir manualmente.'}
+        Itens com <strong style="color:#ef4444">VIN inválido</strong> (≠ 17 caracteres/fictício) são provável erro de digitação do chassi.
+      </div>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="text-align:left;color:var(--text3);font-size:10.5px;text-transform:uppercase">
+          <th style="padding:6px 8px">VIN (chassi)</th><th style="padding:6px 8px">Modelo</th><th style="padding:6px 8px">Loja</th>
+          <th style="padding:6px 8px">Vendedor</th><th style="padding:6px 8px">Compra</th><th style="padding:6px 8px">Placa</th><th></th>
+        </tr></thead><tbody>${linhas}</tbody></table></div>
+    </div>`;
+}
+// Acha o comprado órfão correspondente (por VIN; se não houver, pela placa).
+function acharCompradoOrfao(key){
+  const k=normChassi(key)||normPlaca(key);
+  return (STATE.comprados||[]).find(c=>!isInclusaoManual(c) && (normChassi(c.chassi)===k || normPlaca(c.placa)===k));
+}
+// Master digita/corrige a placa de um órfão. Persiste e recruza (pode vincular).
+function salvarPlacaOrfao(key){
+  if(!isMaster()){ showToast('Apenas master pode editar a placa.','error'); return; }
+  const inp=document.getElementById('orf-placa-'+key);
+  const placa=normPlaca(inp?inp.value:'');
+  if(!placa){ showToast('Digite uma placa.','error'); return; }
+  const comprado=acharCompradoOrfao(key);
+  if(!comprado){ showToast('Comprado não encontrado.','error'); return; }
+  comprado.placa=placa;
+  setPlacaOverride(comprado.chassi||key, placa);   // durável entre recargas do Sheets
+  crossJoin(); applyFilters();
+  renderDashboard(); renderDetailCompradosTable();
+  const aindaOrfao=(STATE._compradosSemAv||[]).some(o=>normChassi(o.chassi)===normChassi(comprado.chassi));
+  showToast(aindaOrfao ? 'Placa salva. Ainda sem avaliação com essa placa.' : '✅ Placa salva e vinculada a uma avaliação!', aindaOrfao?'info':'success');
+}
+// Abre a aba Inclusão Manual já preenchida com os dados do órfão.
+function incluirOrfaoManualmente(key){
+  if(!isMaster()){ showToast('Apenas master pode incluir.','error'); return; }
+  const c=acharCompradoOrfao(key);
+  if(!c){ showToast('Comprado não encontrado.','error'); return; }
+  const btn=document.querySelector('#main-tabs .tab-btn[data-tab="inclusao-manual"]');
+  switchTab('inclusao-manual', btn);
+  // Guarda o VIN do órfão de origem: ao salvar, a inclusão manual substitui
+  // o comprado original (que some da base e do painel de órfãos).
+  window.__imVinReferencia = normChassi(c.chassi)||'';
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.value=v||'';};
+  const placa = c.placa && !looksLikeChassi(c.placa) ? c.placa : '';
+  set('im-placa', normPlaca(placa));
+  set('im-modelo', c.modelo||'');
+  set('im-data', c.dataCompra?dateStr(parseDate(c.dataCompra)):'');
+  // Loja PRIMEIRO: seleciona e repopula os vendedores daquela unidade.
+  const selL=document.getElementById('im-loja');
+  if(selL && c.empresa){
+    // A loja do comprado órfão pode ter grafia diferente da unidade em Equipes:
+    // casa exata ou por similaridade com uma das opções do dropdown.
+    const opts=[...selL.options].map(o=>o.value).filter(Boolean);
+    const match = opts.find(o=>normHdrEmpresa(o)===normHdrEmpresa(c.empresa))
+               || opts.find(o=>empresaSimilarity(o,c.empresa)>=90);
+    if(match) selL.value=match;
+  }
+  populateImVendedores();
+  // Vendedor: usa a grafia canônica; se existir na lista da loja seleciona,
+  // senão usa "Outro" com o texto.
+  const selV=document.getElementById('im-vendedor-sel');
+  if(selV && c.vendedor){
+    const canon=canonicalVendedor(c.vendedor);
+    const existe=[...selV.options].some(o=>o.value===canon);
+    if(existe){ selV.value=canon; onImVendedorChange(); }
+    else{ selV.value='__outro__'; onImVendedorChange(); set('im-vendedor-novo', canon); }
+  }
+  imFeedback('Dados do órfão carregados. Complete Valor, FIPE, KM e Ano e clique em Salvar.','info');
+  showToast('Formulário pré-preenchido com o órfão.','success');
+}
+function renderDetailCompradosTable(){
+  populateEditDatalists();
+  renderCompradosSemAvPanel();
+  const s=(document.getElementById('table-search-comprados')||{}).value||'';
+  let data=[...(STATE.filtered||STATE.avaliacoes||[])].filter(r=>r.comprado);
+  if(s){const sl=s.toLowerCase();data=data.filter(r=>Object.values(r).some(v=>v&&v.toString().toLowerCase().includes(sl)));}
+  data.sort((a,b)=>(getCompraDate(b)?.getTime()||0)-(getCompraDate(a)?.getTime()||0));
+  const ps=50,total=data.length,pages=Math.max(1,Math.ceil(total/ps));
+  if(STATE.detailCompradosPage>pages)STATE.detailCompradosPage=pages;
+  const rows=data.slice((STATE.detailCompradosPage-1)*ps,STATE.detailCompradosPage*ps);
+  const tb=document.getElementById('detail-comprados-tbody');if(!tb)return;
+  if(!rows.length){tb.innerHTML='<tr><td colspan="14" style="text-align:center;padding:40px;color:var(--text3)">Nenhum comprado</td></tr>';return;}
+  tb.innerHTML=rows.map(r=>`<tr><td>${fmtDate(getCompraDate(r))}</td><td>${fmtDate(r.dataAv)}</td><td>${escHtml(r.empresaCompraInput||'—')}</td>${editLojaCell(r)}
+    ${editVendedorCell(r)}<td>${escHtml(r.placa||'—')}</td><td>${escHtml(r.modelo||'—')}</td><td>${escHtml(r.objetivo||'—')}</td>
+    <td>${r.valorAv?'R$ '+Number(r.valorAv).toLocaleString('pt-BR'):'—'}</td>${editableBuyerCells(r)}</tr>`).join('');
+  renderPagination('detail-comprados-pagination',pages,STATE.detailCompradosPage,p=>{STATE.detailCompradosPage=p;renderDetailCompradosTable();},`${total} comprados`);
+}
+
+// ============================================================
+// VISAO COMPRADOR
+// ============================================================
+function ensureCompradorFilterPanel(){
+  const panel=document.getElementById('cv-filter-panel'); if(!panel) return;
+  if(!panel.dataset.ready){
+    panel.className='comprador-filter-panel';
+    panel.innerHTML=`
+      <div class="section-title" style="margin-bottom:12px">Filtros da Visão Comprador</div>
+      <div class="comprador-filter-grid">
+        <div><label>Data Inicial</label><input type="date" id="cv-f-data-ini" onchange="renderCompradorVis()"></div>
+        <div><label>Data Final</label><input type="date" id="cv-f-data-fim" onchange="renderCompradorVis()"></div>
+        <div><label>Lojas / Empresas</label><input type="text" id="cv-f-empresa" list="cv-dl-empresa" placeholder="Todas" oninput="populateCompradorFilterOptions();renderCompradorVis()"><datalist id="cv-dl-empresa"></datalist></div>
+        <div><label>Vendedores</label><input type="text" id="cv-f-vendedor" list="cv-dl-vendedor" placeholder="Todos" oninput="renderCompradorVis()"><datalist id="cv-dl-vendedor"></datalist></div>
+        <div><label>Precificador</label><input type="text" id="cv-f-precificador" list="cv-dl-precificador" placeholder="Todos" oninput="renderCompradorVis()"><datalist id="cv-dl-precificador"></datalist></div>
+        <div><label>Objetivo</label><input type="text" id="cv-f-objetivo" list="cv-dl-objetivo" placeholder="Todos" oninput="renderCompradorVis()"><datalist id="cv-dl-objetivo"></datalist></div>
+        <div><label>Tipo</label><input type="text" id="cv-f-tipo" list="cv-dl-tipo" placeholder="Todos" oninput="renderCompradorVis()"><datalist id="cv-dl-tipo"></datalist></div>
+        <div><label>Placa</label><input type="text" id="cv-f-placa" placeholder="ABC1234" oninput="renderCompradorVis()"></div>
+        <div><label>Melhorado</label><select id="cv-f-melhorado" onchange="renderCompradorVis()"><option value="">Todos</option><option value="Sim">Sim</option><option value="Não">Não</option></select></div>
+        <div><label>Comprado</label><select id="cv-f-comprado" onchange="renderCompradorVis()"><option value="">Todos</option><option value="Sim">Sim</option><option value="Não">Não</option></select></div>
+        <div><label>Negócio fechado</label><select id="cv-f-negocio" onchange="renderCompradorVis()"><option value="">Todos</option><option value="Sim">Sim</option><option value="Não">Não</option></select></div>
+        <div><label>Comprador</label><input type="text" id="cv-f-comprador" list="cv-dl-comprador" placeholder="Todos" oninput="renderCompradorVis()"><datalist id="cv-dl-comprador"></datalist></div>
+        <div><label>Modelo</label><input type="text" id="cv-f-modelo" list="cv-dl-modelo" placeholder="Todos" oninput="renderCompradorVis()"><datalist id="cv-dl-modelo"></datalist></div>
+      </div>
+      <div class="filters-actions"><button class="btn btn-ghost" onclick="clearCompradorFilters()">✕ Limpar</button><button class="btn btn-primary" onclick="renderCompradorVis()">🔍 Aplicar</button></div>`;
+    panel.dataset.ready='1';
+  }
+  populateCompradorFilterOptions();
+}
+// Funções da VISÃO COMPRADOR movidas para js/comprador.js (Sprint 5.4):
+// populateCompradorFilterOptions, passesCompradorVisFilters,
+// clearCompradorFilters, renderCompradorVis. Permanecem aqui os helpers
+// ensureCompradorFilterPanel, cvVal e getCompradorVisData.
+function cvVal(id){ return (document.getElementById(id)?.value||'').trim(); }
+function getCompradorVisData(){ return (STATE.avaliacoes||[]).filter(passesCompradorVisFilters); }
+
+// ============================================================
+// PAGINATION
+// ============================================================
+function renderPagination(id,pages,cur,onPage,info){
+  const el=document.getElementById(id);if(!el)return;
+  const max=7,btns=[];for(let p=1;p<=Math.min(pages,max);p++)btns.push(p);
+  el.innerHTML=`<span>${info}</span><div class="pag-btns">
+    <button class="pag-btn" onclick="(${onPage})(${Math.max(1,cur-1)})" ${cur<=1?'disabled':''}>‹</button>
+    ${btns.map(p=>`<button class="pag-btn ${p===cur?'active':''}" onclick="(${onPage})(${p})">${p}</button>`).join('')}
+    ${pages>max?`<span style="padding:0 8px;color:var(--text3)">...</span><button class="pag-btn ${cur===pages?'active':''}" onclick="(${onPage})(${pages})">${pages}</button>`:''}
+    <button class="pag-btn" onclick="(${onPage})(${Math.min(pages,cur+1)})" ${cur>=pages?'disabled':''}>›</button>
+  </div>`;
+}
+
+// ============================================================
+// EXPORT
+// ============================================================
+// Domínio EXPORTAÇÕES movido para js/exports.js (Sprint 5.5 — script clássico,
+// carregado ANTES deste arquivo): exportExcel, getCurrentBgColor,
+// getCurrentCardColor, rgbFromCssColor, withCleanExport, exportPDF, exportJPEG
+// (e, mais abaixo, exportSectionImage/WhatsApp e exportAnalyticsPDF/Image).
+// XLSX/jsPDF/html2canvas são acessados só em runtime (libs no <head>).
+
+// ============================================================
+// TOAST
+// ============================================================
+
+function extractGoogleSpreadsheetId(input) {
+  const raw = String(input || '').trim();
+  if (!raw) return '';
+  // Aceita URL completa: https://docs.google.com/spreadsheets/d/ID/edit...
+  const match = raw.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  if (match && match[1]) return match[1];
+  // Aceita somente o ID da planilha
+  const clean = raw.replace(/[?#].*$/, '').replace(/\/$/, '').trim();
+  return clean;
+}
+
+function getImportErrorMessage(err) {
+  const msg = String(err && err.message ? err.message : err || 'Erro desconhecido');
+  if (/not found|não encontrado|cannot find|arquivo/i.test(msg)) {
+    return 'Não encontrei a planilha. Confira se a URL/ID está correto e se a planilha está compartilhada com a conta do Apps Script.';
+  }
+  if (/permission|permiss|access|acesso|403/i.test(msg)) {
+    return 'Sem permissão para acessar a planilha. Compartilhe a planilha com a conta Google usada no Apps Script ou deixe o acesso por link habilitado.';
+  }
+  if (/sheet|aba|range/i.test(msg)) {
+    return 'A aba informada não foi encontrada. Confira o nome da aba ou deixe o campo Aba em branco.';
+  }
+  if (/timeout|demorou|exceeded/i.test(msg)) {
+    return 'A importação demorou demais. Tente importar novamente ou dividir a planilha em uma quantidade menor de linhas.';
+  }
+  return msg;
+}
+
+async function importFromGoogleSheets(mode) {
+  const inputEl = document.getElementById('sheets-import-url');
+  const tabEl = document.getElementById('sheets-import-tab');
+  const rawUrl = inputEl ? inputEl.value.trim() : '';
+  const spreadsheetId = extractGoogleSpreadsheetId(rawUrl);
+  const tab = tabEl ? tabEl.value.trim() : '';
+
+  if (!spreadsheetId) {
+    showToast('Cole a URL ou o ID da planilha Google.', 'error');
+    return;
+  }
+  if (spreadsheetId.includes('docs.google.com') || spreadsheetId.length < 20) {
+    showToast('URL/ID da planilha inválido. Cole a URL completa do Google Sheets ou somente o ID.', 'error');
+    return;
+  }
+
+  const modeLabel = mode === 'replace' ? 'Substituindo base' : 'Incluindo na base';
+  showLoading(modeLabel + ' via Google Sheets...');
+
+  try {
+    const payload = {
+      action: 'importFromSheet',
+      spreadsheetId,
+      sheetId: spreadsheetId,
+      sheetUrl: rawUrl,
+      sheetName: tab || null,
+      targetAba: 'AVALIACOES',
+      mode,
+      usuario: SESSION.nome,
+      perfil: SESSION.perfil
+    };
+
+    const result = await callAPI(payload);
+
+    // Após importar, força atualização e limpa o cache antigo para não mostrar dado velho.
+    localStorage.removeItem(DATA_CACHE_KEY);
+    showToast('✅ ' + (result.inserted || result.replaced || result.count || 0) + ' avaliações importadas!' + (result.duplicates ? ' ' + result.duplicates + ' duplicatas ignoradas.' : ''), 'success');
+    await loadDataFromSheets(true);
+  } catch(e) {
+    showToast('Erro na importação: ' + getImportErrorMessage(e), 'error');
+    console.error('Erro importFromGoogleSheets:', e);
+  } finally {
+    hideLoading();
+  }
+}
+
+function showToast(msg,type='info'){
+  const c=document.getElementById('toast-container');
+  const ic={success:'✅',error:'❌',info:'ℹ️'};
+  const t=document.createElement('div');t.className=`toast ${type}`;
+  t.innerHTML=`<span>${ic[type]}</span><span>${escHtml(msg)}</span>`;
+  c.appendChild(t);
+  setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity 0.3s';setTimeout(()=>t.remove(),400);},3500);
+}
+
+// ============================================================
+// SMART CACHE
+// ============================================================
+const DATA_CACHE_KEY = 'carmais_data_cache_v1';
+const DATA_CACHE_TTL = 30 * 60 * 1000;
+
+function saveDataCache(data) {
+  try { localStorage.setItem(DATA_CACHE_KEY, JSON.stringify({ timestamp: Date.now(), data })); } catch(e) {}
+}
+function loadDataCache() {
+  try {
+    const raw = localStorage.getItem(DATA_CACHE_KEY);
+    if (!raw) return null;
+    const p = JSON.parse(raw);
+    const age = Date.now() - p.timestamp;
+    if (age > DATA_CACHE_TTL) return null;
+    return { data: p.data, ageMin: Math.floor(age / 60000) };
+  } catch(e) { return null; }
+}
+function restoreDates(r) {
+  if (r.dataAv) r.dataAv = new Date(r.dataAv);
+  if (r.dataMelhoria) r.dataMelhoria = new Date(r.dataMelhoria);
+  if (r.dataCompraInput) r.dataCompraInput = new Date(r.dataCompraInput);
+  return r;
+}
+
+// ============================================================
+// AI ASSISTANT — COPILOTO CARMAIS
+// ============================================================
+const AI_HISTORY = [];
+
+const GEMINI_MODEL = localStorage.getItem('carmais_gemini_model') || 'gemini-3.1-flash-lite';
+const GEMINI_FALLBACK_MODELS = [
+  GEMINI_MODEL,
+  'gemini-3.1-flash-lite',
+  'gemini-2.5-flash-lite',
+  'gemini-2.5-flash'
+].filter((model, idx, arr) => model && arr.indexOf(model) === idx);
+
+function getGeminiModelLabel(model) {
+  const labels = {
+    'gemini-3.5-flash':'Gemini 3.5 Flash',
+    'gemini-3.1-flash-lite':'Gemini 3.1 Flash Lite',
+    'gemini-2.5-flash-lite':'Gemini 2.5 Flash Lite',
+    'gemini-2.5-flash':'Gemini 2.5 Flash'
+  };
+  return labels[model] || model;
+}
+
+function isTemporaryGeminiError(status, message) {
+  const m = String(message || '').toLowerCase();
+  return status === 429 || status === 503 || status === 500 ||
+    m.includes('high demand') || m.includes('overloaded') || m.includes('temporar') || m.includes('unavailable');
+}
+
+async function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function saveGeminiModel(model) {
+  if (!model) return;
+  localStorage.setItem('carmais_gemini_model', model);
+  showToast('Modelo Gemini salvo: ' + getGeminiModelLabel(model), 'success');
+}
+
+function initGeminiModelUI() {
+  const sel = document.getElementById('gemini-model-select');
+  if (sel) sel.value = localStorage.getItem('carmais_gemini_model') || GEMINI_MODEL;
+}
+
+
+const PROMPT_COPILOTO_CARMAIS = `
+Você é o Copiloto Carmais, um agente de inteligência comercial do Relatório de Avaliações de Seminovos do Grupo Carmais.
+
+Você analisa avaliações de veículos, compras realizadas, conversão por loja, conversão por vendedor, placas melhoradas, valores avaliados, valores melhorados, compradores responsáveis e negócios fechados.
+
+Seu objetivo é transformar dados em leitura gerencial simples, direta e acionável.
+
+Tom de voz:
+- Executivo
+- Curto
+- Claro
+- Prático
+- Sem enrolação
+- Sem excesso de markdown
+- Linguagem de diretor comercial, não de robô genérico
+
+Regras:
+1. Use apenas os dados enviados pelo sistema.
+2. Não invente números, nomes, placas, lojas, vendedores ou compradores.
+3. Quando não houver dados suficientes, informe claramente: "Não tenho dados suficientes para essa análise."
+4. Responda sempre em português do Brasil.
+5. Sempre destaque o principal ponto de atenção.
+6. Sempre sugira uma ação prática.
+7. Evite respostas com mais de 12 linhas.
+8. Não use muitos asteriscos, negrito, ## ou tabelas longas.
+9. Não responda como robô genérico.
+10. Priorize conversão, volume, lojas abaixo da média, vendedores abaixo da média, placas melhoradas sem fechamento e oportunidades perdidas.
+11. Quando o usuário pedir resumo, entregue uma leitura de diretoria.
+12. Quando houver bom desempenho, destaque o que deve ser mantido.
+13. Quando houver baixa conversão, indique uma ação comercial prática.
+14. Se houver filtros aplicados, considere apenas o período/filtro atual.
+15. Não diga que é uma IA.
+
+A conversão é calculada como compras / avaliações * 100.
+
+Formato padrão obrigatório das respostas:
+
+Resumo:
+[leitura objetiva]
+
+Ponto de atenção:
+[principal problema ou oportunidade]
+
+Leitura gerencial:
+[o que isso significa para o negócio]
+
+Ação recomendada:
+[ação prática para executar]
+
+Responda seguindo exatamente esse formato, com no máximo 2 frases curtas por bloco.
+`;
+
+function saveGeminiKey(key) {
+  const k = (key||'').trim();
+  if (k) {
+    localStorage.setItem('carmais_gemini_key', k);
+    const lgk = document.getElementById('login-gemini-key');
+    if (lgk) lgk.value = k;
+    showToast('Chave API Gemini salva!', 'success');
+  }
+  const setup = document.getElementById('ai-key-setup');
+  if (setup) setup.style.display = k ? 'none' : 'block';
+}
+
+function saveGeminiKeyQuiet(key) {
+  const k = (key||'').trim();
+  if (!k) return;
+  localStorage.setItem('carmais_gemini_key', k);
+  const inp = document.getElementById('gemini-api-key');
+  if (inp) inp.value = k;
+  const setup = document.getElementById('ai-key-setup');
+  if (setup) setup.style.display = 'none';
+}
+
+function loadSavedGeminiKey() {
+  const k = localStorage.getItem('carmais_gemini_key') || '';
+  const lgk = document.getElementById('login-gemini-key');
+  if (lgk && k) lgk.value = k;
+}
+
+function initAIKeyUI() {
+  const key = localStorage.getItem('carmais_gemini_key') || '';
+  const inp = document.getElementById('gemini-api-key');
+  if (inp) inp.value = key;
+  const lgk = document.getElementById('login-gemini-key');
+  if (lgk && key) lgk.value = key;
+  const setup = document.getElementById('ai-key-setup');
+  if (setup) setup.style.display = key ? 'none' : 'block';
+  initGeminiModelUI();
+}
+
+function safePct(num, den) {
+  if (!den || den <= 0) return '0.0%';
+  return ((num / den) * 100).toFixed(1) + '%';
+}
+
+function safeMoney(v) {
+  const n = Number(v || 0);
+  if (!Number.isFinite(n) || n === 0) return null;
+  return n.toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
+}
+
+function countBy(list, keyFn) {
+  return list.reduce((acc, item) => {
+    const key = keyFn(item) || 'N/D';
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+}
+
+function topEntries(obj, limit = 15) {
+  return Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0, limit);
+}
+
+function prepareAIContext() {
+  const av = STATE.filtered || STATE.avaliacoes || [];
+  const cp = av.filter(r => !!r.comprado);
+  const mel = av.filter(r => r.melhorado === 'Sim');
+
+  const byModelo = countBy(av, r => r.modelo);
+  const byLojaAv = countBy(av, r => r.empresaEquipe || r.empresa);
+  const byLojaCp = countBy(cp, r => r.empresaEquipe || r.empresa);
+  const byVendedorAv = countBy(av, r => r.vendedor);
+  const byVendedorCp = countBy(cp, r => r.vendedor);
+  const byComprador = countBy(cp.filter(r => r.compradorNome), r => r.compradorNome);
+  const byObjetivoCp = countBy(cp, r => r.objetivo);
+  const byTipoAv = countBy(av, r => r.tipo);
+
+  const lojas = Object.keys({ ...byLojaAv, ...byLojaCp }).map(loja => {
+    const avaliados = byLojaAv[loja] || 0;
+    const comprados = byLojaCp[loja] || 0;
+    return { loja, avaliados, comprados, captacao: safePct(comprados, avaliados) };
+  }).sort((a,b) => parseFloat(a.captacao) - parseFloat(b.captacao));
+
+  const vendedores = Object.keys({ ...byVendedorAv, ...byVendedorCp }).map(vendedor => {
+    const avaliados = byVendedorAv[vendedor] || 0;
+    const comprados = byVendedorCp[vendedor] || 0;
+    return { vendedor, avaliados, comprados, captacao: safePct(comprados, avaliados) };
+  }).sort((a,b) => parseFloat(a.captacao) - parseFloat(b.captacao));
+
+  const placasMelhoradas = mel.slice(0,80).map(r => ({
+    placa:r.placa || 'N/D',
+    modelo:r.modelo || 'N/D',
+    loja:r.empresaEquipe || r.empresa || 'N/D',
+    vendedor:r.vendedor || 'N/D',
+    valorAvaliado:safeMoney(r.valorAv),
+    valorMelhorado:safeMoney(r.valorMelhorado),
+    dataAvaliacao:r.dataAv ? dateStr(r.dataAv) : null,
+    dataMelhoria:r.dataMelhoria ? dateStr(r.dataMelhoria) : null,
+    comprado:r.comprado ? 'Sim' : 'Não',
+    comprador:r.compradorNome || 'N/D'
+  }));
+
+  const datasAv = av.map(r=>r.dataAv?dateStr(r.dataAv):'').filter(Boolean).sort();
+  const datasCp = cp.map(r=>(r.dataCompraInput || r.dataAv)?dateStr(r.dataCompraInput || r.dataAv):'').filter(Boolean).sort();
+
+  const mediaPctFipe = av.filter(r => Number.isFinite(Number(r.pctFipe))).map(r => Number(r.pctFipe));
+  const mediaFipe = mediaPctFipe.length ? (mediaPctFipe.reduce((a,b)=>a+b,0) / mediaPctFipe.length).toFixed(1) + '%' : 'N/D';
+
+  const sample = av.slice(0,200).map(r=>({
+    data:dateStr(r.dataAv),
+    empresa:r.empresa,
+    lojaEquipe:r.empresaEquipe,
+    vendedor:r.vendedor,
+    precificador:r.precificador,
+    modelo:r.modelo,
+    placa:r.placa,
+    comprado:r.comprado?'Sim':'Não',
+    melhorado:r.melhorado,
+    comprador:r.compradorNome,
+    objetivo:r.objetivo,
+    tipo:r.tipo,
+    valorAvaliado:safeMoney(r.valorAv),
+    valorMelhorado:safeMoney(r.valorMelhorado),
+    pctFipe:r.pctFipe?Number(r.pctFipe).toFixed(1)+'%':null
+  }));
+
+  return `
+CONTEXTO DO DASHBOARD — COPILOTO CARMAIS
+
+PERÍODO DAS AVALIAÇÕES: ${datasAv[0]||'N/A'} a ${datasAv[datasAv.length-1]||'N/A'}
+PERÍODO DAS COMPRAS: ${datasCp[0]||'N/A'} a ${datasCp[datasCp.length-1]||'N/A'}
+TOTAL AVALIADOS NO FILTRO: ${av.length}
+TOTAL COMPRADOS NO FILTRO: ${cp.length}
+CAPTAÇÃO GERAL: ${safePct(cp.length, av.length)}
+TOTAL MELHORADOS: ${mel.length}
+MÉDIA % FIPE: ${mediaFipe}
+
+OBJETIVO DOS COMPRADOS: ${JSON.stringify(byObjetivoCp)}
+TIPOS DE VENDEDORES NAS AVALIAÇÕES: ${JSON.stringify(byTipoAv)}
+TOP MODELOS AVALIADOS: ${JSON.stringify(topEntries(byModelo, 20))}
+
+DESEMPENHO POR LOJA, ORDENADO DA MENOR PARA A MAIOR CAPTAÇÃO:
+${JSON.stringify(lojas)}
+
+DESEMPENHO POR VENDEDOR, ORDENADO DA MENOR PARA A MAIOR CAPTAÇÃO:
+${JSON.stringify(vendedores.slice(0,60))}
+
+COMPRAS POR COMPRADOR:
+${JSON.stringify(topEntries(byComprador, 30))}
+
+PLACAS MELHORADAS, AMOSTRA:
+${JSON.stringify(placasMelhoradas)}
+
+REGISTROS DETALHADOS, AMOSTRA MÁXIMA DE 200:
+${JSON.stringify(sample)}
+`;
+}
+
+// ------------------------------------------------------------
+// COPILOTO CARMAIS — leitura flexível de campos + resumo estruturado
+// Busca um valor entre vários nomes de campo possíveis (o sistema
+// pode usar nomenclaturas diferentes para o mesmo dado).
+// ------------------------------------------------------------
+function getValorCampo(item, possiveisCampos) {
+  for (const campo of possiveisCampos) {
+    if (item && item[campo] !== undefined && item[campo] !== null && item[campo] !== '') {
+      return item[campo];
+    }
+  }
+  return '';
+}
+
+const CAMPOS = {
+  placa:['placa','Placa','PLACA'],
+  loja:['empresaEquipe','empresa','loja','Loja','Empresa','EMPRESA','nomeLoja','nome_loja'],
+  vendedor:['vendedor','Vendedor','vendedorNome','nomeVendedor','Nome do Vendedor'],
+  valorAvaliado:['valorAv','valorAvaliado','valor_avaliado','Valor Avaliado','valor','Valor'],
+  valorMelhorado:['valorMelhorado','valor_melhorado','Valor Melhorado'],
+  melhorado:['melhorado','Melhorado'],
+  comprador:['compradorNome','comprador','Comprador'],
+  modelo:['modelo','Modelo','MODELO'],
+  data:['dataAv','data','Data','dataAvaliacao','Data Avaliação','dataCompra','Data Compra']
+};
+
+// Calcula ranking por um campo (loja ou vendedor) com avaliações,
+// compras e conversão. Ordena da maior conversão para a menor.
+function montarRankingPorCampo(avaliacoes, comprados, campo) {
+  const possiveis = CAMPOS[campo] || [campo];
+  const mapa = {};
+  (avaliacoes || []).forEach(item => {
+    const nome = getValorCampo(item, possiveis) || 'N/D';
+    if (!mapa[nome]) mapa[nome] = { nome, avaliacoes:0, compras:0 };
+    mapa[nome].avaliacoes++;
+  });
+  (comprados || []).forEach(item => {
+    const nome = getValorCampo(item, possiveis) || 'N/D';
+    if (!mapa[nome]) mapa[nome] = { nome, avaliacoes:0, compras:0 };
+    mapa[nome].compras++;
+  });
+  return Object.values(mapa).map(r => ({
+    nome:r.nome,
+    avaliacoes:r.avaliacoes,
+    compras:r.compras,
+    conversao: r.avaliacoes > 0 ? +((r.compras / r.avaliacoes) * 100).toFixed(1) : 0
+  })).sort((a,b) => (b.compras - a.compras) || (b.conversao - a.conversao));
+}
+
+// Monta um objeto resumido e enxuto com os dados ATUAIS do dashboard,
+// respeitando os filtros aplicados (usa STATE.filtered quando existe).
+function montarResumoRelatorioParaIA() {
+  // Respeita os filtros aplicados: STATE.filtered já é o recorte ativo.
+  const avaliacoes = (STATE.filtered && STATE.filtered.length ? STATE.filtered : STATE.avaliacoes) || [];
+  const comprados = avaliacoes.filter(r => !!r.comprado);
+  const melhoradas = avaliacoes.filter(r => getValorCampo(r, CAMPOS.melhorado) === 'Sim');
+
+  const totalAvaliacoes = avaliacoes.length;
+  const totalComprados = comprados.length;
+  const conversaoGeral = totalAvaliacoes > 0 ? +((totalComprados / totalAvaliacoes) * 100).toFixed(1) : 0;
+
+  const rankingLojas = montarRankingPorCampo(avaliacoes, comprados, 'loja').slice(0, 10);
+  const rankingVendedores = montarRankingPorCampo(avaliacoes, comprados, 'vendedor').slice(0, 10);
+
+  const placasMelhoradas = melhoradas.slice(0, 20).map(r => ({
+    placa:getValorCampo(r, CAMPOS.placa) || 'N/D',
+    modelo:getValorCampo(r, CAMPOS.modelo) || 'N/D',
+    loja:getValorCampo(r, CAMPOS.loja) || 'N/D',
+    vendedor:getValorCampo(r, CAMPOS.vendedor) || 'N/D',
+    valorAvaliado:safeMoney(getValorCampo(r, CAMPOS.valorAvaliado)),
+    valorMelhorado:safeMoney(getValorCampo(r, CAMPOS.valorMelhorado)),
+    negocioFechado:r.comprado ? 'Sim' : 'Não'
+  }));
+
+  // Oportunidades pendentes: avaliações ainda não compradas (foco em melhoradas sem fechamento).
+  const oportunidadesPendentes = avaliacoes
+    .filter(r => !r.comprado)
+    .sort((a,b) => (getValorCampo(b, CAMPOS.melhorado) === 'Sim' ? 1 : 0) - (getValorCampo(a, CAMPOS.melhorado) === 'Sim' ? 1 : 0))
+    .slice(0, 20)
+    .map(r => ({
+      placa:getValorCampo(r, CAMPOS.placa) || 'N/D',
+      modelo:getValorCampo(r, CAMPOS.modelo) || 'N/D',
+      loja:getValorCampo(r, CAMPOS.loja) || 'N/D',
+      vendedor:getValorCampo(r, CAMPOS.vendedor) || 'N/D',
+      melhorado:getValorCampo(r, CAMPOS.melhorado) || 'Não',
+      valorAvaliado:safeMoney(getValorCampo(r, CAMPOS.valorAvaliado))
+    }));
+
+  const f = (typeof STATE !== 'undefined' && STATE.filtros) ? STATE.filtros : {};
+  return {
+    filtrosAplicados:{
+      loja:f.loja || 'Todas',
+      vendedor:f.vendedor || 'Todos',
+      periodoInicio:f.dataInicio || f.periodoInicio || 'N/D',
+      periodoFim:f.dataFim || f.periodoFim || 'N/D',
+      melhorado:f.melhorado || 'Todos',
+      negocioFechado:f.comprado || f.negocioFechado || 'Todos',
+      comprador:f.comprador || 'Todos'
+    },
+    indicadoresGerais:{
+      totalAvaliacoes,
+      totalComprados,
+      conversaoGeral:conversaoGeral + '%',
+      totalPlacasMelhoradas:melhoradas.length,
+      negociosFechados:totalComprados,
+      avaliacoesNaoCompradas:totalAvaliacoes - totalComprados
+    },
+    rankingLojas,
+    rankingVendedores,
+    placasMelhoradas,
+    oportunidadesPendentes
+  };
+}
+
+// Limpa excesso de markdown e separa visualmente os 4 blocos da resposta.
+function formatarRespostaIA(texto) {
+  if (!texto) return '';
+  let resposta = String(texto).replace(/\*\*/g, '').replace(/\*/g, '').trim();
+  resposta = resposta
+    .replace(/Resumo:/gi, "<div class='ai-section'><strong>Resumo:</strong><br>")
+    .replace(/Ponto de atenção:/gi, "</div><div class='ai-section'><strong>Ponto de atenção:</strong><br>")
+    .replace(/Leitura gerencial:/gi, "</div><div class='ai-section'><strong>Leitura gerencial:</strong><br>")
+    .replace(/Ação recomendada:/gi, "</div><div class='ai-section'><strong>Ação recomendada:</strong><br>");
+  resposta += '</div>';
+  // Remove um div de abertura órfão, se a resposta não começar por "Resumo".
+  resposta = resposta.replace(/^<\/div>/, '');
+  return resposta;
+}
+
+async function callGeminiWithFallback(apiKey, payload) {
+  let lastError = null;
+  const models = GEMINI_FALLBACK_MODELS;
+
+  for (let i = 0; i < models.length; i++) {
+    const model = models[i];
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+          method:'POST',
+          headers:{
+            'Content-Type':'application/json',
+            'x-goog-api-key':apiKey
+          },
+          body:JSON.stringify(payload)
+        });
+
+        const data = await resp.json().catch(()=>({}));
+        if (resp.ok) return { data, modelUsed:model };
+
+        const message = data.error?.message || 'HTTP ' + resp.status;
+        lastError = new Error(message);
+        lastError.status = resp.status;
+
+        if (!isTemporaryGeminiError(resp.status, message)) {
+          throw lastError;
+        }
+
+        await sleep(700 * attempt);
+      } catch (err) {
+        lastError = err;
+        if (!isTemporaryGeminiError(err.status, err.message)) throw err;
+        await sleep(700 * attempt);
+      }
+    }
+  }
+
+  throw new Error(
+    (lastError && lastError.message)
+      ? 'Todos os modelos tentados estão temporariamente indisponíveis. Último erro: ' + lastError.message
+      : 'Não foi possível conectar ao Gemini.'
+  );
+}
+
+async function sendAIMessage(text) {
+  const inp = document.getElementById('ai-chat-input');
+  const msg = text || (inp ? inp.value.trim() : '');
+  if (!msg) return;
+
+  const apiKey = localStorage.getItem('carmais_gemini_key') || '';
+  if (!apiKey) {
+    showToast('Configure sua chave API Gemini na aba 🤖 IA.','error');
+    initAIKeyUI();
+    return;
+  }
+
+  if (inp) inp.value = '';
+  addAIChatMsg(msg, 'user');
+  const thinking = addAIChatMsg('⏳ Copiloto Carmais analisando os dados filtrados...', 'thinking');
+  const btn = document.getElementById('ai-send-btn');
+  if (btn) btn.disabled = true;
+
+  try {
+    const ctx = prepareAIContext();
+    // Resumo estruturado e enxuto (respeita filtros, limita volume) enviado junto ao contexto.
+    let resumoRelatorio = {};
+    try { resumoRelatorio = montarResumoRelatorioParaIA(); } catch(err) { resumoRelatorio = {}; }
+    AI_HISTORY.push({ role:'user', content:msg });
+
+    const recentHistory = AI_HISTORY.slice(-6).map((m, idx, arr) => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{
+        text: (m.role === 'user' && idx === arr.length - 1)
+          ? `${ctx}\n\nRESUMO ESTRUTURADO DO RELATÓRIO (JSON):\n${JSON.stringify(resumoRelatorio, null, 2)}\n\nPERGUNTA DO USUÁRIO, RESPONDA CURTO, SEM MARKDOWN, NO FORMATO PADRÃO (Resumo / Ponto de atenção / Leitura gerencial / Ação recomendada) E COM BASE EXCLUSIVA NOS DADOS ACIMA:\n${m.content}`
+          : m.content
+      }]
+    }));
+
+    const payload = {
+      systemInstruction:{ parts:[{ text:PROMPT_COPILOTO_CARMAIS }] },
+      contents: recentHistory,
+      generationConfig:{
+        temperature:0.3,
+        topP:0.8,
+        maxOutputTokens:600
+      }
+    };
+
+    const result = await callGeminiWithFallback(apiKey, payload);
+    const data = result.data;
+    if (result.modelUsed && result.modelUsed !== GEMINI_MODEL) {
+      addAIChatMsg('ℹ️ O modelo principal estava indisponível/sobrecarregado. Usei automaticamente: ' + getGeminiModelLabel(result.modelUsed) + '.', 'assistant');
+    }
+    const reply = (data.candidates?.[0]?.content?.parts || []).map(p=>p.text||'').join('') || 'Não consegui gerar uma resposta com os dados atuais.';
+    AI_HISTORY.push({ role:'assistant', content:reply });
+
+    thinking.remove();
+    addAIChatMsg(reply, 'assistant');
+  } catch(e) {
+    thinking.remove();
+    const msgErro = String(e.message || e);
+    const texto = msgErro.toLowerCase().includes('high demand') || msgErro.toLowerCase().includes('temporar') || msgErro.toLowerCase().includes('indispon')
+      ? '❌ O Gemini está temporariamente sobrecarregado. Eu já tentei modelos alternativos; aguarde alguns minutos e tente novamente. Você também pode trocar o modelo para Gemini 3.1 Flash Lite no seletor acima.'
+      : '❌ Erro: ' + msgErro;
+    addAIChatMsg(texto, 'assistant');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function cleanAIText(text) {
+  return String(text || '')
+    .replace(/\*\*/g, '')
+    .replace(/#{1,6}\s*/g, '')
+    .replace(/`{1,3}/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function extractAISections(text) {
+  const cleaned = cleanAIText(text);
+  // Formato padrão atual + compatibilidade com o formato antigo.
+  const labels = /Resumo\s*:/i.test(cleaned)
+    ? ['Resumo', 'Ponto de atenção', 'Leitura gerencial', 'Ação recomendada']
+    : ['O que aconteceu', 'Por que importa', 'O que fazer agora'];
+  const sections = [];
+
+  const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  labels.forEach((label, idx) => {
+    const next = labels[idx + 1];
+    const lbl = esc(label);
+    const pattern = next
+      ? new RegExp(lbl + '\\s*:?\\s*([\\s\\S]*?)(?=' + esc(next) + '\\s*:?)', 'i')
+      : new RegExp(lbl + '\\s*:?\\s*([\\s\\S]*)', 'i');
+    const match = cleaned.match(pattern);
+    if (match && match[1]) {
+      sections.push({ title: label, text: match[1].trim().replace(/^[-–•\s]+/gm, '').trim() });
+    }
+  });
+
+  return sections.filter(s => s.text);
+}
+
+function renderAICompactCards(text) {
+  const sections = extractAISections(text);
+  if (sections.length < 2) return null;
+
+  const icons = {
+    'Resumo': '📌',
+    'Ponto de atenção': '⚠️',
+    'Leitura gerencial': '📈',
+    'Ação recomendada': '✅',
+    'O que aconteceu': '📌',
+    'Por que importa': '⚠️',
+    'O que fazer agora': '✅'
+  };
+
+  const wrap = document.createElement('div');
+  wrap.className = 'ai-card-wrap';
+  sections.slice(0, 4).forEach(section => {
+    const card = document.createElement('div');
+    card.className = 'ai-card';
+
+    const title = document.createElement('div');
+    title.className = 'ai-card-title';
+    title.textContent = `${icons[section.title] || '•'} ${section.title}`;
+
+    const body = document.createElement('div');
+    body.className = 'ai-card-text';
+    body.textContent = section.text;
+
+    card.appendChild(title);
+    card.appendChild(body);
+    wrap.appendChild(card);
+  });
+  return wrap;
+}
+
+function addAIChatMsg(text, role) {
+  const c = document.getElementById('ai-chat-messages'); if(!c) return null;
+  const el = document.createElement('div');
+  const cleaned = cleanAIText(text);
+
+  if (role === 'assistant') {
+    const cards = renderAICompactCards(cleaned);
+    if (cards) {
+      el.className = 'ai-msg assistant compact';
+      el.appendChild(cards);
+    } else {
+      el.className = 'ai-msg assistant plain';
+      el.textContent = cleaned;
+    }
+  } else {
+    el.className = `ai-msg ${role}`;
+    el.textContent = cleaned;
+  }
+
+  c.appendChild(el);
+  c.scrollTop = c.scrollHeight;
+  return el;
+}
+
+function clearAIChat() {
+  AI_HISTORY.length = 0;
+  const c = document.getElementById('ai-chat-messages');
+  if (c) c.innerHTML = '<div class="ai-msg assistant">Conversa limpa! Sou o Copiloto Carmais. Pergunte sobre captação, lojas, vendedores, compradores ou plano de ação.</div>';
+}
+
+// Entrada principal do Copiloto: lê a pergunta do campo e envia para a IA.
+function perguntarAoCopiloto(pergunta) {
+  const inp = document.getElementById('ai-chat-input');
+  const texto = pergunta || (inp ? inp.value.trim() : '');
+  if (!texto) {
+    showToast('Digite uma pergunta para o Copiloto Carmais.', 'error');
+    return;
+  }
+  sendAIMessage(texto);
+}
+
+// Botões de perguntas rápidas: preenchem o campo e disparam a análise.
+function perguntaRapidaIA(pergunta) {
+  const inp = document.getElementById('ai-chat-input');
+  if (inp) inp.value = pergunta;
+  perguntarAoCopiloto(pergunta);
+}
+
+// ============================================================
+// COMPRADORES CRUD
+// ============================================================
+// COMPRADORES CRUD movido para js/comprador.js (Sprint 5.4 — script clássico,
+// carregado ANTES deste arquivo): compradoresList, loadCompradores,
+// renderCompradores, openModalNovoComprador, editComprador, salvarComprador,
+// toggleComprador, excluirComprador. compradoresList (let global) segue
+// acessível a js/alerts.js em runtime.
+
+// ============================================================
+// ANALYTICS
+// ============================================================
+function fmtBRL(v){if(v==null||isNaN(v))return'—';return'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});}
+// ----- Estado de ordenação das tabelas (Análise Avançada) -----
+const AN_SORT = { prec:{ col:'avaliados', asc:false }, vend:{ col:'avaliados', asc:false } };
+
+function initAnalyticsDates() {
+  // Inicializa os filtros de data do analytics com o intervalo REAL dos dados.
+  // Importante: precisa abranger TANTO as datas de avaliação QUANTO as datas de
+  // compra. Como a compra costuma ocorrer DEPOIS da avaliação, usar só dataAv
+  // recortaria as compras posteriores à última avaliação (comprados "sumindo").
+  const datas = [];
+  (STATE.avaliacoes||[]).forEach(r=>{
+    if (r.dataAv instanceof Date && !isNaN(r.dataAv)) datas.push(r.dataAv);
+    const dc = parseDate(getCompraDate(r));
+    if (dc instanceof Date && !isNaN(dc)) datas.push(dc);
+  });
+  if (!datas.length) return;
+  const minD = new Date(Math.min(...datas.map(d=>d.getTime())));
+  const maxD = new Date(Math.max(...datas.map(d=>d.getTime())));
+  const ini = document.getElementById('an-f-ini');
+  const fim = document.getElementById('an-f-fim');
+  if (ini) ini.value = dateStr(minD);
+  if (fim) fim.value = dateStr(maxD);
+}
+
+// ----- Multi-select de lojas (Análise Avançada) -----
+const MS_STATE = {};
+
+function toggleMsDropdown(id) {
+  const drop = document.getElementById('ms-'+id+'-drop');
+  const btn = document.getElementById('ms-'+id+'-btn');
+  if (!drop) return;
+  const open = drop.classList.toggle('open');
+  if (btn) btn.classList.toggle('open', open);
+  if (open) {
+    const search = document.getElementById('ms-'+id+'-search');
+    if (search) search.focus();
+    const close = e => { if (!document.getElementById('ms-'+id+'-wrap')?.contains(e.target)) { drop.classList.remove('open'); if(btn)btn.classList.remove('open'); document.removeEventListener('click', close); } };
+    setTimeout(() => document.addEventListener('click', close), 0);
+  }
+}
+
+const MS_OPTIONS = {};
+
+function populateMsDropdown(id, options) {
+  if (!MS_STATE[id]) MS_STATE[id] = new Set();
+  MS_OPTIONS[id] = options;
+  const list = document.getElementById('ms-'+id+'-list');
+  if (!list) return;
+  // Remove options that no longer exist
+  [...MS_STATE[id]].forEach(v => { if (!options.includes(v)) MS_STATE[id].delete(v); });
+  list.innerHTML = options.map((o, i) => {
+    const cbId = `ms-${id}-cb-${i}`;
+    const checked = MS_STATE[id].has(o) ? 'checked' : '';
+    return `<div class="ms-item"><input type="checkbox" id="${cbId}" data-idx="${i}" ${checked} onchange="onMsCbChange('${id}',${i},this.checked)"><label for="${cbId}">${escHtml(o)}</label></div>`;
+  }).join('');
+  updateMsLabel(id);
+}
+
+function onMsCbChange(id, idx, checked) {
+  if (!MS_STATE[id]) MS_STATE[id] = new Set();
+  const val = (MS_OPTIONS[id]||[])[idx];
+  if (val === undefined) return;
+  if (checked) MS_STATE[id].add(val); else MS_STATE[id].delete(val);
+  updateMsLabel(id);
+  renderAnalytics();
+}
+
+function toggleMsItem(id, val, checked) {
+  if (!MS_STATE[id]) MS_STATE[id] = new Set();
+  if (checked) MS_STATE[id].add(val); else MS_STATE[id].delete(val);
+  updateMsLabel(id);
+  renderAnalytics();
+}
+
+function getMsSelected(id) {
+  return MS_STATE[id] ? [...MS_STATE[id]] : [];
+}
+
+function clearMsSelected(id) {
+  if (MS_STATE[id]) MS_STATE[id].clear();
+  const list = document.getElementById('ms-'+id+'-list');
+  if (list) list.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = false);
+  updateMsLabel(id);
+}
+
+function updateMsLabel(id) {
+  const sel = getMsSelected(id);
+  // Alvo próprio da Análise Avançada ('-anlabel'), para não colidir com o
+  // rótulo homônimo do multi-select do Dashboard (id 'ms-<x>-label').
+  const label = document.getElementById('ms-'+id+'-anlabel');
+  if (!label) return;
+  label.textContent = sel.length === 0 ? 'Todas' : sel.length === 1 ? sel[0] : `${sel.length} lojas selecionadas`;
+}
+
+function filterMsItems(id, search) {
+  const list = document.getElementById('ms-'+id+'-list');
+  if (!list) return;
+  const s = search.toLowerCase();
+  list.querySelectorAll('.ms-item').forEach(item => {
+    const label = item.querySelector('label');
+    item.style.display = label && label.textContent.toLowerCase().includes(s) ? '' : 'none';
+  });
+}
+
+function getAnalyticsData() {
+  const iniV = document.getElementById('an-f-ini')?.value || '';
+  const fimV = document.getElementById('an-f-fim')?.value || '';
+  const empF = getMsSelected('empresa');
+  const tipoF = document.getElementById('an-f-tipo')?.value || '';
+  const objF = (document.getElementById('an-f-objetivo')?.value||'').trim().toLowerCase();
+  const precF = (document.getElementById('an-f-prec')?.value||'').trim().toLowerCase();
+  const fipeFx = document.getElementById('an-f-fipe')?.value || '';
+  const classF = document.getElementById('an-f-class')?.value || '';
+  const marcaF = (document.getElementById('an-f-marca')?.value||'').trim();
+  const modeloF = (document.getElementById('an-f-modelo')?.value||'').trim().toLowerCase();
+
+  const ini = iniV ? new Date(iniV+'T00:00:00') : null;
+  const fim = fimV ? new Date(fimV+'T23:59:59') : null;
+
+  // Filtros que NÃO dependem de data (loja, tipo, objetivo, etc.)
+  const passaFiltrosBase = (r) => {
+    if (empF.length && !empF.includes(r.empresaEquipe||r.empresa||'')) return false;
+    if (tipoF && (r.tipo||'') !== tipoF) return false;
+    if (objF && !normHdrEmpresa(r.objetivo||'').includes(objF)) return false;
+    if (precF && !normHdrEmpresa(r.precificador||'').includes(precF)) return false;
+    if (fipeFx && r.pctFipe != null) {
+      const [lo,hi] = fipeFx.split('-').map(Number);
+      if (!(r.pctFipe >= lo && r.pctFipe < hi)) return false;
+    }
+    if (classF && (r.classificacao||'') !== classF) return false;
+    if (marcaF && String(r.marca==null?'':r.marca).trim().replace(/\s+/g,' ') !== marcaF) return false;
+    if (modeloF && !String(r.modelo==null?'':r.modelo).toLowerCase().includes(modeloF)) return false;
+    return true;
+  };
+
+  const base = (STATE.avaliacoes||[]).filter(passaFiltrosBase);
+  // Regra: a avaliação conta pela DATA DA AVALIAÇÃO; a compra conta pela DATA DA
+  // COMPRA — mesmo que sejam meses diferentes. Por isso os dois conjuntos são
+  // filtrados por datas independentes.
+  const semData = !ini && !fim;
+  // Dedup (quando ligado) aplicado DENTRO do período da análise.
+  // Inclusões manuais não contam como avaliado, só como comprado.
+  const av = dedupAvExibicao(base.filter(r => !r.__inclusaoManual && (semData ? true : inRange(r.dataAv, ini, fim))));
+  const cp = base.filter(r => r.comprado && (semData ? true : inRange(getCompraDate(r), ini, fim)));
+  return { av, cp };
+}
+
+function clearAnalyticsFilters() {
+  ['an-f-ini','an-f-fim','an-f-tipo','an-f-objetivo','an-f-prec','an-f-fipe','an-f-class','an-f-marca','an-f-modelo'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  clearMsSelected('empresa');
+  renderAnalytics();
+}
+
+function populateAnalyticsFilterOptions(data) {
+  const uniq = arr => [...new Set(arr.filter(Boolean).map(s=>s.toString().trim()))].sort();
+  const fill = (id, vals) => { const dl=document.getElementById(id); if(dl) dl.innerHTML=vals.map(v=>`<option value="${escHtml(v)}"></option>`).join(''); };
+  populateMsDropdown('empresa', uniq(data.map(r=>r.empresaEquipe||r.empresa)));
+  fill('an-dl-objetivo', uniq(data.map(r=>r.objetivo)));
+  fill('an-dl-prec', uniq(data.map(r=>r.precificador)));
+  const normTxt = s => String(s==null?'':s).trim().replace(/\s+/g,' ');
+  const marcaSel = document.getElementById('an-f-marca');
+  if(marcaSel) {
+    const marcas = [...new Set((data||[]).map(r=>normTxt(r.marca)).filter(Boolean))].sort();
+    const cur = marcaSel.value;
+    marcaSel.innerHTML = '<option value="">Todas</option>' + marcas.map(m=>`<option value="${escHtml(m)}"${m===cur?' selected':''}>${escHtml(m)}</option>`).join('');
+  }
+  fill('an-dl-modelo', [...new Set((data||[]).map(r=>normTxt(r.modelo)).filter(Boolean))].sort());
+}
+
+function renderAnalytics() {
+  const { av, cp } = getAnalyticsData();
+
+  populateAnalyticsFilterOptions(STATE.avaliacoes||[]);
+
+  // --- Diagnóstico: explica quando o filtro zera os resultados ---
+  const diagEl = document.getElementById('an-diag');
+  if (diagEl) {
+    const totalBase = (STATE.avaliacoes||[]).length;
+    if (totalBase === 0) {
+      diagEl.style.display = '';
+      diagEl.innerHTML = '⚠️ <strong>Nenhuma avaliação carregada.</strong> Importe ou conecte a planilha na aba inicial para ver as análises.';
+    } else if (av.length === 0) {
+      const iniV = document.getElementById('an-f-ini')?.value || '';
+      const fimV = document.getElementById('an-f-fim')?.value || '';
+      diagEl.style.display = '';
+      diagEl.innerHTML = `⚠️ <strong>${totalBase.toLocaleString('pt-BR')} avaliações na base</strong>, mas <strong>0 passam nos filtros atuais</strong>`
+        + (iniV||fimV ? ` (período ${iniV||'…'} → ${fimV||'…'})` : '')
+        + `. <button class="btn btn-primary" style="font-size:12px;padding:4px 12px;margin-left:8px" onclick="clearAnalyticsFilters()">🗓️ Limpar filtros e ver tudo</button>`;
+    } else {
+      diagEl.style.display = 'none';
+    }
+  }
+
+  // --- KPIs rápidos ---
+  const fipes = av.filter(r=>r.pctFipe!=null).map(r=>r.pctFipe);
+  const avgFipe = fipes.length ? (fipes.reduce((s,v)=>s+v,0)/fipes.length) : null;
+  const valores = av.filter(r=>r.valorAv).map(r=>r.valorAv);
+  const avgValor = valores.length ? (valores.reduce((s,v)=>s+v,0)/valores.length) : null;
+  const tempoDias = cp.filter(r=>r.dataAv&&r.dataCompraInput).map(r=>diffDays(r.dataAv,r.dataCompraInput)).filter(d=>d!=null&&d>=0&&d<=365);
+  const avgTempo = tempoDias.length ? Math.round(tempoDias.reduce((s,v)=>s+v,0)/tempoDias.length) : null;
+  const kpiEl = document.getElementById('an-kpis');
+  if (kpiEl) kpiEl.innerHTML = [
+    ['--blue','Total Avaliados',av.length.toLocaleString('pt-BR'),'no período filtrado'],
+    ['--green','Total Comprados',cp.length.toLocaleString('pt-BR'),'vinculados'],
+    ['--accent','% Captação',av.length?(cp.length/av.length*100).toFixed(1)+'%':'—','comprado / avaliado'],
+    ['--purple','%FIPE Médio',avgFipe!=null?avgFipe.toFixed(1)+'%':'—','valor / FIPE'],
+    ['--blue2','Ticket Médio',avgValor!=null?'R$ '+Math.round(avgValor).toLocaleString('pt-BR'):'—','valor avaliação'],
+    ['--green2','⌀ Dias Av→Compra',avgTempo!=null?avgTempo+'d':'—','média dos comprados'],
+  ].map(([c,l,v,s])=>`<div class="akpi" style="--akpi-color:var(${c})"><div class="ak-label">${l}</div><div class="ak-val">${v}</div><div class="ak-sub">${s}</div></div>`).join('');
+
+  // --- Insight automático ---
+  renderAnInsight(av, cp, avgFipe);
+
+  // --- Por Objetivo ---
+  renderAnObjetivo(av, cp);
+
+  const safeRender = (fn, name) => { try { fn(av, cp); } catch(e) { console.error('[analytics] Erro em '+name+':', e); } };
+  safeRender(renderAnFipeCaptacao, 'FipeCaptacao');
+  safeRender(renderAnPrecificadores, 'Precificadores');
+  safeRender(renderAnTipo, 'Tipo');
+  safeRender(renderAnVendedores, 'Vendedores');
+  safeRender(renderAnModelos, 'Modelos');
+  safeRender(renderAnClassificacao, 'Classificacao');
+  safeRender(renderAnAA, 'AA');
+  safeRender(renderAnMarcas, 'Marcas');
+  safeRender(renderAnTemporal, 'Temporal');
+}
+
+function renderAnInsight(av, cp) {
+  const el = document.getElementById('an-insight');
+  if (!el) return;
+  const insights = [];
+  const captacao = av.length ? cp.length/av.length*100 : 0;
+  if (captacao > 50) insights.push(`✅ Taxa de captação <strong>${captacao.toFixed(1)}%</strong> — excelente performance no período.`);
+  else if (captacao < 20) insights.push(`⚠️ Taxa de captação baixa: <strong>${captacao.toFixed(1)}%</strong>. Verifique se o %FIPE está adequado à demanda.`);
+
+  // Fipe insight
+  const fipeAltas = av.filter(r=>r.pctFipe!=null&&r.pctFipe>100);
+  if (fipeAltas.length/Math.max(av.length,1) > 0.3) {
+    insights.push(`💡 <strong>${fipeAltas.length} avaliações</strong> (${(fipeAltas.length/av.length*100).toFixed(0)}%) estão acima de 100% da FIPE — risco de oferta acima do mercado.`);
+  }
+  const fipeBaixas = av.filter(r=>r.pctFipe!=null&&r.pctFipe<75);
+  const compradosBaixos = fipeBaixas.filter(r=>r.comprado);
+  if (fipeBaixas.length && compradosBaixos.length/fipeBaixas.length > 0.6) {
+    insights.push(`📉 Avaliações abaixo de 75% da FIPE têm captação de <strong>${(compradosBaixos.length/fipeBaixas.length*100).toFixed(0)}%</strong> — preço baixo está convertendo bem.`);
+  }
+  // Sem tipo
+  const semTipo = av.filter(r=>!r.tipo);
+  if (semTipo.length > 0) {
+    insights.push(`⚠️ <strong>${semTipo.length} avaliações</strong> sem tipo de equipe (VD/VN/VU) — esses vendedores não estão cadastrados na aba Equipes.`);
+  }
+  if (!insights.length) { el.style.display='none'; return; }
+  el.style.display = 'block';
+  el.innerHTML = '💡 <strong>Insights automáticos:</strong><br>' + insights.join('<br>');
+}
+
+function renderAnObjetivo(av, cp) {
+  // Captação por objetivo
+  const objs = {};
+  av.forEach(r => { const o=r.objetivo||'N/D'; if(!objs[o]) objs[o]={av:0,cp:0,sumValor:0,sumFipe:0,nFipe:0}; objs[o].av++; if(r.valorAv){objs[o].sumValor+=r.valorAv;} if(r.pctFipe!=null){objs[o].sumFipe+=r.pctFipe;objs[o].nFipe++;} });
+  cp.forEach(r => { const o=r.objetivo||'N/D'; if(objs[o]) objs[o].cp++; });
+  const sorted = Object.entries(objs).sort((a,b)=>b[1].av-a[1].av);
+
+  const barsEl = document.getElementById('an-obj-bars');
+  if (barsEl) {
+    const maxAv = Math.max(...sorted.map(([,v])=>v.av),1);
+    barsEl.innerHTML = sorted.map(([o,v])=>{
+      const pct = v.av>0?(v.cp/v.av*100):0;
+      const heatClass = pct>50?'heat-high':pct>25?'heat-mid':pct>0?'heat-low':'heat-none';
+      return `<div class="fipe-band-row">
+        <div class="fipe-band-label" title="${escHtml(o)}">${escHtml(o.length>14?o.substring(0,13)+'…':o)}</div>
+        <div class="fipe-band-bar-wrap">
+          <div class="fipe-band-bar" style="width:${(v.av/maxAv*100).toFixed(0)}%;background:var(--blue);opacity:.7;max-width:100%"></div>
+          <div class="fipe-band-bar" style="width:${(v.cp/maxAv*100).toFixed(0)}%;background:var(--green);max-width:100%"></div>
+        </div>
+        <div class="fipe-band-stats"><span class="${heatClass} heat-cell">${pct.toFixed(1)}%</span><br><span style="color:var(--text3)">${v.av} av / ${v.cp} cp</span></div>
+      </div>`;
+    }).join('') || '<div class="no-data">Sem dados de objetivo.</div>';
+  }
+
+  const ticketEl = document.getElementById('an-obj-ticket');
+  if (ticketEl) {
+    ticketEl.innerHTML = sorted.map(([o,v])=>{
+      const avgV = v.sumValor>0&&v.av>0?Math.round(v.sumValor/v.av):null;
+      const avgF = v.nFipe>0?(v.sumFipe/v.nFipe):null;
+      const fClass = avgF!=null?(avgF<80?'fipe-low':avgF<95?'fipe-mid':'fipe-high'):'';
+      return `<div class="fipe-band-row">
+        <div class="fipe-band-label">${escHtml(o.length>14?o.substring(0,13)+'…':o)}</div>
+        <div class="fipe-band-bar-wrap">
+          <div style="font-size:13px;font-weight:600;color:var(--text)">${avgV?'R$ '+avgV.toLocaleString('pt-BR'):'—'}</div>
+          <div style="font-size:11px;color:var(--text3)">ticket médio</div>
+        </div>
+        <div class="fipe-band-stats"><span class="${fClass}" style="font-weight:700">${avgF!=null?avgF.toFixed(1)+'%':' — '}</span><br><span style="font-size:11px;color:var(--text3)">%FIPE médio</span></div>
+      </div>`;
+    }).join('') || '<div class="no-data">Sem dados.</div>';
+  }
+}
+
+function renderAnFipeCaptacao(av, cp) {
+  const bands = [
+    { label:'< 70%', lo:0, hi:70, color:'#ef4444' },
+    { label:'70–80%', lo:70, hi:80, color:'#f97316' },
+    { label:'80–90%', lo:80, hi:90, color:'#f59e0b' },
+    { label:'90–100%', lo:90, hi:100, color:'#10b981' },
+    { label:'> 100%', lo:100, hi:9999, color:'#3b82f6' },
+  ];
+  const stats = bands.map(b => {
+    const bavs = av.filter(r=>r.pctFipe!=null&&r.pctFipe>=b.lo&&r.pctFipe<b.hi);
+    const bcps = bavs.filter(r=>r.comprado);
+    return { ...b, av:bavs.length, cp:bcps.length, pct:bavs.length?(bcps.length/bavs.length*100):0 };
+  });
+  const maxAv = Math.max(...stats.map(s=>s.av),1);
+
+  const barsEl = document.getElementById('an-fipe-captacao');
+  if (barsEl) {
+    barsEl.innerHTML = stats.map(s=>{
+      const heatClass = s.pct>50?'heat-high':s.pct>25?'heat-mid':s.pct>0?'heat-low':'heat-none';
+      return `<div class="fipe-band-row">
+        <div class="fipe-band-label">${s.label}</div>
+        <div class="fipe-band-bar-wrap">
+          <div class="fipe-band-bar" style="width:${Math.max(2,s.av/maxAv*100).toFixed(0)}%;background:${s.color};opacity:.5;max-width:100%"></div>
+          <div class="fipe-band-bar" style="width:${Math.max(0,s.cp/maxAv*100).toFixed(0)}%;background:${s.color};max-width:100%"></div>
+        </div>
+        <div class="fipe-band-stats"><span class="${heatClass} heat-cell">${s.pct.toFixed(1)}%</span><br><span style="color:var(--text3)">${s.av} av / ${s.cp} cp</span></div>
+      </div>`;
+    }).join('');
+  }
+
+  // Bar chart
+  const ctx = document.getElementById('chart-fipe-dist');
+  if (ctx) {
+    if (CHARTS['chart-fipe-dist']) CHARTS['chart-fipe-dist'].destroy();
+    CHARTS['chart-fipe-dist'] = new Chart(ctx, {
+      type:'bar',
+      data:{ labels:stats.map(s=>s.label), datasets:[
+        {label:'Avaliados',data:stats.map(s=>s.av),backgroundColor:'rgba(59,130,246,0.4)',borderColor:'#3b82f6',borderWidth:1},
+        {label:'Comprados',data:stats.map(s=>s.cp),backgroundColor:'rgba(16,185,129,0.6)',borderColor:'#10b981',borderWidth:1}
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:chartTickColor()}}},scales:{x:{stacked:false,grid:{color:chartGridColor()},ticks:{color:chartTickColor()}},y:{grid:{color:chartGridColor()},ticks:{color:chartTickColor()},beginAtZero:true}}}
+    });
+  }
+}
+
+function buildPrecStats(av, cp) {
+  const m = {};
+  av.forEach(r => {
+    const p = r.precificador||'Sem Precificador';
+    if (!m[p]) m[p] = { nome:p, avaliados:0, comprados:0, sumFipe:0, nFipe:0, sumValor:0, nValor:0, melhorados:0 };
+    m[p].avaliados++;
+    if (r.pctFipe!=null){ m[p].sumFipe+=r.pctFipe; m[p].nFipe++; }
+    if (r.valorAv){ m[p].sumValor+=r.valorAv; m[p].nValor++; }
+    if (r.melhorado==='Sim') m[p].melhorados++;
+  });
+  cp.forEach(r => { const p=r.precificador||'Sem Precificador'; if(m[p]) m[p].comprados++; });
+  return Object.values(m).map(v=>({...v,
+    captacao: v.avaliados?v.comprados/v.avaliados*100:0,
+    avgFipe: v.nFipe?v.sumFipe/v.nFipe:null,
+    avgValor: v.nValor?v.sumValor/v.nValor:null,
+    pctMelhora: v.comprados?v.melhorados/v.comprados*100:0,
+    // Efficiency index: captacao ponderada pelo FIPE (abaixo do mercado + alta captação = bom)
+    eficiencia: v.avaliados>=3 ? (v.comprados/v.avaliados*100) * (v.nFipe?Math.max(0,105-v.sumFipe/v.nFipe)/25:1) : null
+  }));
+}
+
+function renderAnPrecificadores(av, cp) {
+  let stats = buildPrecStats(av, cp);
+  const { col, asc } = AN_SORT.prec;
+  stats.sort((a,b)=>{const va=a[col]??-1,vb=b[col]??-1;return asc?va-vb:vb-va;});
+  const maxAv = Math.max(...stats.map(s=>s.avaliados),1);
+  const maxEf = Math.max(...stats.map(s=>s.eficiencia??0),1);
+
+  // Insight
+  const top = stats.filter(s=>s.avaliados>=5).sort((a,b)=>b.captacao-a.captacao)[0];
+  const bot = stats.filter(s=>s.avaliados>=5).sort((a,b)=>a.captacao-b.captacao)[0];
+  const ins = document.getElementById('an-prec-insight');
+  if (ins && top && bot && top.nome!==bot.nome) {
+    ins.style.display='block';
+    ins.innerHTML=`💡 <strong>${escHtml(top.nome)}</strong> lidera em captação com <strong>${top.captacao.toFixed(1)}%</strong> (${top.comprados}/${top.avaliados}). <strong>${escHtml(bot.nome)}</strong> tem menor captação: <strong>${bot.captacao.toFixed(1)}%</strong> — pode indicar oportunidade de alinhamento no %FIPE ofertado.`;
+  } else if (ins) ins.style.display='none';
+
+  const tb = document.getElementById('an-prec-tbody');
+  if (!tb) return;
+  if (!stats.length) { tb.innerHTML='<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--text3)">Sem dados de precificador.</td></tr>'; return; }
+  tb.innerHTML = stats.map(s=>{
+    const capClass = s.captacao>50?'heat-high':s.captacao>25?'heat-mid':s.captacao>0?'heat-low':'heat-none';
+    const fClass = s.avgFipe!=null?(s.avgFipe<80?'fipe-low':s.avgFipe<95?'fipe-mid':'fipe-high'):'';
+    const efPct = s.eficiencia!=null?Math.min(100,s.eficiencia/maxEf*100):0;
+    const efColor = efPct>60?'var(--green)':efPct>30?'var(--accent)':'var(--red)';
+    const barW = Math.round(s.avaliados/maxAv*60);
+    return `<tr>
+      <td style="font-weight:600;color:var(--text)">${escHtml(s.nome)}</td>
+      <td><span class="perf-score">${s.avaliados}<span class="perf-bar-mini"><span class="perf-bar-mini-fill" style="width:${barW}%;background:var(--blue)"></span></span></span></td>
+      <td>${s.comprados}</td>
+      <td><span class="${capClass} heat-cell">${s.captacao.toFixed(1)}%</span></td>
+      <td class="${fClass}">${s.avgFipe!=null?s.avgFipe.toFixed(1)+'%':'—'}</td>
+      <td>${s.avgValor!=null?'R$ '+Math.round(s.avgValor).toLocaleString('pt-BR'):'—'}</td>
+      <td>${s.eficiencia!=null?`<span class="perf-bar-mini"><span class="perf-bar-mini-fill" style="width:${efPct.toFixed(0)}%;background:${efColor}"></span></span> ${s.eficiencia.toFixed(0)}`:'<span style="color:var(--text3);font-size:11px">min 3 av</span>'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderAnTipo(av, cp) {
+  const m = {};
+  av.forEach(r => {
+    const t = r.tipo||'Sem Tipo';
+    if (!m[t]) m[t]={tipo:t,av:0,cp:0,sumFipe:0,nFipe:0};
+    m[t].av++;
+    if (r.pctFipe!=null){m[t].sumFipe+=r.pctFipe;m[t].nFipe++;}
+  });
+  cp.forEach(r => { const t=r.tipo||'Sem Tipo'; if(m[t]) m[t].cp++; });
+  const stats = Object.values(m).sort((a,b)=>b.av-a.av);
+  const semTipo = stats.find(s=>s.tipo==='Sem Tipo');
+  const totalAv = av.length;
+
+  // Warning panel
+  const warn = document.getElementById('an-tipo-warning');
+  if (warn) {
+    if (semTipo && semTipo.av > 0) {
+      warn.style.display = 'block';
+      warn.innerHTML = `⚠️ <strong>${semTipo.av} avaliações</strong> (${(semTipo.av/totalAv*100).toFixed(1)}% do total) pertencem a vendedores <strong>sem cadastro na aba Equipes</strong>. Por isso a soma VD+VN+VU não fecha com o total. Importe a planilha de Equipes completa para corrigir.`;
+    } else { warn.style.display='none'; }
+  }
+
+  const colors = {'VD':'#3b82f6','VN':'#f59e0b','VU':'#10b981','Sem Tipo':'#64748b'};
+  const maxAv = Math.max(...stats.map(s=>s.av),1);
+  const barsEl = document.getElementById('an-tipo-bars');
+  if (barsEl) {
+    barsEl.innerHTML = stats.map(s=>{
+      const pct = s.av?s.cp/s.av*100:0;
+      const heatClass = pct>50?'heat-high':pct>25?'heat-mid':pct>0?'heat-low':'heat-none';
+      const col = colors[s.tipo]||'#8b5cf6';
+      return `<div class="fipe-band-row">
+        <div class="fipe-band-label"><span class="badge" style="background:${col}22;color:${col}">${escHtml(s.tipo)}</span></div>
+        <div class="fipe-band-bar-wrap">
+          <div class="fipe-band-bar" style="width:${(s.av/maxAv*100).toFixed(0)}%;background:${col};opacity:.5;max-width:100%"></div>
+          <div class="fipe-band-bar" style="width:${(s.cp/maxAv*100).toFixed(0)}%;background:${col};max-width:100%"></div>
+        </div>
+        <div class="fipe-band-stats"><span class="${heatClass} heat-cell">${pct.toFixed(1)}%</span><br><span style="color:var(--text3)">${s.av} av / ${s.cp} cp</span></div>
+      </div>`;
+    }).join('');
+  }
+
+  // Chart comparison
+  const ctx = document.getElementById('chart-tipo-comp');
+  if (ctx) {
+    if (CHARTS['chart-tipo-comp']) CHARTS['chart-tipo-comp'].destroy();
+    const tiposOrdem = stats.map(s=>s.tipo);
+    CHARTS['chart-tipo-comp'] = new Chart(ctx, {
+      type:'bar',
+      data:{ labels:tiposOrdem, datasets:[
+        {label:'% Captação',data:stats.map(s=>s.av?+(s.cp/s.av*100).toFixed(1):0),backgroundColor:'rgba(16,185,129,0.6)',borderColor:'#10b981',borderWidth:1,yAxisID:'y1'},
+        {label:'%FIPE Médio',data:stats.map(s=>s.nFipe?+(s.sumFipe/s.nFipe).toFixed(1):0),backgroundColor:'rgba(245,158,11,0.4)',borderColor:'#f59e0b',borderWidth:1,yAxisID:'y2'}
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:chartTickColor()}}},
+        scales:{
+          x:{grid:{color:chartGridColor()},ticks:{color:chartTickColor()}},
+          y1:{position:'left',grid:{color:chartGridColor()},ticks:{color:'#10b981',callback:v=>v+'%'},beginAtZero:true},
+          y2:{position:'right',grid:{drawOnChartArea:false},ticks:{color:'#f59e0b',callback:v=>v+'%'},beginAtZero:true}
+        }
+      }
+    });
+  }
+}
+
+function buildVendStats(av, cp) {
+  const m = {};
+  av.forEach(r => {
+    const v = r.vendedor||'N/D';
+    if (!m[v]) m[v]={nome:v,tipo:r.tipo||'—',empresa:r.empresaEquipe||r.empresa||'—',avaliados:0,comprados:0,sumFipe:0,nFipe:0,melhorados:0,diasList:[]};
+    m[v].avaliados++;
+    if (r.pctFipe!=null){m[v].sumFipe+=r.pctFipe;m[v].nFipe++;}
+    if (r.melhorado==='Sim') m[v].melhorados++;
+    if (r.comprado && r.dataAv) {
+      const dc = getCompraDate(r);
+      if (dc) { const dias = Math.round((dc - r.dataAv)/(1000*86400)); if(dias>=0) m[v].diasList.push(dias); }
+    }
+  });
+  cp.forEach(r => { const v=r.vendedor||'N/D'; if(m[v]) m[v].comprados++; });
+  return Object.values(m).map(v=>({...v,
+    captacao:v.avaliados?v.comprados/v.avaliados*100:0,
+    avgFipe:v.nFipe?v.sumFipe/v.nFipe:null,
+    avgDias:v.diasList.length?v.diasList.reduce((a,b)=>a+b,0)/v.diasList.length:null
+  }));
+}
+
+function sortAnalyticsTable(table, col) {
+  if (AN_SORT[table].col===col) AN_SORT[table].asc=!AN_SORT[table].asc;
+  else { AN_SORT[table].col=col; AN_SORT[table].asc=false; }
+  const { av, cp } = getAnalyticsData();
+  if (table==='prec') renderAnPrecificadores(av, cp);
+  if (table==='vend') renderAnVendedores(av, cp);
+}
+
+function renderAnVendedores(av, cp) {
+  let stats = buildVendStats(av, cp);
+  const { col, asc } = AN_SORT.vend;
+  stats.sort((a,b)=>{const va=a[col]??-1,vb=b[col]??-1;return typeof va==='string'?(asc?va.localeCompare(vb):vb.localeCompare(va)):(asc?va-vb:vb-va);});
+  const maxAv = Math.max(...stats.map(s=>s.avaliados),1);
+  const tipoCores = {'VD':'#3b82f6','VN':'#f59e0b','VU':'#10b981','—':'#64748b'};
+  const tb = document.getElementById('an-vend-tbody');
+  if (!tb) return;
+  if (!stats.length) { tb.innerHTML='<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--text3)">Sem dados de vendedor.</td></tr>'; return; }
+  tb.innerHTML = stats.map(s=>{
+    const capClass = s.captacao>50?'heat-high':s.captacao>25?'heat-mid':s.captacao>0?'heat-low':'heat-none';
+    const fClass = s.avgFipe!=null?(s.avgFipe<80?'fipe-low':s.avgFipe<95?'fipe-mid':'fipe-high'):'';
+    const col2 = tipoCores[s.tipo]||'#8b5cf6';
+    const nivel = s.avaliados<3?'—':s.captacao>=50?'🏆 Excelente':s.captacao>=30?'✅ Bom':s.captacao>=15?'⚠️ Regular':'🔴 Baixo';
+    return `<tr>
+      <td style="font-weight:600;color:var(--text)">${escHtml(s.nome)}</td>
+      <td><span class="badge" style="background:${col2}22;color:${col2}">${escHtml(s.tipo)}</span></td>
+      <td style="font-size:12px;color:var(--text3)">${escHtml(s.empresa.length>20?s.empresa.substring(0,19)+'…':s.empresa)}</td>
+      <td><span class="perf-score">${s.avaliados}<span class="perf-bar-mini"><span class="perf-bar-mini-fill" style="width:${Math.round(s.avaliados/maxAv*60)}%;background:var(--blue)"></span></span></span></td>
+      <td>${s.comprados}</td>
+      <td><span class="${capClass} heat-cell">${s.captacao.toFixed(1)}%</span></td>
+      <td class="${fClass}">${s.avgFipe!=null?s.avgFipe.toFixed(1)+'%':'—'}</td>
+      <td style="font-size:12px">${s.avgDias!=null?s.avgDias.toFixed(1)+' d':'—'}</td>
+      <td>${nivel}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderAnModelos(av, cp) {
+  const m = {};
+  const normMod = s => (String(s==null?'':s).trim().replace(/\s+/g,' ')) || 'N/D';
+  av.forEach(r=>{ const k=normMod(r.modelo); if(!m[k])m[k]={av:0,cp:0}; m[k].av++; });
+  cp.forEach(r=>{ const k=normMod(r.modelo); if(m[k])m[k].cp++; });
+  const sorted = Object.entries(m).sort((a,b)=>b[1].av-a[1].av).slice(0,15);
+  const maxAv = Math.max(...sorted.map(([,v])=>v.av),1);
+
+  const el = document.getElementById('an-modelo-bars');
+  if (el) {
+    el.innerHTML = sorted.map(([mod,v])=>{
+      const pct = v.av?v.cp/v.av*100:0;
+      const hClass = pct>50?'heat-high':pct>25?'heat-mid':pct>0?'heat-low':'heat-none';
+      return `<div class="fipe-band-row">
+        <div class="fipe-band-label" title="${escHtml(mod)}">${escHtml(mod.length>14?mod.substring(0,13)+'…':mod)}</div>
+        <div class="fipe-band-bar-wrap">
+          <div class="fipe-band-bar" style="width:${(v.av/maxAv*100).toFixed(0)}%;background:var(--blue);opacity:.5;max-width:100%"></div>
+          <div class="fipe-band-bar" style="width:${(v.cp/maxAv*100).toFixed(0)}%;background:var(--green);max-width:100%"></div>
+        </div>
+        <div class="fipe-band-stats"><span class="${hClass} heat-cell">${pct.toFixed(0)}%</span><br><span style="color:var(--text3)">${v.av} av / ${v.cp} cp</span></div>
+      </div>`;
+    }).join('') || '<div class="no-data">Sem dados.</div>';
+  }
+
+  // Captação extrema
+  const comMin3 = Object.entries(m).filter(([,v])=>v.av>=3).map(([mod,v])=>({mod,av:v.av,cp:v.cp,pct:v.av?v.cp/v.av*100:0}));
+  const melhores = [...comMin3].sort((a,b)=>b.pct-a.pct).slice(0,5);
+  const piores = [...comMin3].sort((a,b)=>a.pct-b.pct).slice(0,5);
+  const el2 = document.getElementById('an-modelo-captacao');
+  if (el2) {
+    el2.innerHTML = `
+      <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--green2);margin-bottom:6px;">🏆 Maior captação</div>
+      ${melhores.map(s=>`<div class="fipe-band-row" style="padding:6px 0"><div class="fipe-band-label" title="${escHtml(s.mod)}">${escHtml(s.mod.length>14?s.mod.substring(0,13)+'…':s.mod)}</div><div style="flex:1"></div><div><span class="heat-high heat-cell">${s.pct.toFixed(0)}%</span> <span style="font-size:11px;color:var(--text3)">${s.cp}/${s.av}</span></div></div>`).join('')}
+      <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--red2);margin-top:14px;margin-bottom:6px;">⚠️ Menor captação</div>
+      ${piores.map(s=>`<div class="fipe-band-row" style="padding:6px 0"><div class="fipe-band-label" title="${escHtml(s.mod)}">${escHtml(s.mod.length>14?s.mod.substring(0,13)+'…':s.mod)}</div><div style="flex:1"></div><div><span class="heat-low heat-cell">${s.pct.toFixed(0)}%</span> <span style="font-size:11px;color:var(--text3)">${s.cp}/${s.av}</span></div></div>`).join('')}
+      ${!comMin3.length?'<div class="no-data">Min. 3 avaliações por modelo.</div>':''}`;
+  }
+}
+
+function renderAnClassificacao(av, cp) {
+  const classes = ['A','B','C','D','E'];
+  const colors = {A:'#10b981',B:'#3b82f6',C:'#f59e0b',D:'#f97316',E:'#ef4444'};
+  const aviso = document.getElementById('an-class-aviso');
+  const barsEl = document.getElementById('an-class-bars');
+  const hasClass = av.some(r=>r.classificacao);
+  if(aviso) { aviso.style.display = hasClass ? 'none' : ''; aviso.textContent = 'Nenhum registro com classificação A–E encontrado. Verifique se a coluna "Classificação" (ou "AA") está preenchida na planilha de avaliações.'; }
+  if(!hasClass) { if(barsEl) barsEl.innerHTML='<div class="no-data">Sem dados de classificação.</div>'; if(CHARTS['chart-class-comp']){CHARTS['chart-class-comp'].destroy();delete CHARTS['chart-class-comp'];} return; }
+
+  const stats = {};
+  classes.forEach(c=>{ stats[c]={av:0,cp:0,fipes:[],tickets:[]}; });
+  av.forEach(r=>{ if(!r.classificacao) return; const s=stats[r.classificacao]; if(!s) return; s.av++; if(r.pctFipe!=null) s.fipes.push(r.pctFipe); });
+  cp.forEach(r=>{ if(!r.classificacao) return; const s=stats[r.classificacao]; if(!s) return; s.cp++; if(r.valorAv) s.tickets.push(r.valorAv); });
+
+  const avg = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null;
+
+  // Bars
+  if(barsEl) {
+    const maxAv = Math.max(1,...classes.map(c=>stats[c].av));
+    barsEl.innerHTML = classes.map(c=>{
+      const s=stats[c]; if(!s.av) return '';
+      const pctCp = s.av ? Math.round(s.cp/s.av*100) : 0;
+      const wAv = Math.round(s.av/maxAv*100);
+      const wCp = Math.round(s.cp/maxAv*100);
+      const avgFipe = avg(s.fipes); const avgTk = avg(s.tickets);
+      return `<div class="fipe-band-row" style="padding:8px 0;align-items:center">
+        <div class="fipe-band-label" style="font-weight:700;font-size:15px;color:${colors[c]};min-width:32px">${c}</div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:3px">
+          <div style="display:flex;align-items:center;gap:6px">
+            <div style="width:${wAv}%;background:${colors[c]}33;border-radius:3px;height:10px;min-width:4px"></div>
+            <span style="font-size:12px;color:var(--text2)">${s.av} avaliados</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <div style="width:${wCp}%;background:${colors[c]};border-radius:3px;height:10px;min-width:4px"></div>
+            <span style="font-size:12px;color:var(--text2)">${s.cp} comprados <span style="color:var(--text3)">(${pctCp}%)</span></span>
+          </div>
+        </div>
+        <div style="min-width:130px;text-align:right;font-size:11px;color:var(--text3)">
+          ${avgFipe!=null?`%FIPE médio: <b>${avgFipe.toFixed(1)}%</b><br>`:''}
+          ${avgTk!=null?`Ticket médio: <b>${fmtBRL(avgTk)}</b>`:''}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // Chart: %FIPE médio e ticket médio por classe
+  if(CHARTS['chart-class-comp']){CHARTS['chart-class-comp'].destroy();delete CHARTS['chart-class-comp'];}
+  const labels = classes.filter(c=>stats[c].av>0);
+  const fipeData = labels.map(c=>{ const v=avg(stats[c].fipes); return v!=null?+v.toFixed(1):null; });
+  const ticketData = labels.map(c=>{ const v=avg(stats[c].tickets); return v!=null?Math.round(v/1000):null; });
+  const ctx2 = document.getElementById('chart-class-comp');
+  if(ctx2 && labels.length) {
+    CHARTS['chart-class-comp'] = new Chart(ctx2, {
+      type:'bar',
+      data:{
+        labels,
+        datasets:[
+          {label:'%FIPE médio',data:fipeData,backgroundColor:labels.map(c=>colors[c]+'bb'),yAxisID:'y',order:1},
+          {label:'Ticket médio (R$ mil)',data:ticketData,type:'line',borderColor:'#8b5cf6',backgroundColor:'#8b5cf633',pointBackgroundColor:'#8b5cf6',tension:0.3,yAxisID:'y2',order:0}
+        ]
+      },
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:chartTickColor(),font:{size:11},boxWidth:12}}},scales:{
+        y:{title:{display:true,text:'%FIPE',color:chartTickColor()},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:chartTickColor(),font:{size:10}}},
+        y2:{position:'right',title:{display:true,text:'R$ mil',color:chartTickColor()},grid:{display:false},ticks:{color:chartTickColor(),font:{size:10}}},
+        x:{ticks:{color:chartTickColor(),font:{size:11}},grid:{display:false}}
+      }}
+    });
+  }
+}
+
+function renderAnTemporal(av, cp) {
+  // Dia da semana
+  const dias = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  const diasAv = Array(7).fill(0);
+  av.forEach(r=>{ if(r.dataAv) diasAv[r.dataAv.getDay()]++; });
+
+  const ctxSem = document.getElementById('chart-dia-semana');
+  if (ctxSem) {
+    if (CHARTS['chart-dia-semana']) CHARTS['chart-dia-semana'].destroy();
+    CHARTS['chart-dia-semana'] = new Chart(ctxSem, {
+      type:'bar',
+      data:{ labels:dias, datasets:[{label:'Avaliações',data:diasAv,backgroundColor:diasAv.map((_,i)=>i===0||i===6?'rgba(100,116,139,0.5)':'rgba(59,130,246,0.6)'),borderColor:diasAv.map((_,i)=>i===0||i===6?'#64748b':'#3b82f6'),borderWidth:1}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:chartGridColor()},ticks:{color:chartTickColor()}},y:{grid:{color:chartGridColor()},ticks:{color:chartTickColor()},beginAtZero:true}}}
+    });
+  }
+
+  // Tempo avaliação → compra
+  const tempos = cp.filter(r=>r.dataAv&&r.dataCompraInput).map(r=>diffDays(r.dataAv,r.dataCompraInput)).filter(d=>d!=null&&d>=0&&d<=90);
+  const bands2 = [{l:'Mesmo dia',lo:0,hi:1},{l:'1–3 dias',lo:1,hi:4},{l:'4–7 dias',lo:4,hi:8},{l:'1–2 sem',lo:8,hi:15},{l:'2–4 sem',lo:15,hi:29},{l:'>1 mês',lo:29,hi:91}];
+  const contagens = bands2.map(b=>tempos.filter(d=>d>=b.lo&&d<b.hi).length);
+
+  const ctxT = document.getElementById('chart-tempo-compra');
+  if (ctxT) {
+    if (CHARTS['chart-tempo-compra']) CHARTS['chart-tempo-compra'].destroy();
+    CHARTS['chart-tempo-compra'] = new Chart(ctxT, {
+      type:'bar',
+      data:{ labels:bands2.map(b=>b.l), datasets:[{label:'Compras',data:contagens,backgroundColor:'rgba(16,185,129,0.6)',borderColor:'#10b981',borderWidth:1}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:chartGridColor()},ticks:{color:chartTickColor(),font:{size:10}}},y:{grid:{color:chartGridColor()},ticks:{color:chartTickColor()},beginAtZero:true}}}
+    });
+  }
+}
+
+function toggleAnSection(id) {
+  const body = document.getElementById('an-sec-'+id+'-body');
+  const btn = document.getElementById('an-sec-'+id+'-btn');
+  if (!body) return;
+  const collapsed = body.classList.toggle('collapsed');
+  if (btn) btn.textContent = collapsed ? '▶' : '▼';
+}
+
+// (exportSectionImage, exportSectionWhatsApp, exportAnalyticsPDF,
+//  exportAnalyticsImage movidas para js/exports.js — Sprint 5.5)
+
+function viewFilteredInDetail(tipo) {
+  const ini = document.getElementById('an-f-ini')?.value || '';
+  const fim = document.getElementById('an-f-fim')?.value || '';
+  const emps = getMsSelected('empresa');
+  if(ini && document.getElementById('f-data-ini')) document.getElementById('f-data-ini').value = ini;
+  if(fim && document.getElementById('f-data-fim')) document.getElementById('f-data-fim').value = fim;
+  if(emps.length===1 && document.getElementById('f-empresa')) document.getElementById('f-empresa').value = emps[0];
+  applyFilters();
+  const tabName = tipo==='comprados'?'comprados':'tabela';
+  const btn = document.querySelector(`.tab-btn[onclick*="'${tabName}'"]`);
+  switchTab(tabName, btn);
+}
+
+function renderAnMarcas(av, cp) {
+  const m = {};
+  const normMarca = s => (String(s==null?'':s).trim().replace(/\s+/g,' ')) || 'N/D';
+  av.forEach(r=>{ const k=normMarca(r.marca); if(!m[k])m[k]={av:0,cp:0,fipes:[],tickets:[]}; m[k].av++; if(r.pctFipe!=null)m[k].fipes.push(r.pctFipe); });
+  cp.forEach(r=>{ const k=normMarca(r.marca); if(m[k]){m[k].cp++; if(r.valorAv)m[k].tickets.push(r.valorAv);} });
+  const sorted = Object.entries(m).sort((a,b)=>b[1].av-a[1].av).slice(0,12);
+  const maxAv = Math.max(...sorted.map(([,v])=>v.av),1);
+  const avg = arr=>arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:null;
+  const marcaAtiva = (document.getElementById('an-f-marca')?.value||'').trim();
+
+  const el = document.getElementById('an-marca-bars');
+  if(el) {
+    el.innerHTML = sorted.map(([marca,v])=>{
+      const pct = v.av?v.cp/v.av*100:0;
+      const hClass = pct>50?'heat-high':pct>25?'heat-mid':pct>0?'heat-low':'heat-none';
+      const ativa = marca===marcaAtiva;
+      return `<div class="fipe-band-row" style="cursor:pointer;border-radius:6px;${ativa?'background:rgba(59,130,246,0.12);':''}padding:4px 6px" onclick="filtrarPorMarca('${marca.replace(/'/g,"\\'")}')" title="Clique para filtrar por ${escHtml(marca)}">
+        <div class="fipe-band-label" title="${escHtml(marca)}" style="font-weight:600">${ativa?'✓ ':''}${escHtml(marca.length>13?marca.substring(0,12)+'…':marca)}</div>
+        <div class="fipe-band-bar-wrap">
+          <div class="fipe-band-bar" style="width:${(v.av/maxAv*100).toFixed(0)}%;background:var(--blue);opacity:.5;max-width:100%"></div>
+          <div class="fipe-band-bar" style="width:${(v.cp/maxAv*100).toFixed(0)}%;background:var(--green);max-width:100%"></div>
+        </div>
+        <div class="fipe-band-stats"><span class="${hClass} heat-cell">${pct.toFixed(0)}%</span><br><span style="color:var(--text3);font-size:11px">${v.av} av / ${v.cp} cp</span></div>
+      </div>`;
+    }).join('') || '<div class="no-data">Sem dados de marca.</div>';
+  }
+
+  if(CHARTS['chart-marca-comp']){CHARTS['chart-marca-comp'].destroy();delete CHARTS['chart-marca-comp'];}
+  const ctx = document.getElementById('chart-marca-comp');
+  if(ctx && sorted.length) {
+    const labels = sorted.map(([k])=>k);
+    const fipeData = sorted.map(([,v])=>{ const a=avg(v.fipes); return a!=null?+a.toFixed(1):null; });
+    const capData = sorted.map(([,v])=>v.av?+(v.cp/v.av*100).toFixed(1):0);
+    CHARTS['chart-marca-comp'] = new Chart(ctx, {
+      type:'bar',
+      data:{
+        labels,
+        datasets:[
+          {label:'%FIPE médio',data:fipeData,backgroundColor:'rgba(59,130,246,0.6)',yAxisID:'y',order:1},
+          {label:'% Captação',data:capData,type:'line',borderColor:'#10b981',backgroundColor:'#10b98120',pointBackgroundColor:'#10b981',tension:0.3,yAxisID:'y2',order:0}
+        ]
+      },
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:chartTickColor(),font:{size:11},boxWidth:12}}},scales:{
+        y:{title:{display:true,text:'%FIPE',color:chartTickColor()},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:chartTickColor(),font:{size:10}}},
+        y2:{position:'right',title:{display:true,text:'% Captação',color:chartTickColor()},grid:{display:false},ticks:{color:chartTickColor(),font:{size:10}}},
+        x:{ticks:{color:chartTickColor(),font:{size:10}},grid:{display:false}}
+      }}
+    });
+  }
+}
+
+function filtrarPorMarca(marca) {
+  const sel = document.getElementById('an-f-marca');
+  if (!sel) return;
+  // Toggle: se já está filtrando por essa marca, limpa
+  sel.value = (sel.value===marca) ? '' : marca;
+  renderAnalytics();
+}
+
+function renderAnAA(av, cp) {
+  const aviso = document.getElementById('an-aa-aviso');
+  const cardsEl = document.getElementById('an-aa-cards');
+  const hasAA = av.some(r=>r.aa && r.aa>0);
+  if(aviso){ aviso.style.display=hasAA?'none':''; aviso.textContent='Coluna "AA" não encontrada ou sem valores. Verifique se a planilha de avaliações possui a coluna AA com o valor de referência.'; }
+  if(!hasAA){ if(cardsEl)cardsEl.innerHTML='<div class="no-data">Sem dados AA.</div>'; ['chart-aa-comp','chart-aa-delta'].forEach(id=>{if(CHARTS[id]){CHARTS[id].destroy();delete CHARTS[id];}}); return; }
+
+  const withAA = av.filter(r=>r.aa>0&&r.valorAv>0);
+  const totalAv = withAA.length;
+  const sumAA = withAA.reduce((s,r)=>s+r.aa,0);
+  const sumValor = withAA.reduce((s,r)=>s+r.valorAv,0);
+  const avgAA = totalAv?sumAA/totalAv:0;
+  const avgValor = totalAv?sumValor/totalAv:0;
+  const delta = avgValor - avgAA;
+  const deltaPct = avgAA?(delta/avgAA*100):0;
+
+  if(cardsEl){
+    cardsEl.innerHTML=`
+      <div class="aa-comp-card"><div class="label">Ref. AA Médio</div><div class="val">${fmtBRL(avgAA)}</div><div class="sub">${totalAv} avaliações com AA</div></div>
+      <div class="aa-comp-card"><div class="label">Valor Avaliado Médio</div><div class="val">${fmtBRL(avgValor)}</div><div class="sub">Oferta média praticada</div></div>
+      <div class="aa-comp-card"><div class="label">Delta (Avaliado − AA)</div><div class="val ${delta>=0?'pos':'neg'}">${delta>=0?'+':''}${fmtBRL(delta)}</div><div class="sub delta ${delta>=0?'pos':'neg'}">${deltaPct>=0?'+':''}${deltaPct.toFixed(1)}% em relação ao AA</div></div>
+      <div class="aa-comp-card"><div class="label">Comprados com AA</div><div class="val">${cp.filter(r=>r.aa>0).length}</div><div class="sub">de ${cp.length} total comprados</div></div>
+    `;
+  }
+
+  const byMod = {};
+  withAA.forEach(r=>{ const k=(String(r.modelo==null?'':r.modelo).trim().replace(/\s+/g,' '))||'N/D'; if(!byMod[k])byMod[k]={aa:[],val:[]}; byMod[k].aa.push(r.aa); byMod[k].val.push(r.valorAv); });
+  const avg2 = arr=>arr.reduce((a,b)=>a+b,0)/arr.length;
+  const modStats = Object.entries(byMod).filter(([,v])=>v.aa.length>=1).map(([k,v])=>({mod:k,avgAA:avg2(v.aa),avgVal:avg2(v.val),n:v.aa.length})).sort((a,b)=>b.n-a.n).slice(0,10);
+
+  if(CHARTS['chart-aa-comp']){CHARTS['chart-aa-comp'].destroy();delete CHARTS['chart-aa-comp'];}
+  const ctx1=document.getElementById('chart-aa-comp');
+  if(ctx1&&modStats.length){
+    CHARTS['chart-aa-comp']=new Chart(ctx1,{type:'bar',data:{labels:modStats.map(s=>s.mod),datasets:[
+      {label:'AA Referência',data:modStats.map(s=>Math.round(s.avgAA)),backgroundColor:'rgba(100,116,139,0.5)'},
+      {label:'Valor Avaliado',data:modStats.map(s=>Math.round(s.avgVal)),backgroundColor:'rgba(59,130,246,0.7)'}
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:chartTickColor(),font:{size:11},boxWidth:12}}},scales:{y:{ticks:{callback:v=>'R$ '+v.toLocaleString('pt-BR'),color:chartTickColor(),font:{size:10}},grid:{color:'rgba(255,255,255,0.05)'}},x:{ticks:{color:chartTickColor(),font:{size:10}},grid:{display:false}}}}});
+  }
+
+  if(CHARTS['chart-aa-delta']){CHARTS['chart-aa-delta'].destroy();delete CHARTS['chart-aa-delta'];}
+  const ctx2=document.getElementById('chart-aa-delta');
+  if(ctx2&&modStats.length){
+    const deltas=modStats.map(s=>+(s.avgVal-s.avgAA).toFixed(0));
+    CHARTS['chart-aa-delta']=new Chart(ctx2,{type:'bar',data:{labels:modStats.map(s=>s.mod),datasets:[{label:'Delta (R$)',data:deltas,backgroundColor:deltas.map(d=>d>=0?'rgba(16,185,129,0.7)':'rgba(239,68,68,0.7)')}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>(v>=0?'+':'')+v.toLocaleString('pt-BR'),color:chartTickColor(),font:{size:10}},grid:{color:'rgba(255,255,255,0.05)'}},x:{ticks:{color:chartTickColor(),font:{size:10}},grid:{display:false}}}}});
+  }
+}
+// ============================================================
+// ALERTS CONFIG
+// ============================================================
+// Domínio movido para js/alerts.js (Sprint 5.2 — separação física, script
+// clássico, carregado ANTES deste arquivo). salvarConfigAlertas/
+// gerarScriptAlertas/copyAlertScript permanecem globais (window.*) e são
+// chamadas normalmente por switchTab, pelos handlers inline e pelo compat layer.
+
+// ============================================================
+// INIT
+// ============================================================
+document.addEventListener('DOMContentLoaded',()=>{
+  const el = document.getElementById('build-tag');
+  if (el) el.textContent = BUILD_TAG;
+  loadSavedApiUrl();
+  loadSavedGeminiKey();
+  document.addEventListener('click',closeAllMultiSelects);
+  document.querySelectorAll('.multi-select-dropdown').forEach(dd=>dd.addEventListener('click',e=>e.stopPropagation()));
+});
+
+/* =========================================================
+   WINDOW COMPATIBILITY LAYER  (andaime da Sprint 5 — Stage 8)
+   ---------------------------------------------------------
+   Camada PURAMENTE ADITIVA e DOCUMENTAL. O sistema continua
+   sendo um script clássico: toda `function foo(){}` do topo já
+   é `window.foo` automaticamente. Nada aqui move, renomeia,
+   encapsula ou substitui uso interno — apenas TORNA EXPLÍCITO:
+
+     1) window.CarmaisHandlers — as 81 funções chamadas por
+        handlers inline do HTML (onclick/onchange/oninput/
+        onkeydown/drag-drop) e por handlers gerados em innerHTML.
+        Ao migrar para ES Modules (futuro), ESTAS são as funções
+        que precisarão ser reexpostas em `window`. A lista é a
+        fonte de verdade e deve bater com o grep de
+        docs/modularization-plan.md §3.
+
+     2) window.CarmaisApp — namespaces lógicos por domínio, para
+        navegação/depuração. `state`/`session`/`config` usam
+        getter porque SESSION/API_URL são reatribuídos em runtime.
+
+   IMPORTANTE: continuar chamando as funções globais diretamente.
+   NÃO passar a usar CarmaisApp.* internamente ainda (isso é a
+   modularização de fato, que virá depois).
+   ========================================================= */
+window.CarmaisHandlers = {
+  // Filtros / dashboard
+  applyFilters, clearFilters, clearAnalyticsFilters, clearCompradorFilters,
+  toggleMultiSelect, filterMsOptions, toggleMsOpt, toggleMsDropdown,
+  filterMsItems, onMsCbChange, sortDetail, sortAnalyticsTable,
+  // Navegação / tema / UI
+  switchTab, toggleTheme, closeModal, hardReloadApp,
+  // Auth
+  doLogin, doLogout,
+  // Carga / import / uploads
+  loadDataFromSheets, importFromGoogleSheets, triggerAvaliacoesImport,
+  triggerCompradosImport, loadAvaliacoes, loadEquipes, loadComprados,
+  clearAvaliacoesInput, clearCompradosInput, handleDrag, handleDrop, removeDrag,
+  setDedupAvaliacoes, exportarDiagnostico, rastrearPlacas,
+  // Config API / IA
+  saveApiUrl, resetApiUrlToDefault, testConnection,
+  saveGeminiKey, saveGeminiKeyQuiet, saveGeminiModel,
+  sendAIMessage, perguntaRapidaIA, clearAIChat,
+  // Render / tabelas
+  renderAnalytics, renderDetailTable, renderDetailCompradosTable,
+  renderCompradorVis, renderHistorico, populateCompradorFilterOptions,
+  viewFilteredInDetail, filtrarPorMarca, toggleAnSection,
+  // Edição / órfãos
+  updateBuyerField, updateRecordVendorLoja, salvarPlacaOrfao,
+  incluirOrfaoManualmente,
+  // Inclusão manual
+  salvarInclusaoManual, limparInclusaoManual, sincronizarInclusoesManuais,
+  excluirInclusaoManual, onImVendedorChange, onImLojaChange,
+  // Comprador CRUD
+  openModalNovoComprador, salvarComprador, editComprador, excluirComprador,
+  toggleComprador,
+  // Usuários
+  openModalNovoUsuario, salvarUsuario, editUsuario, toggleUsuario,
+  onPerfilChange, toggleAllLojas, syncLojasAllCheckbox,
+  // Histórico
+  loadHistorico,
+  // Alertas
+  salvarConfigAlertas, copyAlertScript,
+  // Exportações
+  exportExcel, exportPDF, exportJPEG, exportAnalyticsPDF, exportAnalyticsImage
+};
+
+window.CarmaisApp = {
+  version: BUILD_TAG,
+  // Estado vivo (getters — SESSION/API_URL são reatribuídos em runtime)
+  get state(){ return STATE; },
+  get session(){ return SESSION; },
+  get config(){ return { apiUrl: API_URL, defaultApiUrl: DEFAULT_API_URL, geminiModel: GEMINI_MODEL }; },
+  // Namespaces lógicos por domínio
+  api: { callAPI, callAPISingle, callAPIChunked, testConnection, setCloud },
+  auth: { doLogin, doLogout, openDashboard, aplicarPermissoesUsuario, aplicarAbasUI, restringirDadosPorLoja, isMaster },
+  pipeline: { loadDataFromSheets, crossJoin, computeOrfaos, normalizeAvFromSheets },
+  dashboard: { renderDashboard, getPeriodData },
+  charts: { renderLineChart, renderDoughnut, renderRanking },
+  filters: { populateFilters, applyFilters, passesFilters, clearFilters, toggleMultiSelect, closeAllMultiSelects },
+  analytics: { renderAnalytics, getAnalyticsData, sortAnalyticsTable, clearAnalyticsFilters },
+  tables: { renderDetailTable, renderDetailCompradosTable, sortDetail, renderCompradorVis },
+  comprador: { loadCompradores, salvarComprador, editComprador, excluirComprador, toggleComprador },
+  exports: { exportExcel, exportPDF, exportJPEG, exportAnalyticsPDF, exportAnalyticsImage },
+  ia: { sendAIMessage, prepareAIContext, callGeminiWithFallback, clearAIChat },
+  users: { loadUsuarios, salvarUsuario, toggleUsuario, getUserPerms, setUserPerms },
+  history: { loadHistorico, renderHistorico },
+  alerts: { salvarConfigAlertas, gerarScriptAlertas, copyAlertScript },
+  uploads: { triggerAvaliacoesImport, triggerCompradosImport, importFromGoogleSheets, processFile },
+  theme: { applyTheme, toggleTheme },
+  utils: { parseDate, fmtDate, parseNumBR, fmtBRL, escHtml, normPlaca, normChassi, showToast }
+};
