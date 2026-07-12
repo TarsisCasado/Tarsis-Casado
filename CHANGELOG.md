@@ -21,7 +21,19 @@ promover para uma versão datada.
 - (vazio)
 
 ### A corrigir
-- (vazio)
+- **Duplicidade de COMPRADOS mesclada antes do `crossJoin`.** Adicionadas as
+  funções `isSoPlacaRow`, `isSoChassiRow` e `mergeCompradosDuplicados` em
+  `js/app.js`, chamadas em `loadDataFromSheets` imediatamente antes de cada
+  chamada a `crossJoin()` (caminho de cache e caminho de carga fresca).
+  Auditoria de produção identificou que a mesma compra chegava em duas linhas
+  na aba COMPRADOS — uma com placa própria (chassi = cópia da placa) e outra
+  com VIN próprio (placa = cópia do VIN) — para a mesma empresa, data e
+  modelo. Isso impedia o vínculo correto no `crossJoin` (a 2ª linha nunca
+  encontrava avaliação livre) e gerava "fantasmas" no Dashboard. A nova função
+  funde apenas pares que casam exatamente nos critérios (empresa + data +
+  modelo, 1 linha só-placa + 1 linha só-chassi); qualquer ambiguidade é
+  preservada sem alteração e logada como `[MESCLAGEM IGNORADA]`.
+  `crossJoin`, `computeOrfaos` e `dedupeCompradosByPlaca` não foram alterados.
 
 ### A remover
 - (vazio)

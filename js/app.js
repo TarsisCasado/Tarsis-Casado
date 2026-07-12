@@ -474,6 +474,7 @@ async function loadDataFromSheets(forceRefresh) {
         STATE.equipes = cached.data.equipes || [];
         STATE.comprados = (cached.data.comprados||[]).map(r=>{ if(r.dataCompra)r.dataCompra=new Date(r.dataCompra); return r; });
         STATE.comprador = cached.data.comprador || [];
+        STATE.comprados = mergeCompradosDuplicados(STATE.comprados);
         restringirDadosPorLoja();
         crossJoin();
         applyCompradorSheetData(STATE.avaliacoes, STATE.comprador);
@@ -555,6 +556,7 @@ async function loadDataFromSheets(forceRefresh) {
     diag.compradosUnicos = STATE.comprados.length;
     diag.compradosDuplicados = dedupeInfo.duplicates;
     STATE._snapCompradosDedup = STATE.comprados.map(c=>({placa:c.placa,chassi:c.chassi,empresa:c.empresa}));
+    STATE.comprados = mergeCompradosDuplicados(STATE.comprados);
     restringirDadosPorLoja();
     crossJoin();
     diag.avDuplicados = STATE._avDuplicados || 0;
@@ -1296,6 +1298,89 @@ function dedupeCompradosByPlaca(rows){
     if (substituir) map.set(key, { ...r, __firstIndex: atual.__firstIndex });
   });
   return { rows: Array.from(map.values()).map(({__firstIndex, ...r}) => r), duplicates };
+}
+
+// ----------------------------------------------------------------
+// MESCLAGEM DE COMPRADOS DUPLICADOS (mesma compra importada em 2 linhas)
+// ----------------------------------------------------------------
+// Auditoria confirmou documentalmente (comparação campo a campo das linhas
+// reais da planilha COMPRADOS) um padrão recorrente: a mesma compra chega em
+// DUAS linhas — uma com placa=chassi=<placa> (chassi é cópia da própria
+// placa, não é um VIN) e outra com placa=chassi=<VIN> (placa é cópia do
+// próprio chassi). dedupeCompradosByPlaca não funde essas duas linhas porque
+// suas chaves (compraKey, que prioriza placa) são diferentes entre si. O
+// crossJoin, por sua vez, não tem como saber que são a mesma compra — ele
+// apenas vincula cada linha à avaliação livre correspondente, e a 2ª linha
+// processada fica sem candidata livre (nem vinculada, nem órfã).
+// Esta função NÃO altera crossJoin/computeOrfaos/dedupeCompradosByPlaca —
+// ela só reduz, ANTES de tudo isso rodar, os pares comprovadamente duplicados
+// a um único registro completo (placa real + chassi real).
+// Critério de mesclagem (todos obrigatórios): mesma empresa (normHdrEmpresa),
+// mesma data de compra (dateStr) e mesmo modelo (case/trim-insensível), sendo
+// uma linha "só placa" (placa normalizada não parece chassi, e o campo chassi
+// é apenas cópia dessa mesma placa) e a outra "só chassi" (chassi normalizado
+// parece um VIN — looksLikeChassi — e não há placa própria preenchida).
+// Qualquer grupo que não resulte em EXATAMENTE 1 linha "só placa" + 1 linha
+// "só chassi" (ex.: 0, ou 2+ de um dos lados) é preservado sem alteração e
+// registrado como [MESCLAGEM IGNORADA] — nunca decide, nunca sobrescreve,
+// nunca remove nesses casos.
+function isSoPlacaRow(r){
+  const p = normPlaca(r && r.placa);
+  if(!p || looksLikeChassi(p)) return false;
+  return normChassi(r && r.chassi) === p; // chassi é só uma cópia da própria placa
+}
+function isSoChassiRow(r){
+  const c = normChassi(r && r.chassi);
+  if(!c || !looksLikeChassi(c)) return false;
+  return !normPlaca(r && r.placa); // sem placa própria preenchida
+}
+function mergeCompradosDuplicados(rows){
+  const lista = rows || [];
+  const normModelo = m => (m||'').toString().trim().toUpperCase();
+  const grupos = new Map();
+  const semCandidatura = [];
+  lista.forEach(r=>{
+    if(isSoPlacaRow(r) || isSoChassiRow(r)){
+      const chave = normHdrEmpresa(r.empresa) + '|' + (dateStr(r.dataCompra)||'') + '|' + normModelo(r.modelo);
+      if(!grupos.has(chave)) grupos.set(chave, []);
+      grupos.get(chave).push(r);
+    } else {
+      semCandidatura.push(r);
+    }
+  });
+
+  const resultado = [...semCandidatura];
+  let mescladas = 0, ignoradas = 0;
+
+  grupos.forEach((linhas, chave)=>{
+    const soPlaca = linhas.filter(isSoPlacaRow);
+    const soChassi = linhas.filter(isSoChassiRow);
+    if(soPlaca.length === 1 && soChassi.length === 1 && linhas.length === 2){
+      const linhaPlaca = soPlaca[0], linhaChassi = soChassi[0];
+      resultado.push({ ...linhaPlaca, chassi: linhaChassi.chassi });
+      mescladas++;
+    } else {
+      // Conflito/ambiguidade: NÃO decide, NÃO sobrescreve, NÃO remove. Mantém todas as linhas do grupo.
+      linhas.forEach(r=>resultado.push(r));
+      ignoradas++;
+      const [empresa, data, modelo] = chave.split('|');
+      console.warn('[MESCLAGEM IGNORADA]', {
+        motivo: `grupo com ${soPlaca.length} linha(s) só-placa e ${soChassi.length} linha(s) só-chassi (esperado exatamente 1+1)`,
+        empresa, data, modelo
+      });
+    }
+  });
+
+  console.log('[MESCLAGEM DE COMPRADOS]', {
+    compradosRecebidos: lista.length,
+    compradosMesclados: mescladas,
+    compradosPreservados: semCandidatura.length,
+    duplicidadesEncontradas: grupos.size,
+    duplicidadesMescladas: mescladas,
+    duplicidadesIgnoradas: ignoradas
+  });
+
+  return resultado;
 }
 
 // Flag (persistido) que liga/desliga o dedup de avaliações por loja.
