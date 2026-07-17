@@ -1,0 +1,1638 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reconstrução e Clareza</title>
+<style>
+  :root{
+    --bg:#f3f6fb;
+    --surface:#ffffff;
+    --surface-2:#f7f9fc;
+    --ink:#23303f;
+    --ink-soft:#5a6b7d;
+    --ink-faint:#8a99a8;
+    --line:#e3e9f1;
+    --brand:#5b8def;
+    --brand-soft:#e9f1ff;
+    --teal:#3bb6a6;
+    --teal-soft:#e3f6f3;
+    --violet:#8b7ff0;
+    --violet-soft:#efedfe;
+    --amber:#f0b23b;
+    --amber-soft:#fdf3df;
+    --rose:#ef6f8e;
+    --rose-soft:#fdeaf0;
+    --green:#3fb27f;
+    --green-soft:#e4f6ee;
+    --red:#e36a6a;
+    --red-soft:#fbe9e9;
+    --yellow:#e6b53c;
+    --yellow-soft:#fbf2da;
+    --shadow:0 6px 24px rgba(40,70,120,.07);
+    --shadow-lg:0 12px 40px rgba(40,70,120,.12);
+    --radius:18px;
+    --radius-sm:12px;
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:var(--font);
+    background:var(--bg);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+    line-height:1.5;
+    font-size:15px;
+  }
+  button{font-family:inherit;cursor:pointer;border:none;background:none}
+  input,textarea,select{font-family:inherit;font-size:15px}
+  ::selection{background:var(--brand-soft)}
+  .hidden{display:none !important}
+
+  /* ---------- LOGIN ---------- */
+  #login{
+    min-height:100vh;display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(160deg,#eaf1fb 0%,#f3f6fb 45%,#eef6f4 100%);
+    padding:24px;
+  }
+  .login-card{
+    background:var(--surface);border-radius:26px;box-shadow:var(--shadow-lg);
+    padding:46px 40px;max-width:440px;width:100%;text-align:center;
+  }
+  .login-logo{
+    width:62px;height:62px;border-radius:20px;margin:0 auto 22px;
+    background:linear-gradient(140deg,var(--brand),var(--teal));
+    display:flex;align-items:center;justify-content:center;color:#fff;font-size:30px;
+    box-shadow:0 8px 20px rgba(91,141,239,.32);
+  }
+  .login-card h1{font-size:23px;font-weight:700;letter-spacing:-.5px}
+  .login-card .sub{color:var(--ink-soft);font-size:14px;margin-top:8px;margin-bottom:30px}
+  .profiles{display:flex;flex-direction:column;gap:12px}
+  .profile-btn{
+    display:flex;align-items:center;gap:14px;width:100%;text-align:left;
+    background:var(--surface-2);border:1.5px solid var(--line);border-radius:var(--radius-sm);
+    padding:14px 16px;transition:.18s;
+  }
+  .profile-btn:hover{border-color:var(--brand);background:var(--brand-soft);transform:translateY(-1px)}
+  .profile-btn .av{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:17px;flex-shrink:0}
+  .profile-btn .nm{font-weight:600}
+  .profile-btn .rl{font-size:12.5px;color:var(--ink-faint)}
+  .admin-toggle{margin-top:22px;font-size:13px;color:var(--ink-faint)}
+  .admin-toggle a{color:var(--brand);cursor:pointer;text-decoration:underline}
+  .pin-row{margin-top:14px;display:none}
+  .pin-row input{width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:10px;text-align:center;letter-spacing:4px}
+
+  /* ---------- APP SHELL ---------- */
+  #app{display:none;min-height:100vh}
+  .layout{display:flex;min-height:100vh}
+  .sidebar{
+    width:248px;background:var(--surface);border-right:1px solid var(--line);
+    display:flex;flex-direction:column;position:sticky;top:0;height:100vh;flex-shrink:0;
+  }
+  .brand{display:flex;align-items:center;gap:11px;padding:20px 20px 16px}
+  .brand .mk{width:38px;height:38px;border-radius:12px;background:linear-gradient(140deg,var(--brand),var(--teal));display:flex;align-items:center;justify-content:center;color:#fff;font-size:19px}
+  .brand .tx b{display:block;font-size:14.5px;letter-spacing:-.3px;line-height:1.2}
+  .brand .tx span{font-size:11.5px;color:var(--ink-faint)}
+  .nav{flex:1;overflow-y:auto;padding:8px 12px}
+  .nav-group{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--ink-faint);padding:14px 12px 6px;font-weight:600}
+  .nav-item{
+    display:flex;align-items:center;gap:11px;width:100%;text-align:left;
+    padding:9px 12px;border-radius:10px;color:var(--ink-soft);font-size:14px;font-weight:500;transition:.14s;
+  }
+  .nav-item .ic{width:20px;text-align:center;font-size:15px;flex-shrink:0}
+  .nav-item:hover{background:var(--surface-2);color:var(--ink)}
+  .nav-item.active{background:var(--brand-soft);color:var(--brand);font-weight:600}
+  .nav-foot{padding:12px;border-top:1px solid var(--line)}
+  .user-chip{display:flex;align-items:center;gap:10px;padding:8px;border-radius:10px}
+  .user-chip .av{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px}
+  .user-chip .nm{font-size:13.5px;font-weight:600;line-height:1.1}
+  .user-chip .rl{font-size:11px;color:var(--ink-faint)}
+  .logout{margin-left:auto;color:var(--ink-faint);font-size:18px;padding:4px 6px;border-radius:8px}
+  .logout:hover{color:var(--rose);background:var(--rose-soft)}
+
+  .main{flex:1;min-width:0;display:flex;flex-direction:column}
+  .topbar{
+    display:flex;align-items:center;gap:14px;padding:16px 28px;
+    background:rgba(255,255,255,.75);backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);position:sticky;top:0;z-index:30;
+  }
+  .menu-btn{display:none;font-size:22px;color:var(--ink-soft)}
+  .topbar h2{font-size:19px;font-weight:700;letter-spacing:-.4px}
+  .topbar .day-pill{margin-left:auto;background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:13px;font-weight:600;color:var(--ink-soft)}
+  .topbar .day-pill b{color:var(--brand)}
+  .content{padding:28px;max-width:1180px;width:100%;margin:0 auto;flex:1}
+
+  /* ---------- GENERIC ---------- */
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:22px}
+  .grid{display:grid;gap:18px}
+  .section-title{font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--ink-faint);font-weight:700;margin:6px 0 14px}
+  .page-intro{color:var(--ink-soft);font-size:14px;margin-bottom:22px;max-width:680px}
+  .btn{background:var(--brand);color:#fff;border-radius:10px;padding:10px 18px;font-weight:600;font-size:14px;transition:.15s;display:inline-flex;align-items:center;gap:7px}
+  .btn:hover{filter:brightness(1.06);box-shadow:0 6px 16px rgba(91,141,239,.3)}
+  .btn.ghost{background:var(--surface-2);color:var(--ink-soft);border:1px solid var(--line)}
+  .btn.ghost:hover{box-shadow:none;background:var(--line)}
+  .btn.sm{padding:7px 13px;font-size:13px}
+  .tag{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:600}
+  textarea,input[type=text],input[type=date],input[type=number],input[type=password],input[type=email],select{
+    width:100%;padding:11px 13px;border:1.5px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);transition:.15s;
+  }
+  textarea:focus,input:focus,select:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+  textarea{resize:vertical;min-height:90px;line-height:1.55}
+  label.fld{display:block;font-size:13px;font-weight:600;color:var(--ink-soft);margin-bottom:6px}
+  .empty{text-align:center;color:var(--ink-faint);padding:34px;font-size:14px}
+
+  /* ---------- DASHBOARD ---------- */
+  .dash-grid{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+  .index-card .ic-head{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+  .index-card .ic-av{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:15px}
+  .index-card .ic-head b{font-size:15px}
+  .index-card .ic-head span{display:block;font-size:12px;color:var(--ink-faint)}
+  .metric{margin-bottom:14px}
+  .metric:last-child{margin-bottom:0}
+  .metric .ml{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px}
+  .metric .ml .name{font-size:13px;color:var(--ink-soft);font-weight:500}
+  .metric .ml .val{font-size:14px;font-weight:700;font-variant-numeric:tabular-nums}
+  .bar{height:8px;border-radius:999px;background:var(--surface-2);overflow:hidden}
+  .bar > div{height:100%;border-radius:999px;transition:width .6s cubic-bezier(.2,.7,.3,1)}
+
+  .traffic{display:flex;align-items:center;gap:20px}
+  .traffic .lights{display:flex;flex-direction:column;gap:9px;background:#2b3a4a;padding:12px;border-radius:16px}
+  .traffic .lights .lt{width:30px;height:30px;border-radius:50%;background:#445566;opacity:.32;transition:.3s}
+  .traffic .lights .lt.on{opacity:1;box-shadow:0 0 16px currentColor}
+  .lt.r{color:var(--red)} .lt.y{color:var(--yellow)} .lt.g{color:var(--green)}
+  .lt.r.on{background:var(--red)} .lt.y.on{background:var(--yellow)} .lt.g.on{background:var(--green)}
+  .traffic .tinfo b{font-size:18px}
+  .traffic .tinfo p{font-size:13px;color:var(--ink-soft);margin-top:3px;max-width:240px}
+
+  .timeline-wrap .tl-head{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:12px}
+  .timeline-wrap .tl-head b{font-size:26px;letter-spacing:-.5px}
+  .timeline-wrap .tl-head b small{font-size:15px;color:var(--ink-faint);font-weight:600}
+  .timeline-wrap .tl-head .pct{font-size:22px;font-weight:700;color:var(--brand)}
+  .tl-bar{height:12px;border-radius:999px;background:var(--surface-2);overflow:hidden;position:relative}
+  .tl-bar > div{height:100%;background:linear-gradient(90deg,var(--brand),var(--teal));border-radius:999px;transition:width .6s}
+  .tl-phases{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:18px}
+  .tl-phase{border:1.5px solid var(--line);border-radius:12px;padding:12px;font-size:12.5px}
+  .tl-phase.active{border-color:var(--brand);background:var(--brand-soft)}
+  .tl-phase .ph-n{font-weight:700;font-size:12px;color:var(--ink-faint)}
+  .tl-phase.active .ph-n{color:var(--brand)}
+  .tl-phase .ph-t{font-weight:600;margin:3px 0}
+  .tl-phase .ph-d{color:var(--ink-soft)}
+
+  /* ---------- TASKS / CHECKBOX ---------- */
+  .task{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;margin-bottom:10px;transition:.15s;background:var(--surface)}
+  .task:hover{border-color:var(--brand)}
+  .task.done{background:var(--green-soft);border-color:#c9ebd9}
+  .task.done .tk-label{text-decoration:line-through;color:var(--ink-faint)}
+  .chk{width:24px;height:24px;border-radius:8px;border:2px solid var(--line);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;transition:.15s}
+  .task.done .chk{background:var(--green);border-color:var(--green)}
+  .tk-icon{font-size:18px}
+  .tk-label{font-weight:500;flex:1}
+
+  /* ---------- CHECK-IN SLIDERS ---------- */
+  .slider-row{margin-bottom:20px}
+  .slider-row .sl-top{display:flex;justify-content:space-between;margin-bottom:8px}
+  .slider-row .sl-top .lbl{font-weight:600;font-size:14px}
+  .slider-row .sl-top .num{font-weight:700;color:var(--brand);font-size:16px;font-variant-numeric:tabular-nums}
+  input[type=range]{-webkit-appearance:none;width:100%;height:8px;border-radius:999px;background:var(--surface-2);outline:none}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:#fff;border:3px solid var(--brand);box-shadow:0 2px 6px rgba(0,0,0,.15);cursor:pointer}
+  input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:#fff;border:3px solid var(--brand);cursor:pointer}
+
+  /* ---------- KANBAN ---------- */
+  .kanban{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  .kcol{background:var(--surface-2);border-radius:14px;padding:12px;min-height:200px}
+  .kcol.dragover{outline:2px dashed var(--brand);outline-offset:-4px}
+  .kcol-head{display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;margin-bottom:12px;padding:0 4px}
+  .kcol-head .dot{width:9px;height:9px;border-radius:50%}
+  .kcol-head .cnt{margin-left:auto;font-size:12px;color:var(--ink-faint);background:var(--surface);border-radius:999px;padding:1px 8px}
+  .kcard{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:11px 12px;margin-bottom:9px;box-shadow:0 1px 3px rgba(0,0,0,.04);cursor:grab}
+  .kcard:active{cursor:grabbing}
+  .kcard.dragging{opacity:.45}
+  .kcard .kt{font-size:13.5px;font-weight:500;line-height:1.4}
+  .kcard .kmeta{display:flex;align-items:center;gap:6px;margin-top:8px}
+  .kcard .kx{margin-left:auto;color:var(--ink-faint);font-size:14px;cursor:pointer}
+  .kcard .kx:hover{color:var(--rose)}
+  .kadd{width:100%;text-align:left;color:var(--ink-faint);font-size:13px;padding:8px 10px;border-radius:8px;border:1.5px dashed var(--line)}
+  .kadd:hover{border-color:var(--brand);color:var(--brand)}
+
+  /* ---------- GOALS ---------- */
+  .goal{display:flex;align-items:flex-start;gap:12px;padding:14px;border:1px solid var(--line);border-radius:12px;margin-bottom:10px}
+  .goal.done{opacity:.6}
+  .goal.done .g-title{text-decoration:line-through}
+  .goal .g-title{font-weight:600}
+  .goal .g-meta{font-size:12.5px;color:var(--ink-faint);margin-top:4px;display:flex;flex-wrap:wrap;gap:8px}
+  .goal .g-actions{margin-left:auto;display:flex;gap:6px}
+  .icon-btn{color:var(--ink-faint);font-size:15px;padding:5px;border-radius:8px}
+  .icon-btn:hover{background:var(--surface-2);color:var(--ink)}
+
+  /* ---------- ENTRIES (letters/diary) ---------- */
+  .entry{border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:11px}
+  .entry .e-head{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+  .entry .e-date{font-size:12px;color:var(--ink-faint);font-weight:600}
+  .entry .e-title{font-weight:600;font-size:14.5px}
+  .entry .e-body{font-size:13.5px;color:var(--ink-soft);white-space:pre-wrap;line-height:1.6}
+  .privacy-banner{background:var(--violet-soft);border:1px solid #ddd8fb;border-radius:12px;padding:12px 16px;font-size:13px;color:#6a5fce;display:flex;align-items:center;gap:10px;margin-bottom:18px}
+
+  /* ---------- CHARTS ---------- */
+  .chart-card{padding:20px}
+  .chart-card h4{font-size:14px;margin-bottom:4px}
+  .chart-card .csub{font-size:12px;color:var(--ink-faint);margin-bottom:14px}
+  canvas{width:100%;display:block}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:12px;font-size:12px;color:var(--ink-soft)}
+  .legend span{display:flex;align-items:center;gap:6px}
+  .legend i{width:12px;height:3px;border-radius:2px;display:inline-block}
+  .compare-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:6px}
+  .compare-box{text-align:center;border:1px solid var(--line);border-radius:12px;padding:16px}
+  .compare-box .cb-d{font-size:12px;color:var(--ink-faint);font-weight:600}
+  .compare-box .cb-v{font-size:26px;font-weight:700;margin-top:6px}
+  .compare-box .cb-l{font-size:12px;color:var(--ink-soft)}
+
+  /* ---------- REPORTS ---------- */
+  .report{line-height:1.7}
+  .report h3{font-size:18px;margin-bottom:6px}
+  .report .r-q{margin:16px 0}
+  .report .r-q .q{font-weight:600;margin-bottom:6px}
+  .report .r-stat{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px dashed var(--line);font-size:14px}
+  .report .r-stat b{font-variant-numeric:tabular-nums}
+  .pill-yn{display:inline-flex;gap:8px;margin-top:6px}
+  .pill-yn button{padding:8px 18px;border-radius:999px;border:1.5px solid var(--line);font-weight:600;font-size:13px;color:var(--ink-soft)}
+  .pill-yn button.sel-yes{background:var(--green-soft);border-color:var(--green);color:var(--green)}
+  .pill-yn button.sel-no{background:var(--red-soft);border-color:var(--red);color:var(--red)}
+
+  /* ---------- SETTINGS ---------- */
+  .toggle-row{display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--line)}
+  .toggle-row:last-child{border-bottom:none}
+  .toggle-row .tr-tx{flex:1}
+  .toggle-row .tr-tx b{font-size:14px}
+  .toggle-row .tr-tx span{display:block;font-size:12.5px;color:var(--ink-faint)}
+  .switch{width:46px;height:26px;border-radius:999px;background:var(--line);position:relative;transition:.2s;flex-shrink:0}
+  .switch.on{background:var(--green)}
+  .switch::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+  .switch.on::after{left:23px}
+
+  /* ---------- MODAL ---------- */
+  .modal-bg{position:fixed;inset:0;background:rgba(30,45,65,.4);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px}
+  .modal{background:var(--surface);border-radius:20px;box-shadow:var(--shadow-lg);width:100%;max-width:480px;max-height:90vh;overflow-y:auto;padding:26px}
+  .modal h3{font-size:18px;margin-bottom:18px}
+  .modal .m-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:22px}
+  .field{margin-bottom:16px}
+
+  /* ---------- TOAST ---------- */
+  #toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:12px 22px;border-radius:12px;font-size:14px;font-weight:500;opacity:0;transition:.3s;z-index:200;box-shadow:var(--shadow-lg);pointer-events:none}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .cols-auto{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
+
+  @media(max-width:900px){
+    .two-col{grid-template-columns:1fr}
+    .kanban{grid-template-columns:1fr 1fr}
+  }
+  @media(max-width:760px){
+    .sidebar{position:fixed;left:0;top:0;z-index:60;transform:translateX(-100%);transition:.25s;box-shadow:var(--shadow-lg)}
+    .sidebar.open{transform:translateX(0)}
+    .menu-btn{display:block}
+    .content{padding:18px}
+    .topbar{padding:14px 18px}
+    .kanban{grid-template-columns:1fr}
+    .tl-phases{grid-template-columns:1fr}
+    .compare-grid{grid-template-columns:1fr}
+    .scrim{position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:55;display:none}
+    .scrim.show{display:block}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div id="login">
+  <div class="login-card">
+    <div class="login-logo">✦</div>
+    <h1>Reconstrução e Clareza</h1>
+    <p class="sub">Uma jornada estruturada de 90 dias rumo à cura, reconexão e decisão consciente.</p>
+    <div class="profiles" id="profiles">
+      <button class="profile-btn" data-user="tarsis">
+        <div class="av" style="background:linear-gradient(140deg,#5b8def,#3bb6a6)">T</div>
+        <div><div class="nm">Tarsis</div><div class="rl">Acesso individual + compartilhado</div></div>
+      </button>
+      <button class="profile-btn" data-user="amanda">
+        <div class="av" style="background:linear-gradient(140deg,#8b7ff0,#ef6f8e)">A</div>
+        <div><div class="nm">Amanda</div><div class="rl">Acesso individual + compartilhado</div></div>
+      </button>
+      <button class="profile-btn hidden" id="adminBtn" data-user="admin">
+        <div class="av" style="background:linear-gradient(140deg,#5a6b7d,#23303f)">★</div>
+        <div><div class="nm">Administrador</div><div class="rl">Mentor · Psicólogo · Pastor</div></div>
+      </button>
+    </div>
+
+    <div id="authPanel" class="hidden">
+      <div style="display:flex;align-items:center;gap:12px;justify-content:center;margin:4px 0 18px">
+        <div class="av" id="authAv" style="width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:18px"></div>
+        <div style="text-align:left"><div class="nm" id="authName" style="font-weight:600"></div><div class="rl" id="authMode" style="font-size:12px;color:var(--ink-faint)"></div></div>
+      </div>
+      <div class="field"><input type="password" id="pw1" placeholder="Senha" autocomplete="current-password"></div>
+      <div class="field hidden" id="pw2row"><input type="password" id="pw2" placeholder="Confirmar senha" autocomplete="new-password"></div>
+      <div id="authErr" style="color:var(--rose);font-size:13px;min-height:18px;margin-bottom:6px"></div>
+      <button class="btn" id="authGo" style="width:100%;justify-content:center">Entrar</button>
+      <div style="margin-top:14px;font-size:13px;color:var(--ink-faint)">
+        <a id="toggleCreate" style="color:var(--brand);cursor:pointer;text-decoration:underline"></a>
+        &nbsp;·&nbsp; <a id="authBack" style="color:var(--ink-faint);cursor:pointer;text-decoration:underline">voltar</a>
+      </div>
+    </div>
+
+    <div class="admin-toggle" id="adminToggleRow">
+      <a id="showAdmin">Ativar perfil de Administrador (mentor/pastor)</a>
+    </div>
+    <div id="cloudHint" style="margin-top:14px;font-size:12px;color:var(--ink-faint);line-height:1.4"></div>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app">
+  <div class="scrim" id="scrim"></div>
+  <div class="layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="mk">✦</div>
+        <div class="tx"><b>Reconstrução</b><span>& Clareza · 90 dias</span></div>
+      </div>
+      <nav class="nav" id="nav"></nav>
+      <div class="nav-foot">
+        <div class="user-chip">
+          <div class="av" id="footAv">T</div>
+          <div><div class="nm" id="footName">Tarsis</div><div class="rl" id="footRole">Individual</div></div>
+          <button class="logout" id="logoutBtn" title="Sair">⏻</button>
+        </div>
+      </div>
+    </aside>
+
+    <div class="main">
+      <header class="topbar">
+        <button class="menu-btn" id="menuBtn">☰</button>
+        <h2 id="pageTitle">Painel</h2>
+        <div class="day-pill">Dia <b id="dayNum">1</b> de 90 · <span id="phaseLabel">Fase 1</span></div>
+      </header>
+      <div class="content" id="view"></div>
+    </div>
+  </div>
+</div>
+
+<div id="modalRoot"></div>
+<div id="toast"></div>
+
+<!-- ====== Firebase (sincronização entre dispositivos) ====== -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+/* =========================================================================
+   CONFIGURAÇÃO DO FIREBASE  (sincroniza os dados em qualquer dispositivo)
+   -------------------------------------------------------------------------
+   Cole abaixo a configuração do SEU projeto Firebase:
+     Console Firebase > ⚙ Configurações do projeto > Seus apps > App Web > SDK.
+   Enquanto os valores estiverem como "COLE_AQUI", o app funciona apenas
+   neste dispositivo (modo offline / LocalStorage). O passo a passo completo
+   está dentro do app em Configurações ⚙ > Sincronização na nuvem.
+   ========================================================================= */
+const FIREBASE_CONFIG = {
+  apiKey: "COLE_AQUI",
+  authDomain: "COLE_AQUI",
+  projectId: "COLE_AQUI",
+  storageBucket: "COLE_AQUI",
+  messagingSenderId: "COLE_AQUI",
+  appId: "COLE_AQUI"
+};
+let FB=null, AUTH=null, DB=null, CLOUD=false;
+(function initFirebase(){
+  try{
+    if(typeof firebase!=='undefined' && FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey!=='COLE_AQUI'){
+      FB=firebase.initializeApp(FIREBASE_CONFIG);
+      AUTH=firebase.auth(); DB=firebase.firestore();
+      try{ AUTH.setPersistence(firebase.auth.Auth.Persistence.LOCAL); }catch(e){}
+      CLOUD=true;
+    }
+  }catch(e){ console.warn('Firebase indisponível, usando modo offline:',e); CLOUD=false; }
+})();
+</script>
+
+<script>
+"use strict";
+/* =========================================================================
+   RECONSTRUÇÃO E CLAREZA — app de 90 dias (HTML/CSS/JS, arquivo único)
+   Camada de dados: abstração de "store" preparada para LocalStorage agora,
+   e futuramente Google Sheets / PostgreSQL (basta implementar load/save).
+   ========================================================================= */
+
+/* ---------------- DATA STORE (LocalStorage + Firebase) ----------------
+   Os dados privados (cartas e diário) ficam SEPARADOS dos compartilhados,
+   tanto no cache local quanto na nuvem (Firestore), garantindo que uma
+   pessoa nunca consiga ler o conteúdo privado da outra — nem no banco. */
+const KEY = 'reconstrucao_clareza_v1';
+const PRIVKEY = u => KEY+'_priv_'+u;
+const PWKEY   = u => KEY+'_pw_'+u;          // fallback offline (sem Firebase)
+
+function clone(o){ return JSON.parse(JSON.stringify(o)); }
+function stripPrivate(s){
+  const c=clone(s);
+  if(c.users){ Object.keys(c.users).forEach(u=>{ c.users[u].letters=[]; c.users[u].diary=[]; }); }
+  return c;
+}
+const Store = {
+  loadShared(){ try{ return JSON.parse(localStorage.getItem(KEY))||null; }catch(e){ return null; } },
+  saveShared(s){ try{ localStorage.setItem(KEY, JSON.stringify(stripPrivate(s))); }catch(e){ console.warn('save falhou',e); } },
+  loadPriv(u){ try{ return JSON.parse(localStorage.getItem(PRIVKEY(u)))||null; }catch(e){ return null; } },
+  savePriv(u,obj){ try{ localStorage.setItem(PRIVKEY(u), JSON.stringify(obj)); }catch(e){} },
+  clearAll(){ try{ localStorage.removeItem(KEY); localStorage.removeItem(PRIVKEY('tarsis')); localStorage.removeItem(PRIVKEY('amanda')); }catch(e){} }
+};
+
+/* ---------------- CLOUD SYNC (Firestore) ---------------- */
+const emailFor = u => u+'@reconstrucao.app';
+const userFromEmail = e => (e||'').split('@')[0];
+const Cloud = {
+  unsub:[],
+  _t:null,
+  on(){ return CLOUD && AUTH && AUTH.currentUser; },
+  // assina alterações em tempo real conforme as permissões do usuário logado
+  subscribe(){
+    this.stop();
+    if(!this.on()) return;
+    // compartilhado
+    this.unsub.push(DB.collection('couples').doc('main').onSnapshot(doc=>{
+      if(doc.exists){ mergeShared(doc.data()); if(CURRENT) render(); }
+      else { this.pushShared(); } // primeira vez: cria documento
+    }, err=>console.warn('sync shared:',err)));
+    // privados acessíveis
+    const owners = CURRENT==='admin' ? ['tarsis','amanda'] : [CURRENT];
+    owners.forEach(o=>{
+      this.unsub.push(DB.collection('private').doc(o).onSnapshot(doc=>{
+        const d=doc.exists?doc.data():{letters:[],diary:[]};
+        S.users[o].letters=d.letters||[]; S.users[o].diary=d.diary||[];
+        Store.savePriv(o,{letters:S.users[o].letters,diary:S.users[o].diary});
+        if(CURRENT && (route==='letters'||route==='diary')) render();
+      }, err=>console.warn('sync priv '+o,err)));
+    });
+  },
+  stop(){ this.unsub.forEach(f=>{try{f();}catch(e){}}); this.unsub=[]; },
+  pushShared(){
+    if(!this.on()) return;
+    DB.collection('couples').doc('main').set(stripPrivate(S)).catch(e=>console.warn('push shared',e));
+  },
+  pushPriv(u){
+    if(!this.on()) return;
+    DB.collection('private').doc(u).set({letters:S.users[u].letters||[],diary:S.users[u].diary||[]}).catch(e=>console.warn('push priv',e));
+  },
+  // grava tudo o que o usuário atual pode escrever (debounced)
+  pushAll(){
+    if(!this.on()) return;
+    clearTimeout(this._t);
+    this._t=setTimeout(()=>{
+      this.pushShared();
+      const owners = CURRENT==='admin' ? ['tarsis','amanda'] : [CURRENT];
+      owners.forEach(o=>this.pushPriv(o));
+    },350);
+  }
+};
+// mescla doc compartilhado preservando os dados privados já carregados em memória
+function mergeShared(data){
+  const priv={};
+  Object.keys(S.users||{}).forEach(u=>{ priv[u]={letters:S.users[u].letters,diary:S.users[u].diary}; });
+  S = normalizeShared(data);
+  Object.keys(priv).forEach(u=>{ if(S.users[u]){ S.users[u].letters=priv[u].letters||[]; S.users[u].diary=priv[u].diary||[]; } });
+}
+function normalizeShared(data){
+  const d=defaultState();
+  if(!data) return d;
+  return Object.assign(d, data, {
+    settings:Object.assign(d.settings,data.settings||{}),
+    users:{ tarsis:Object.assign(blankUser(),data.users&&data.users.tarsis||{}), amanda:Object.assign(blankUser(),data.users&&data.users.amanda||{}) },
+    couple:Object.assign(d.couple,data.couple||{}),
+    kanban:Object.assign(d.kanban,data.kanban||{}),
+    reportsAnswers:Object.assign(d.reportsAnswers,data.reportsAnswers||{}),
+    decision:Object.assign(d.decision,data.decision||{})
+  });
+}
+
+/* ---------------- DEFAULT STATE ---------------- */
+function defaultState(){
+  return {
+    startDate: todayISO(),
+    adminEnabled: false,
+    settings: {
+      sessaoPastor:false, casalMentor:false,
+      cultoSemanal:true, devocionalSemanal:true, oracaoJuntos:true
+    },
+    users: {
+      tarsis: blankUser(),
+      amanda: blankUser()
+    },
+    couple: {
+      positive:{},      // {date:{tarsis:'',amanda:''}}
+      conversations:{}, // {weekKey:{count:0}}
+      encontro:{},      // {weekKey:true}
+      reuniao:{}        // {weekKey:{melhorou,piorou,diferente,preciso}}
+    },
+    kanban:{ todo:[], doing:[], done:[], reschedule:[] },
+    goals:[],
+    reportsAnswers:{ d30:{}, d60:{} },
+    decision:{ tarsis:{}, amanda:{} }
+  };
+}
+function blankUser(){
+  return {
+    daily:{},     // {date:{taskKey:bool}}
+    questions:{},  // {date:{q1,q2,q3,q4}}
+    checkins:{},   // {date:{humor,esperanca,conexao,paz,tarefas}}
+    weekly:{},     // {weekKey:{terapia,mentor,reflexao}}
+    letters:[],    // privado
+    diary:[]       // privado
+  };
+}
+
+/* ---------------- HELPERS ---------------- */
+function todayISO(){ const d=new Date(); return d.toISOString().slice(0,10); }
+function parseISO(s){ const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); }
+function fmtDate(iso){ try{ return parseISO(iso).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});}catch(e){return iso;} }
+function fmtDateTime(ts){ return new Date(ts).toLocaleString('pt-BR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}); }
+function daysBetween(a,b){ return Math.round((parseISO(b)-parseISO(a))/86400000); }
+function clamp(n,a,b){ return Math.max(a,Math.min(b,n)); }
+function weekKey(iso){
+  // semana do programa (1..14)
+  const wk = Math.floor(daysBetween(S.startDate, iso)/7);
+  return 'w'+clamp(wk,0,13);
+}
+function curDay(){ return clamp(daysBetween(S.startDate, todayISO())+1, 1, 90); }
+function curPhase(){ const d=curDay(); return d<=30?1:d<=60?2:3; }
+function avg(arr){ return arr.length? arr.reduce((a,b)=>a+b,0)/arr.length : 0; }
+function el(html){ const t=document.createElement('template'); t.innerHTML=html.trim(); return t.content.firstElementChild; }
+function esc(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2000); }
+
+/* ---------------- GLOBAL ---------------- */
+let S = normalizeShared(Store.loadShared());
+let CURRENT = null;   // 'tarsis' | 'amanda' | 'admin'
+let VIEWAS = 'tarsis'; // para admin: qual pessoa está visualizando em áreas individuais
+let route = 'dash';
+
+function accessibleOwners(){ return CURRENT==='admin' ? ['tarsis','amanda'] : (CURRENT?[CURRENT]:[]); }
+function persist(){
+  Store.saveShared(S);
+  accessibleOwners().forEach(u=>Store.savePriv(u,{letters:S.users[u].letters,diary:S.users[u].diary}));
+  Cloud.pushAll();
+}
+const PEOPLE = {
+  tarsis:{name:'Tarsis', av:'T', grad:'linear-gradient(140deg,#5b8def,#3bb6a6)', color:'#5b8def',
+    tasks:[ ['oracao','🙏','Oração'],['biblia','📖','Leitura bíblica'],['exercicio','🏃','Exercício físico'],['registro','✍️','Registro emocional'],['reflexao','🧠','Reflexão pessoal'] ],
+    questions:['O que senti hoje?','O que me machucou hoje?','O que me trouxe esperança hoje?','O que aprendi hoje?'],
+    tema:'Qual ferida continua me prendendo ao passado?'
+  },
+  amanda:{name:'Amanda', av:'A', grad:'linear-gradient(140deg,#8b7ff0,#ef6f8e)', color:'#8b7ff0',
+    tasks:[ ['oracao','🙏','Oração'],['biblia','📖','Leitura bíblica'],['diario','📔','Diário emocional'],['gratidao','🌿','Gratidão'],['reflexao','🧠','Reflexão pessoal'] ],
+    questions:['Como estou me sentindo?','O que me trouxe insegurança?','O que me trouxe esperança?','O que aprendi hoje?'],
+    tema:'Como posso amar sem controlar o resultado?'
+  }
+};
+
+/* =========================================================================
+   SCORING — índices automáticos 0..100
+   ========================================================================= */
+function recentDates(n){
+  const out=[]; const t=parseISO(todayISO());
+  for(let i=0;i<n;i++){ const d=new Date(t); d.setDate(d.getDate()-i); out.push(d.toISOString().slice(0,10)); }
+  return out;
+}
+function userCheckinAvg(u,field,n){
+  const dates=recentDates(n); const vals=[];
+  dates.forEach(d=>{ const c=S.users[u].checkins[d]; if(c && typeof c[field]==='number') vals.push(c[field]); });
+  return vals.length? avg(vals):null;
+}
+function taskCompletionRate(u,n){
+  const dates=recentDates(n); let done=0,total=0;
+  const tdefs=PEOPLE[u].tasks;
+  dates.forEach(d=>{
+    const day=S.users[u].daily[d];
+    if(day){ tdefs.forEach(t=>{ total++; if(day[t[0]]) done++; }); }
+  });
+  return total? done/total : 0;
+}
+function spiritualRate(u,n){
+  const dates=recentDates(n); let done=0,total=0;
+  dates.forEach(d=>{ const day=S.users[u].daily[d]; if(day){ total+=2; if(day.oracao)done++; if(day.biblia)done++; } });
+  return total? done/total:0;
+}
+function individualIndex(u){
+  const emoCheck = userCheckinAvg(u,'humor',10);
+  const pazCheck = userCheckinAvg(u,'paz',10);
+  const hopeCheck = userCheckinAvg(u,'esperanca',10);
+  const emo = emoCheck!=null||pazCheck!=null ? Math.round(((emoCheck??pazCheck??0)+(pazCheck??emoCheck??0))/2*10) : null;
+  const esp = Math.round(spiritualRate(u,14)*100);
+  const disc = Math.round(taskCompletionRate(u,14)*100);
+  const hope = hopeCheck!=null? Math.round(hopeCheck*10): null;
+  return {
+    emocional: emo??0, espiritual:esp, disciplina:disc, esperanca:hope??0,
+    hasData: emoCheck!=null||disc>0||hopeCheck!=null
+  };
+}
+function coupleIndex(){
+  // comunicação: conversas realizadas (3/sem alvo) últimas 2 semanas + reuniões
+  const wkNow=weekKey(todayISO());
+  let convRate=0,convN=0;
+  for(let i=0;i<2;i++){ const wk='w'+clamp((parseInt(wkNow.slice(1))-i),0,13);
+    const c=S.couple.conversations[wk]; convRate += Math.min((c?.count||0)/3,1); convN++; }
+  const comunicacao = Math.round((convN?convRate/convN:0)*100);
+  // conexão: média check-in conexao dos dois
+  const conexT=userCheckinAvg('tarsis','conexao',10), conexA=userCheckinAvg('amanda','conexao',10);
+  const conexVals=[conexT,conexA].filter(v=>v!=null);
+  const conexao = conexVals.length? Math.round(avg(conexVals)*10):0;
+  // confiança: blend esperança média + consistência tarefas
+  const espT=userCheckinAvg('tarsis','esperanca',10), espA=userCheckinAvg('amanda','esperanca',10);
+  const espVals=[espT,espA].filter(v=>v!=null);
+  const consist=(taskCompletionRate('tarsis',14)+taskCompletionRate('amanda',14))/2;
+  const confianca = Math.round(((espVals.length?avg(espVals)/10:0)*.6 + consist*.4)*100);
+  // admiração: mensagens positivas escritas últimas 14 dias (alvo 1/dia/pessoa)
+  const dates=recentDates(14); let posDone=0,posTot=0;
+  dates.forEach(d=>{ const p=S.couple.positive[d]; posTot+=2; if(p?.tarsis)posDone++; if(p?.amanda)posDone++; });
+  const admiracao=Math.round((posTot?posDone/posTot:0)*100);
+  return {comunicacao,conexao,confianca,admiracao};
+}
+function overallScore(){
+  const ci=coupleIndex();
+  const it=individualIndex('tarsis'), ia=individualIndex('amanda');
+  const couple=avg([ci.comunicacao,ci.conexao,ci.confianca,ci.admiracao]);
+  const indiv=avg([it.emocional,it.espiritual,it.disciplina,it.esperanca,ia.emocional,ia.espiritual,ia.disciplina,ia.esperanca]);
+  return Math.round(couple*.5+indiv*.5);
+}
+function semaforo(){
+  const s=overallScore();
+  if(s>=70) return {c:'g',label:'Verde',txt:'Vocês estão evoluindo. Mantenham a consistência e celebrem os pequenos avanços.',score:s};
+  if(s>=40) return {c:'y',label:'Amarelo',txt:'Atenção. Há sinais que pedem cuidado — priorizem as conversas programadas e o check-in diário.',score:s};
+  return {c:'r',label:'Vermelho',txt:'Momento de risco. Evitem decisões impulsivas e considerem apoio do mentor/terapeuta.',score:s};
+}
+function colorFor(v){ return v>=70?'var(--green)':v>=40?'var(--amber)':'var(--rose)'; }
+
+/* =========================================================================
+   PERMISSIONS
+   ========================================================================= */
+function canSeePrivate(ownerUser){
+  if(CURRENT==='admin') return true;
+  return CURRENT===ownerUser;
+}
+// pessoa "ativa" para áreas individuais (admin escolhe via VIEWAS)
+function activePerson(){ return CURRENT==='admin'? VIEWAS : CURRENT; }
+
+/* =========================================================================
+   NAVIGATION
+   ========================================================================= */
+const NAV = [
+  {g:'Visão Geral'},
+  {id:'dash', ic:'📊', label:'Painel'},
+  {id:'timeline', ic:'🗓️', label:'Jornada & Fases'},
+  {g:'Diário'},
+  {id:'individual', ic:'🌱', label:'Área Individual'},
+  {id:'checkin', ic:'💗', label:'Check-in Diário'},
+  {id:'couple', ic:'🤝', label:'Área do Casal'},
+  {id:'spiritual', ic:'🕊️', label:'Área Espiritual'},
+  {g:'Organização'},
+  {id:'kanban', ic:'🗂️', label:'Kanban'},
+  {id:'goals', ic:'🎯', label:'Metas'},
+  {g:'Privado'},
+  {id:'diary', ic:'📔', label:'Diário Privado'},
+  {id:'letters', ic:'✉️', label:'Carta que não enviei'},
+  {g:'Evolução'},
+  {id:'charts', ic:'📈', label:'Gráficos'},
+  {id:'reports', ic:'📋', label:'Relatórios'},
+  {id:'decision', ic:'🧭', label:'Decisão Final'},
+  {g:'Sistema'},
+  {id:'settings', ic:'⚙️', label:'Configurações'}
+];
+function renderNav(){
+  const nav=document.getElementById('nav'); nav.innerHTML='';
+  NAV.forEach(n=>{
+    if(n.g){ nav.appendChild(el(`<div class="nav-group">${n.g}</div>`)); return; }
+    const b=el(`<button class="nav-item ${route===n.id?'active':''}"><span class="ic">${n.ic}</span>${n.label}</button>`);
+    b.onclick=()=>{ go(n.id); closeSidebar(); };
+    nav.appendChild(b);
+  });
+}
+function go(r){ route=r; render(); }
+
+/* =========================================================================
+   RENDER ROUTER
+   ========================================================================= */
+const TITLES={dash:'Painel',timeline:'Jornada & Fases',individual:'Área Individual',checkin:'Check-in Diário',couple:'Área do Casal',spiritual:'Área Espiritual',kanban:'Kanban',goals:'Metas',diary:'Diário Privado',letters:'Carta que não enviei',charts:'Gráficos',reports:'Relatórios',decision:'Decisão Final',settings:'Configurações'};
+function render(){
+  document.getElementById('pageTitle').textContent=TITLES[route]||'';
+  document.getElementById('dayNum').textContent=curDay();
+  document.getElementById('phaseLabel').textContent='Fase '+curPhase();
+  renderNav();
+  const v=document.getElementById('view');
+  v.innerHTML='';
+  ({dash:viewDash,timeline:viewTimeline,individual:viewIndividual,checkin:viewCheckin,couple:viewCouple,spiritual:viewSpiritual,kanban:viewKanban,goals:viewGoals,diary:viewDiary,letters:viewLetters,charts:viewCharts,reports:viewReports,decision:viewDecision,settings:viewSettings}[route]||viewDash)(v);
+}
+
+/* ---------------- DASHBOARD ---------------- */
+function metricHTML(name,val){
+  return `<div class="metric"><div class="ml"><span class="name">${name}</span><span class="val" style="color:${colorFor(val)}">${val}</span></div><div class="bar"><div style="width:${val}%;background:${colorFor(val)}"></div></div></div>`;
+}
+function indexCard(u){
+  const p=PEOPLE[u], ix=individualIndex(u);
+  return `<div class="card index-card">
+    <div class="ic-head"><div class="ic-av" style="background:${p.grad}">${p.av}</div><div><b>${p.name}</b><span>Índice individual</span></div></div>
+    ${metricHTML('Saúde emocional',ix.emocional)}
+    ${metricHTML('Saúde espiritual',ix.espiritual)}
+    ${metricHTML('Disciplina',ix.disciplina)}
+    ${metricHTML('Esperança',ix.esperanca)}
+  </div>`;
+}
+function viewDash(v){
+  const sem=semaforo(); const ci=coupleIndex(); const day=curDay(); const pct=Math.round(day/90*100);
+  v.appendChild(el(`<p class="page-intro">Um retrato vivo da jornada de vocês. Os índices são calculados automaticamente a partir dos check-ins, tarefas e momentos do casal — sem julgamento, apenas clareza.</p>`));
+
+  // timeline mini
+  const tl=el(`<div class="card timeline-wrap" style="margin-bottom:18px">
+    <div class="tl-head"><b>Dia ${day}<small> / 90</small></b><div class="pct">${pct}%</div></div>
+    <div class="tl-bar"><div style="width:${pct}%"></div></div>
+  </div>`);
+  v.appendChild(tl);
+
+  const grid=el(`<div class="grid dash-grid"></div>`);
+  grid.appendChild(el(indexCard('tarsis')));
+  grid.appendChild(el(indexCard('amanda')));
+  grid.appendChild(el(`<div class="card index-card">
+    <div class="ic-head"><div class="ic-av" style="background:linear-gradient(140deg,#3bb6a6,#5b8def)">∞</div><div><b>O Casal</b><span>Índice do relacionamento</span></div></div>
+    ${metricHTML('Comunicação',ci.comunicacao)}
+    ${metricHTML('Conexão',ci.conexao)}
+    ${metricHTML('Confiança',ci.confianca)}
+    ${metricHTML('Admiração',ci.admiracao)}
+  </div>`));
+  v.appendChild(grid);
+
+  v.appendChild(el(`<div class="card" style="margin-top:18px">
+    <div class="section-title">Semáforo do relacionamento</div>
+    <div class="traffic">
+      <div class="lights">
+        <div class="lt r ${sem.c==='r'?'on':''}"></div>
+        <div class="lt y ${sem.c==='y'?'on':''}"></div>
+        <div class="lt g ${sem.c==='g'?'on':''}"></div>
+      </div>
+      <div class="tinfo"><b style="color:${sem.c==='g'?'var(--green)':sem.c==='y'?'var(--yellow)':'var(--red)'}">${sem.label} · ${sem.score}/100</b><p>${sem.txt}</p></div>
+    </div>
+  </div>`));
+}
+
+/* ---------------- TIMELINE / PHASES ---------------- */
+const PHASES=[
+  {n:'Fase 1 · 0–30 dias',t:'Reduzir o desgaste',o:'Parar de piorar.',ind:['Menos conflitos','Mais estabilidade emocional','Nenhuma decisão impulsiva','Cumprir ≥ 80% das tarefas']},
+  {n:'Fase 2 · 31–60 dias',t:'Reconstrução',o:'Reconstruir os pilares.',ind:['Comunicação melhor','Crescimento da confiança','Maior conexão']},
+  {n:'Fase 3 · 61–90 dias',t:'Decisão consciente',o:'Decidir com clareza.',ind:['Clareza emocional','Clareza espiritual','Clareza relacional']}
+];
+function viewTimeline(v){
+  const day=curDay(),pct=Math.round(day/90*100),ph=curPhase();
+  v.appendChild(el(`<p class="page-intro">A jornada acontece em três fases. Cada fase tem um objetivo claro e indicadores próprios — vocês não precisam ter todas as respostas hoje, apenas avançar um dia de cada vez.</p>`));
+  v.appendChild(el(`<div class="card timeline-wrap">
+    <div class="tl-head"><b>Dia ${day}<small> / 90</small></b><div class="pct">${pct}% concluído</div></div>
+    <div class="tl-bar"><div style="width:${pct}%"></div></div>
+  </div>`));
+  const wrap=el(`<div class="grid" style="grid-template-columns:1fr;margin-top:18px"></div>`);
+  PHASES.forEach((p,i)=>{
+    const active=(i+1)===ph;
+    wrap.appendChild(el(`<div class="card tl-phase ${active?'active':''}" style="padding:20px">
+      <div class="ph-n">${p.n} ${active?'· EM ANDAMENTO':''}</div>
+      <div class="ph-t" style="font-size:17px">${p.t}</div>
+      <div class="ph-d" style="margin-bottom:10px"><b>Objetivo:</b> ${p.o}</div>
+      <div style="font-size:13px;color:var(--ink-soft)">${p.ind.map(x=>`<div style="margin:4px 0">✓ ${x}</div>`).join('')}</div>
+    </div>`));
+  });
+  v.appendChild(wrap);
+}
+
+/* ---------------- INDIVIDUAL ---------------- */
+function personSwitcher(){
+  if(CURRENT!=='admin') return '';
+  return `<div class="card" style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
+    <span style="font-weight:600;font-size:13px;color:var(--ink-soft)">Visualizando como:</span>
+    <button class="btn sm ${VIEWAS==='tarsis'?'':'ghost'}" onclick="setViewAs('tarsis')">Tarsis</button>
+    <button class="btn sm ${VIEWAS==='amanda'?'':'ghost'}" onclick="setViewAs('amanda')">Amanda</button>
+  </div>`;
+}
+function setViewAs(u){ VIEWAS=u; render(); }
+function viewIndividual(v){
+  const u=activePerson(); const p=PEOPLE[u]; const today=todayISO();
+  const day=S.users[u].daily[today]||(S.users[u].daily[today]={});
+  const q=S.users[u].questions[today]||(S.users[u].questions[today]={});
+  const wk=weekKey(today); const wkg=S.users[u].weekly[wk]||(S.users[u].weekly[wk]={});
+  if(CURRENT==='admin') v.appendChild(el(personSwitcher()));
+
+  v.appendChild(el(`<div class="card" style="background:${p.grad};color:#fff;border:none;margin-bottom:18px">
+    <div style="font-size:12px;opacity:.85;text-transform:uppercase;letter-spacing:.6px;font-weight:600">Tema da semana · ${p.name}</div>
+    <div style="font-size:18px;font-weight:600;margin-top:6px">"${p.tema}"</div>
+  </div>`));
+
+  // daily tasks
+  const tcard=el(`<div class="card" style="margin-bottom:18px"><div class="section-title">Tarefas diárias · ${fmtDate(today)}</div><div id="taskList"></div></div>`);
+  const list=tcard.querySelector('#taskList');
+  p.tasks.forEach(t=>{
+    const done=!!day[t[0]];
+    const row=el(`<div class="task ${done?'done':''}"><div class="chk">${done?'✓':''}</div><span class="tk-icon">${t[1]}</span><span class="tk-label">${t[2]}</span></div>`);
+    row.onclick=()=>{ day[t[0]]=!day[t[0]]; persist(); viewRefresh(); };
+    list.appendChild(row);
+  });
+  v.appendChild(tcard);
+
+  // questions
+  const qcard=el(`<div class="card" style="margin-bottom:18px"><div class="section-title">Perguntas de reflexão</div></div>`);
+  p.questions.forEach((qt,i)=>{
+    const f=el(`<div class="field"><label class="fld">${qt}</label><textarea data-q="q${i}" placeholder="Escreva livremente...">${esc(q['q'+i]||'')}</textarea></div>`);
+    const ta=f.querySelector('textarea');
+    ta.oninput=()=>{ q['q'+i]=ta.value; };
+    ta.onblur=()=>{ persist(); };
+    qcard.appendChild(f);
+  });
+  v.appendChild(qcard);
+
+  // weekly goals
+  const wkdefs=[['terapia','Terapia'],['mentor', u==='amanda'?'Conversa com mentora':'Conversa com mentor'],['reflexao','Reflexão profunda']];
+  const wcard=el(`<div class="card"><div class="section-title">Metas da semana</div></div>`);
+  wkdefs.forEach(w=>{
+    const done=!!wkg[w[0]];
+    const row=el(`<div class="task ${done?'done':''}"><div class="chk">${done?'✓':''}</div><span class="tk-label">${w[1]}</span></div>`);
+    row.onclick=()=>{ wkg[w[0]]=!wkg[w[0]]; persist(); viewRefresh(); };
+    wcard.appendChild(row);
+  });
+  v.appendChild(wcard);
+}
+function viewRefresh(){ if(route) render(); }
+
+/* ---------------- CHECK-IN ---------------- */
+function viewCheckin(v){
+  const u=activePerson(); const today=todayISO();
+  const c=S.users[u].checkins[today]||(S.users[u].checkins[today]={humor:5,esperanca:5,conexao:5,paz:5,tarefas:false});
+  if(CURRENT==='admin') v.appendChild(el(personSwitcher()));
+  v.appendChild(el(`<p class="page-intro">Um momento rápido de honestidade com você mesmo(a). Não existe resposta certa — apenas o que é verdadeiro hoje.</p>`));
+  const card=el(`<div class="card"><div class="section-title">Como estou hoje · ${PEOPLE[u].name} · ${fmtDate(today)}</div></div>`);
+  const sliders=[['humor','Como estou hoje'],['esperanca','Esperança no casamento'],['conexao','Conexão emocional'],['paz','Paz interior']];
+  sliders.forEach(s=>{
+    const row=el(`<div class="slider-row"><div class="sl-top"><span class="lbl">${s[1]}</span><span class="num">${c[s[0]]??5}</span></div><input type="range" min="0" max="10" value="${c[s[0]]??5}"></div>`);
+    const inp=row.querySelector('input'), num=row.querySelector('.num');
+    inp.oninput=()=>{ c[s[0]]=+inp.value; num.textContent=inp.value; };
+    inp.onchange=()=>{ persist(); };
+    card.appendChild(row);
+  });
+  const tk=el(`<div class="task ${c.tarefas?'done':''}" style="margin-top:6px"><div class="chk">${c.tarefas?'✓':''}</div><span class="tk-label">Cumpri minhas tarefas hoje?</span></div>`);
+  tk.onclick=()=>{ c.tarefas=!c.tarefas; persist(); render(); };
+  card.appendChild(tk);
+  const save=el(`<div style="margin-top:18px;text-align:right"><button class="btn">Salvar check-in</button></div>`);
+  save.querySelector('button').onclick=()=>{ persist(); toast('Check-in salvo 💗'); };
+  card.appendChild(save);
+  v.appendChild(card);
+}
+
+/* ---------------- COUPLE ---------------- */
+function viewCouple(v){
+  const today=todayISO(); const wk=weekKey(today);
+  const pos=S.couple.positive[today]||(S.couple.positive[today]={});
+  const conv=S.couple.conversations[wk]||(S.couple.conversations[wk]={count:0});
+  const enc=S.couple.encontro;
+  const reu=S.couple.reuniao[wk]||(S.couple.reuniao[wk]={});
+  v.appendChild(el(`<p class="page-intro">O espaço de vocês dois. Aqui o foco é conexão, não acerto de contas. Pequenos gestos diários constroem mais do que grandes conversas.</p>`));
+
+  // mensagem positiva
+  const mp=el(`<div class="card" style="margin-bottom:18px"><div class="section-title">Mensagem positiva de hoje</div>
+    <p style="font-size:13px;color:var(--ink-soft);margin-bottom:14px">Cada um completa: <b>"Hoje reconheço em você..."</b></p></div>`);
+  ['tarsis','amanda'].forEach(u=>{
+    // privacidade: cada um escreve a sua; ambos veem a do outro (é compartilhado)
+    const editable = (CURRENT===u || CURRENT==='admin');
+    const f=el(`<div class="field"><label class="fld" style="display:flex;align-items:center;gap:8px"><span style="width:22px;height:22px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:11px;background:${PEOPLE[u].grad}">${PEOPLE[u].av}</span>${PEOPLE[u].name} reconhece:</label>
+      <textarea ${editable?'':'disabled'} placeholder="${editable?'Hoje reconheço em você...':'(aguardando)'}">${esc(pos[u]||'')}</textarea></div>`);
+    const ta=f.querySelector('textarea');
+    if(editable){ ta.oninput=()=>{pos[u]=ta.value;}; ta.onblur=()=>{persist();toast('Mensagem salva');}; }
+    mp.appendChild(f);
+  });
+  v.appendChild(mp);
+
+  // conversa programada
+  const cv=el(`<div class="card" style="margin-bottom:18px"><div class="section-title">Conversa programada · 3× por semana · 20 min</div>
+    <div style="background:var(--amber-soft);border-radius:12px;padding:12px 14px;font-size:13px;color:#9a7012;margin-bottom:14px">
+      <b>Regras:</b> sem acusações · sem ironias · sem levantar erros antigos · sem discutir separação.
+    </div>
+    <div style="display:flex;align-items:center;gap:14px">
+      <div style="font-size:28px;font-weight:700;color:var(--brand)">${conv.count}<span style="font-size:15px;color:var(--ink-faint)">/3</span></div>
+      <div class="bar" style="flex:1"><div style="width:${Math.min(conv.count/3*100,100)}%;background:var(--brand)"></div></div>
+      <button class="btn sm" id="convPlus">+ Registrar</button>
+      <button class="btn sm ghost" id="convMinus">−</button>
+    </div></div>`);
+  cv.querySelector('#convPlus').onclick=()=>{ conv.count++; persist(); render(); };
+  cv.querySelector('#convMinus').onclick=()=>{ conv.count=Math.max(0,conv.count-1); persist(); render(); };
+  v.appendChild(cv);
+
+  // encontro semanal
+  const encDone=!!enc[wk];
+  const ec=el(`<div class="card" style="margin-bottom:18px"><div class="section-title">Encontro do casal · semanal</div>
+    <p style="font-size:13px;color:var(--ink-soft);margin-bottom:12px">Um momento de conexão. <b>Não discutir problemas</b> — apenas estar presentes um para o outro.</p>
+    <div class="task ${encDone?'done':''}"><div class="chk">${encDone?'✓':''}</div><span class="tk-label">Realizamos nosso encontro esta semana</span></div></div>`);
+  ec.querySelector('.task').onclick=()=>{ enc[wk]=!enc[wk]; persist(); render(); };
+  v.appendChild(ec);
+
+  // reunião do casal
+  const rc=el(`<div class="card"><div class="section-title">Reunião do casal · semanal</div>
+    <p style="font-size:13px;color:var(--ink-soft);margin-bottom:14px">Conversa estruturada sobre a semana. Respondam juntos, com gentileza.</p></div>`);
+  const rq=[['melhorou','O que melhorou?'],['piorou','O que piorou?'],['diferente','O que precisamos fazer diferente?'],['preciso','O que preciso de você?']];
+  const reuEditable=(CURRENT!=='admin');
+  rq.forEach(r=>{
+    const f=el(`<div class="field"><label class="fld">${r[1]}</label><textarea placeholder="...">${esc(reu[r[0]]||'')}</textarea></div>`);
+    const ta=f.querySelector('textarea');
+    ta.oninput=()=>{reu[r[0]]=ta.value;}; ta.onblur=()=>{persist();};
+    rc.appendChild(f);
+  });
+  v.appendChild(rc);
+}
+
+/* ---------------- SPIRITUAL ---------------- */
+function viewSpiritual(v){
+  const u=activePerson(); const today=todayISO(); const wk=weekKey(today);
+  const day=S.users[u].daily[today]||(S.users[u].daily[today]={});
+  const set=S.settings;
+  if(CURRENT==='admin') v.appendChild(el(personSwitcher()));
+  v.appendChild(el(`<p class="page-intro">O cuidado espiritual sustenta a jornada. Adapte ao ritmo de vocês — o que importa é a constância, não a perfeição.</p>`));
+
+  const dc=el(`<div class="card" style="margin-bottom:18px"><div class="section-title">Diário · ${PEOPLE[u].name}</div></div>`);
+  [['oracao','🙏','Oração individual'],['biblia','📖','Leitura bíblica']].forEach(t=>{
+    const done=!!day[t[0]];
+    const row=el(`<div class="task ${done?'done':''}"><div class="chk">${done?'✓':''}</div><span class="tk-icon">${t[1]}</span><span class="tk-label">${t[2]}</span></div>`);
+    row.onclick=()=>{day[t[0]]=!day[t[0]];persist();render();};
+    dc.appendChild(row);
+  });
+  v.appendChild(dc);
+
+  // semanal compartilhado (couple-level toggles)
+  if(!S.couple.spiritual) S.couple.spiritual={};
+  const sp=S.couple.spiritual[wk]||(S.couple.spiritual[wk]={});
+  const wc=el(`<div class="card"><div class="section-title">Prática semanal do casal</div></div>`);
+  const items=[];
+  if(set.oracaoJuntos) items.push(['oracaoJuntos','🙏','Oração juntos']);
+  if(set.devocionalSemanal) items.push(['devocional','📿','Devocional']);
+  if(set.cultoSemanal) items.push(['culto','⛪','Culto']);
+  if(set.sessaoPastor) items.push(['pastor','🕊️','Sessão com pastor especializado']);
+  if(set.casalMentor) items.push(['mentor','👥','Encontro com casal mentor']);
+  if(items.length===0){ wc.appendChild(el(`<div class="empty">Nenhuma prática ativada. Ative em Configurações ⚙️</div>`)); }
+  items.forEach(t=>{
+    const done=!!sp[t[0]];
+    const row=el(`<div class="task ${done?'done':''}"><div class="chk">${done?'✓':''}</div><span class="tk-icon">${t[1]}</span><span class="tk-label">${t[2]}</span></div>`);
+    row.onclick=()=>{sp[t[0]]=!sp[t[0]];persist();render();};
+    wc.appendChild(row);
+  });
+  v.appendChild(wc);
+}
+
+/* ---------------- KANBAN ---------------- */
+const KCOLS=[['todo','A Fazer','#5b8def'],['doing','Em Andamento','#f0b23b'],['done','Concluído','#3fb27f'],['reschedule','Reagendar','#8b7ff0']];
+let dragCard=null;
+function viewKanban(v){
+  v.appendChild(el(`<p class="page-intro">Organize as ações da jornada. Arraste os cartões entre as colunas conforme avança.</p>`));
+  const board=el(`<div class="kanban"></div>`);
+  KCOLS.forEach(col=>{
+    const colEl=el(`<div class="kcol" data-col="${col[0]}">
+      <div class="kcol-head"><span class="dot" style="background:${col[2]}"></span>${col[1]}<span class="cnt">${S.kanban[col[0]].length}</span></div>
+      <div class="kbody"></div>
+      <button class="kadd">+ Adicionar</button>
+    </div>`);
+    const body=colEl.querySelector('.kbody');
+    S.kanban[col[0]].forEach(card=>{
+      const cd=el(`<div class="kcard" draggable="true" data-id="${card.id}">
+        <div class="kt">${esc(card.text)}</div>
+        <div class="kmeta"><span class="kx" title="Remover">✕</span></div>
+      </div>`);
+      cd.querySelector('.kx').onclick=(e)=>{e.stopPropagation(); S.kanban[col[0]]=S.kanban[col[0]].filter(c=>c.id!==card.id); persist(); render();};
+      cd.ondragstart=()=>{ dragCard={id:card.id,from:col[0]}; cd.classList.add('dragging'); };
+      cd.ondragend=()=>{ cd.classList.remove('dragging'); };
+      body.appendChild(cd);
+    });
+    colEl.ondragover=(e)=>{ e.preventDefault(); colEl.classList.add('dragover'); };
+    colEl.ondragleave=()=>colEl.classList.remove('dragover');
+    colEl.ondrop=(e)=>{ e.preventDefault(); colEl.classList.remove('dragover'); moveCard(col[0]); };
+    colEl.querySelector('.kadd').onclick=()=>addKanban(col[0]);
+    board.appendChild(colEl);
+  });
+  v.appendChild(board);
+}
+function moveCard(toCol){
+  if(!dragCard||dragCard.from===toCol) return;
+  const arr=S.kanban[dragCard.from]; const idx=arr.findIndex(c=>c.id===dragCard.id);
+  if(idx<0) return; const [card]=arr.splice(idx,1); S.kanban[toCol].push(card); dragCard=null; persist(); render();
+}
+function addKanban(col){
+  openModal('Novo cartão',`<div class="field"><label class="fld">Descrição</label><textarea id="kc" placeholder="O que precisa ser feito?"></textarea></div>`,()=>{
+    const t=document.getElementById('kc').value.trim(); if(!t) return false;
+    S.kanban[col].push({id:uid(),text:t}); persist(); render(); return true;
+  });
+}
+
+/* ---------------- GOALS ---------------- */
+function viewGoals(v){
+  v.appendChild(el(`<p class="page-intro">Defina metas diárias, semanais e mensais. Pequenos compromissos, cumpridos com consistência, constroem a transformação.</p>`));
+  const head=el(`<div style="display:flex;justify-content:flex-end;margin-bottom:16px"><button class="btn" id="addGoal">+ Nova meta</button></div>`);
+  head.querySelector('#addGoal').onclick=()=>editGoal();
+  v.appendChild(head);
+  if(S.goals.length===0){ v.appendChild(el(`<div class="card"><div class="empty">Nenhuma meta ainda. Crie a primeira 🎯</div></div>`)); return; }
+  const types={diaria:'Diária',semanal:'Semanal',mensal:'Mensal'};
+  const prio={alta:['Alta','var(--rose-soft)','var(--rose)'],media:['Média','var(--amber-soft)','#9a7012'],baixa:['Baixa','var(--teal-soft)','#1f8a7d']};
+  const sorted=[...S.goals].sort((a,b)=>(a.done-b.done)||((a.due||'9')<(b.due||'9')?-1:1));
+  const wrap=el(`<div class="card"></div>`);
+  sorted.forEach(g=>{
+    const p=prio[g.priority]||prio.media;
+    const row=el(`<div class="goal ${g.done?'done':''}">
+      <div class="chk" style="cursor:pointer;${g.done?'background:var(--green);border-color:var(--green)':''}">${g.done?'✓':''}</div>
+      <div style="flex:1">
+        <div class="g-title">${esc(g.title)}</div>
+        <div class="g-meta">
+          <span class="tag" style="background:var(--brand-soft);color:var(--brand)">${types[g.type]||g.type}</span>
+          <span class="tag" style="background:${p[1]};color:${p[2]}">${p[0]}</span>
+          ${g.due?`<span>📅 ${fmtDate(g.due)}</span>`:''}
+          ${g.notes?`<span>📝 ${esc(g.notes)}</span>`:''}
+        </div>
+      </div>
+      <div class="g-actions">
+        <button class="icon-btn edit">✏️</button>
+        <button class="icon-btn del">🗑️</button>
+      </div>
+    </div>`);
+    row.querySelector('.chk').onclick=()=>{g.done=!g.done;persist();render();};
+    row.querySelector('.edit').onclick=()=>editGoal(g);
+    row.querySelector('.del').onclick=()=>{S.goals=S.goals.filter(x=>x.id!==g.id);persist();render();};
+    wrap.appendChild(row);
+  });
+  v.appendChild(wrap);
+}
+function editGoal(g){
+  const isNew=!g;
+  const body=`
+    <div class="field"><label class="fld">Título da meta</label><input type="text" id="gt" value="${esc(g?.title||'')}" placeholder="Ex: Caminhar 30 min"></div>
+    <div class="two-col">
+      <div class="field"><label class="fld">Tipo</label><select id="gtype">
+        <option value="diaria" ${g?.type==='diaria'?'selected':''}>Diária</option>
+        <option value="semanal" ${g?.type==='semanal'?'selected':''}>Semanal</option>
+        <option value="mensal" ${g?.type==='mensal'?'selected':''}>Mensal</option>
+      </select></div>
+      <div class="field"><label class="fld">Prioridade</label><select id="gprio">
+        <option value="alta" ${g?.priority==='alta'?'selected':''}>Alta</option>
+        <option value="media" ${!g||g?.priority==='media'?'selected':''}>Média</option>
+        <option value="baixa" ${g?.priority==='baixa'?'selected':''}>Baixa</option>
+      </select></div>
+    </div>
+    <div class="field"><label class="fld">Data limite</label><input type="date" id="gdue" value="${g?.due||''}"></div>
+    <div class="field"><label class="fld">Observações</label><textarea id="gnotes" placeholder="Opcional">${esc(g?.notes||'')}</textarea></div>`;
+  openModal(isNew?'Nova meta':'Editar meta',body,()=>{
+    const title=document.getElementById('gt').value.trim(); if(!title) return false;
+    const data={title,type:document.getElementById('gtype').value,priority:document.getElementById('gprio').value,due:document.getElementById('gdue').value,notes:document.getElementById('gnotes').value.trim()};
+    if(isNew){ S.goals.push({id:uid(),done:false,...data}); }
+    else{ Object.assign(g,data); }
+    persist(); render(); return true;
+  });
+}
+
+/* ---------------- PRIVATE: DIARY ---------------- */
+function viewDiary(v){
+  const u=activePerson();
+  if(!canSeePrivate(u)){ v.appendChild(el(`<div class="card"><div class="empty">🔒 Este conteúdo é privado e visível apenas para ${PEOPLE[u]?.name||'o autor'}.</div></div>`)); return; }
+  if(CURRENT==='admin') v.appendChild(el(personSwitcher()));
+  v.appendChild(el(`<div class="privacy-banner">🔒 <span>Espaço totalmente privado. ${CURRENT==='admin'?'Como administrador você tem acesso de acompanhamento.':'Somente você visualiza este conteúdo.'}</span></div>`));
+  const head=el(`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><div class="section-title" style="margin:0">Registros de ${PEOPLE[u].name}</div><button class="btn" id="addD">+ Novo registro</button></div>`);
+  head.querySelector('#addD').onclick=()=>{
+    openModal('Novo registro no diário',`<div class="field"><label class="fld">Como foi seu dia? Como você se sente?</label><textarea id="db" style="min-height:160px" placeholder="Escreva livremente..."></textarea></div>`,()=>{
+      const t=document.getElementById('db').value.trim(); if(!t) return false;
+      S.users[u].diary.unshift({id:uid(),ts:Date.now(),text:t}); persist(); render(); return true;
+    });
+  };
+  v.appendChild(head);
+  const list=S.users[u].diary;
+  if(list.length===0){ v.appendChild(el(`<div class="card"><div class="empty">Nenhum registro ainda. Este é seu espaço seguro 📔</div></div>`)); return; }
+  const wrap=el(`<div class="card"></div>`);
+  list.forEach(e=>{
+    const row=el(`<div class="entry"><div class="e-head"><span class="e-date">${fmtDateTime(e.ts)}</span><button class="icon-btn del" style="margin-left:auto">🗑️</button></div><div class="e-body">${esc(e.text)}</div></div>`);
+    row.querySelector('.del').onclick=()=>{S.users[u].diary=S.users[u].diary.filter(x=>x.id!==e.id);persist();render();};
+    wrap.appendChild(row);
+  });
+  v.appendChild(wrap);
+}
+
+/* ---------------- PRIVATE: LETTERS ---------------- */
+function viewLetters(v){
+  const u=activePerson();
+  if(!canSeePrivate(u)){ v.appendChild(el(`<div class="card"><div class="empty">🔒 Estas cartas são privadas e visíveis apenas para ${PEOPLE[u]?.name||'o autor'}.</div></div>`)); return; }
+  if(CURRENT==='admin') v.appendChild(el(personSwitcher()));
+  v.appendChild(el(`<div class="privacy-banner">✉️ <span>"Carta que não enviei" — escreva tudo o que precisa ser dito. ${CURRENT==='admin'?'Acesso de administrador.':'O outro nunca verá, nem parcialmente.'}</span></div>`));
+
+  const search=el(`<div class="field" style="margin-bottom:14px;position:relative"><input type="text" id="lsearch" placeholder="🔍 Buscar nas cartas..."></div>`);
+  v.appendChild(search);
+  const head=el(`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><div class="section-title" style="margin:0">Cartas de ${PEOPLE[u].name}</div><button class="btn" id="addL">+ Nova carta</button></div>`);
+  head.querySelector('#addL').onclick=()=>writeLetter(u);
+  v.appendChild(head);
+
+  const wrap=el(`<div class="card" id="letterList"></div>`);
+  v.appendChild(wrap);
+  function paint(filter){
+    wrap.innerHTML='';
+    let list=S.users[u].letters;
+    if(filter) list=list.filter(l=>(l.title+' '+l.text).toLowerCase().includes(filter.toLowerCase()));
+    if(list.length===0){ wrap.appendChild(el(`<div class="empty">${filter?'Nenhuma carta encontrada.':'Nenhuma carta ainda. Comece a escrever ✉️'}</div>`)); return; }
+    list.forEach(l=>{
+      const row=el(`<div class="entry"><div class="e-head"><span class="e-title">${esc(l.title||'Sem título')}</span><span class="e-date">${fmtDateTime(l.ts)}</span><button class="icon-btn del" style="margin-left:auto">🗑️</button></div><div class="e-body">${esc(l.text)}</div></div>`);
+      row.querySelector('.del').onclick=()=>{S.users[u].letters=S.users[u].letters.filter(x=>x.id!==l.id);persist();paint(document.getElementById('lsearch').value);};
+      row.querySelector('.e-body').onclick=()=>writeLetter(u,l);
+      wrap.appendChild(row);
+    });
+  }
+  search.querySelector('input').oninput=(e)=>paint(e.target.value);
+  paint('');
+}
+function writeLetter(u,l){
+  const isNew=!l;
+  const body=`<div class="field"><label class="fld">Título</label><input type="text" id="lt" value="${esc(l?.title||'')}" placeholder="Opcional"></div>
+    <div class="field"><label class="fld">Carta</label><textarea id="lb" style="min-height:200px" placeholder="Escreva tudo o que precisa dizer...">${esc(l?.text||'')}</textarea>
+    <div style="font-size:12px;color:var(--ink-faint);margin-top:6px" id="autosave">Salvamento automático ativo</div></div>`;
+  openModal(isNew?'Nova carta':'Editar carta',body,()=>{
+    const text=document.getElementById('lb').value.trim(); const title=document.getElementById('lt').value.trim();
+    if(!text) return false;
+    if(isNew){ S.users[u].letters.unshift({id:uid(),ts:Date.now(),title,text}); }
+    else{ l.title=title; l.text=text; l.ts=Date.now(); }
+    persist(); render(); return true;
+  });
+  // autosave enquanto digita (rascunho na própria entrada se existir)
+  setTimeout(()=>{
+    const lb=document.getElementById('lb'), tt=document.getElementById('lt'), as=document.getElementById('autosave');
+    if(!lb) return;
+    const doAuto=()=>{
+      if(!isNew && l){ l.title=tt.value.trim(); l.text=lb.value; l.ts=Date.now(); persist(); }
+      if(as){ as.textContent='Salvo automaticamente ✓ '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); }
+    };
+    let tmr; lb.oninput=tt.oninput=()=>{ clearTimeout(tmr); tmr=setTimeout(doAuto,1200); };
+  },50);
+}
+
+/* ---------------- CHARTS ---------------- */
+function seriesFor(u,field,n){
+  const out=[]; const t=parseISO(todayISO());
+  for(let i=n-1;i>=0;i--){ const d=new Date(t); d.setDate(d.getDate()-i); const iso=d.toISOString().slice(0,10);
+    const c=S.users[u].checkins[iso]; out.push(c&&typeof c[field]==='number'?c[field]:null); }
+  return out;
+}
+function drawLine(canvas,seriesList,maxY){
+  const dpr=window.devicePixelRatio||1;
+  const w=canvas.clientWidth, h=240;
+  canvas.width=w*dpr; canvas.height=h*dpr; canvas.style.height=h+'px';
+  const ctx=canvas.getContext('2d'); ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,w,h);
+  const pad={l:30,r:12,t:14,b:24};
+  const cw=w-pad.l-pad.r, ch=h-pad.t-pad.b;
+  // grid
+  ctx.strokeStyle='#eef2f7'; ctx.lineWidth=1; ctx.fillStyle='#a3b0bd'; ctx.font='11px sans-serif';
+  for(let i=0;i<=5;i++){ const y=pad.t+ch*i/5; ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(w-pad.r,y); ctx.stroke();
+    ctx.fillText(Math.round(maxY-(maxY*i/5)),6,y+3); }
+  const n=seriesList[0]?.data.length||0;
+  const xFor=i=> n<=1? pad.l+cw/2 : pad.l + cw*i/(n-1);
+  const yFor=val=> pad.t+ch-(val/maxY)*ch;
+  seriesList.forEach(s=>{
+    ctx.strokeStyle=s.color; ctx.lineWidth=2.5; ctx.beginPath(); let started=false;
+    s.data.forEach((val,i)=>{ if(val==null) return; const x=xFor(i),y=yFor(val);
+      if(!started){ctx.moveTo(x,y);started=true;} else ctx.lineTo(x,y); });
+    ctx.stroke();
+    ctx.fillStyle=s.color;
+    s.data.forEach((val,i)=>{ if(val==null) return; ctx.beginPath(); ctx.arc(xFor(i),yFor(val),3,0,7); ctx.fill(); });
+  });
+}
+function viewCharts(v){
+  v.appendChild(el(`<p class="page-intro">A evolução de vocês ao longo do tempo. As linhas mostram tendências — o que importa é a direção, não os altos e baixos de um único dia.</p>`));
+  const N=30;
+  const charts=[
+    {title:'Evolução emocional',sub:'Como cada um se sente (0–10) · últimos 30 dias',series:[{label:'Tarsis',color:'#5b8def',data:seriesFor('tarsis','humor',N)},{label:'Amanda',color:'#8b7ff0',data:seriesFor('amanda','humor',N)}],max:10},
+    {title:'Evolução da esperança',sub:'Esperança no casamento (0–10)',series:[{label:'Tarsis',color:'#5b8def',data:seriesFor('tarsis','esperanca',N)},{label:'Amanda',color:'#8b7ff0',data:seriesFor('amanda','esperanca',N)}],max:10},
+    {title:'Evolução da conexão',sub:'Conexão emocional sentida (0–10)',series:[{label:'Tarsis',color:'#3bb6a6',data:seriesFor('tarsis','conexao',N)},{label:'Amanda',color:'#ef6f8e',data:seriesFor('amanda','conexao',N)}],max:10},
+    {title:'Paz interior',sub:'Paz interior (0–10)',series:[{label:'Tarsis',color:'#5b8def',data:seriesFor('tarsis','paz',N)},{label:'Amanda',color:'#8b7ff0',data:seriesFor('amanda','paz',N)}],max:10},
+  ];
+  const grid=el(`<div class="cols-auto"></div>`);
+  charts.forEach(c=>{
+    const card=el(`<div class="card chart-card"><h4>${c.title}</h4><div class="csub">${c.sub}</div><canvas></canvas>
+      <div class="legend">${c.series.map(s=>`<span><i style="background:${s.color}"></i>${s.label}</span>`).join('')}</div></div>`);
+    grid.appendChild(card);
+    setTimeout(()=>drawLine(card.querySelector('canvas'),c.series,c.max),20);
+  });
+  v.appendChild(grid);
+
+  // comparativos 30/60/90 — médias de esperança+conexão (índice de evolução)
+  const comp=el(`<div class="card" style="margin-top:18px"><div class="section-title">Comparativo da jornada</div><div class="csub" style="margin-bottom:14px">Bem-estar médio do casal (emocional, esperança, conexão e paz) em cada marco.</div></div>`);
+  const cg=el(`<div class="compare-grid"></div>`);
+  [['30 dias',1,30],['60 dias',31,60],['90 dias',61,90]].forEach(([lbl,a,b])=>{
+    const val=windowWellbeing(a,b);
+    cg.appendChild(el(`<div class="compare-box"><div class="cb-d">${lbl}</div><div class="cb-v" style="color:${val==null?'var(--ink-faint)':colorFor(val)}">${val==null?'—':val}</div><div class="cb-l">${val==null?'sem dados':'/ 100'}</div></div>`));
+  });
+  comp.appendChild(cg);
+  v.appendChild(comp);
+  window.onresize=()=>{ if(route==='charts') render(); };
+}
+function windowWellbeing(dayA,dayB){
+  // média de campos de check-in para os dias do programa entre dayA e dayB
+  const fields=['humor','esperanca','conexao','paz']; const vals=[];
+  ['tarsis','amanda'].forEach(u=>{
+    Object.keys(S.users[u].checkins).forEach(iso=>{
+      const dnum=daysBetween(S.startDate,iso)+1;
+      if(dnum>=dayA&&dnum<=dayB){ const c=S.users[u].checkins[iso]; fields.forEach(f=>{ if(typeof c[f]==='number') vals.push(c[f]); }); }
+    });
+  });
+  return vals.length? Math.round(avg(vals)*10):null;
+}
+
+/* ---------------- REPORTS ---------------- */
+function viewReports(v){
+  const day=curDay();
+  v.appendChild(el(`<p class="page-intro">Marcos de reflexão. Os relatórios reúnem seus dados automaticamente e convidam vocês a olhar para a jornada com honestidade.</p>`));
+  const tabs=el(`<div style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap">
+    <button class="btn ghost" data-r="d30">Relatório · 30 dias</button>
+    <button class="btn ghost" data-r="d60">Relatório · 60 dias</button>
+    <button class="btn ghost" data-r="d90">Relatório Final · 90 dias</button>
+  </div>`);
+  v.appendChild(tabs);
+  const holder=el(`<div id="repHolder"></div>`);
+  v.appendChild(holder);
+  tabs.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+    tabs.querySelectorAll('button').forEach(x=>x.classList.add('ghost'));
+    b.classList.remove('ghost');
+    renderReport(b.dataset.r,holder,day);
+  });
+  // default
+  const def= day>=61?'d90': day>=31?'d60':'d30';
+  tabs.querySelector(`[data-r="${def}"]`).classList.remove('ghost');
+  renderReport(def,holder,day);
+}
+function ynPill(stateObj,key){
+  const sel=stateObj[key];
+  const w=el(`<div class="pill-yn"><button class="${sel==='sim'?'sel-yes':''}">Sim</button><button class="${sel==='nao'?'sel-no':''}">Não</button></div>`);
+  const [y,n]=w.querySelectorAll('button');
+  y.onclick=()=>{stateObj[key]='sim';persist();y.classList.add('sel-yes');n.classList.remove('sel-no');};
+  n.onclick=()=>{stateObj[key]='nao';persist();n.classList.add('sel-no');y.classList.remove('sel-yes');};
+  return w;
+}
+function renderReport(r,holder,day){
+  holder.innerHTML='';
+  if(r==='d30'){
+    const unlocked=day>=30;
+    const a=S.reportsAnswers.d30;
+    const c=el(`<div class="card report"><h3>Relatório de 30 dias</h3>
+      <p style="color:var(--ink-soft);font-size:13.5px;margin-bottom:18px">${unlocked?'Fim da Fase 1 — reduzir o desgaste. Respondam individualmente, com sinceridade.':'⏳ Disponível no dia 30. Vocês podem visualizar a prévia dos dados a qualquer momento.'}</p>
+    </div>`);
+    statBlock(c,1,30);
+    ['Estou mais em paz?','Tenho mais esperança?','Quero continuar investindo?'].forEach((q,i)=>{
+      const key='q'+i; const qb=el(`<div class="r-q"><div class="q">${q}</div></div>`);
+      qb.appendChild(ynPill(a,key)); c.appendChild(qb);
+    });
+    holder.appendChild(c);
+  }
+  else if(r==='d60'){
+    const a=S.reportsAnswers.d60;
+    const c=el(`<div class="card report"><h3>Relatório de 60 dias</h3>
+      <p style="color:var(--ink-soft);font-size:13.5px;margin-bottom:18px">${day>=60?'Fim da Fase 2 — reconstrução. Como estão os pilares do relacionamento?':'⏳ Disponível no dia 60. Prévia dos dados abaixo.'}</p></div>`);
+    statBlock(c,31,60);
+    ['Existe mais confiança?','Existe mais admiração?','Existe mais conexão?'].forEach((q,i)=>{
+      const qb=el(`<div class="r-q"><div class="q">${q}</div></div>`); qb.appendChild(ynPill(a,'q'+i)); c.appendChild(qb);
+    });
+    holder.appendChild(c);
+  }
+  else{ renderFinalReport(holder,day); }
+}
+function statBlock(card,a,b){
+  const wb=windowWellbeing(a,b);
+  const it=individualIndex('tarsis'),ia=individualIndex('amanda'),ci=coupleIndex();
+  const block=el(`<div style="margin-bottom:8px">
+    <div class="r-stat"><span>Bem-estar médio do casal (dias ${a}–${b})</span><b style="color:${wb==null?'var(--ink-faint)':colorFor(wb)}">${wb==null?'—':wb+'/100'}</b></div>
+    <div class="r-stat"><span>Disciplina · Tarsis / Amanda</span><b>${it.disciplina} / ${ia.disciplina}</b></div>
+    <div class="r-stat"><span>Comunicação do casal</span><b>${ci.comunicacao}/100</b></div>
+    <div class="r-stat"><span>Conexão do casal</span><b>${ci.conexao}/100</b></div>
+  </div>`);
+  card.appendChild(block);
+}
+function renderFinalReport(holder,day){
+  const it=individualIndex('tarsis'),ia=individualIndex('amanda'),ci=coupleIndex(); const sem=semaforo();
+  const c=el(`<div class="card report"><h3>Relatório Final · 90 dias</h3>
+    <p style="color:var(--ink-soft);font-size:13.5px;margin-bottom:18px">${day>=90?'Vocês chegaram ao fim da jornada. Este documento reúne toda a evolução.':'⏳ Documento completo no dia 90. Prévia da evolução abaixo.'}</p></div>`);
+  const grid=el(`<div class="two-col" style="margin-bottom:8px"></div>`);
+  [['tarsis',it],['amanda',ia]].forEach(([u,ix])=>{
+    grid.appendChild(el(`<div style="border:1px solid var(--line);border-radius:12px;padding:16px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><span style="width:30px;height:30px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;color:#fff;background:${PEOPLE[u].grad};font-weight:700">${PEOPLE[u].av}</span><b>Evolução ${PEOPLE[u].name}</b></div>
+      <div class="r-stat"><span>Disciplina</span><b>${ix.disciplina}/100</b></div>
+      <div class="r-stat"><span>Espiritualidade</span><b>${ix.espiritual}/100</b></div>
+      <div class="r-stat"><span>Saúde emocional</span><b>${ix.emocional}/100</b></div>
+      <div class="r-stat"><span>Esperança</span><b>${ix.esperanca}/100</b></div>
+    </div>`));
+  });
+  c.appendChild(grid);
+  c.appendChild(el(`<div style="border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:8px">
+    <b>Evolução do Casal</b>
+    <div class="r-stat" style="margin-top:8px"><span>Comunicação</span><b>${ci.comunicacao}/100</b></div>
+    <div class="r-stat"><span>Confiança</span><b>${ci.confianca}/100</b></div>
+    <div class="r-stat"><span>Conexão</span><b>${ci.conexao}/100</b></div>
+    <div class="r-stat"><span>Admiração</span><b>${ci.admiracao}/100</b></div>
+  </div>`));
+  c.appendChild(el(`<div style="background:${sem.c==='g'?'var(--green-soft)':sem.c==='y'?'var(--yellow-soft)':'var(--red-soft)'};border-radius:12px;padding:16px;text-align:center;margin-top:8px">
+    <div style="font-size:13px;color:var(--ink-soft)">Índice geral da jornada</div>
+    <div style="font-size:34px;font-weight:700;color:${sem.c==='g'?'var(--green)':sem.c==='y'?'var(--yellow)':'var(--red)'}">${sem.score}/100</div>
+    <div style="font-size:13px;color:var(--ink-soft)">Semáforo: ${sem.label}</div>
+  </div>`));
+  const pr=el(`<div style="margin-top:18px;text-align:center"><button class="btn ghost">🖨️ Imprimir / Salvar PDF</button></div>`);
+  pr.querySelector('button').onclick=()=>window.print();
+  c.appendChild(pr);
+  holder.appendChild(c);
+}
+
+/* ---------------- DECISION ---------------- */
+function viewDecision(v){
+  v.appendChild(el(`<p class="page-intro">O propósito desta jornada nunca foi salvar o casamento a qualquer custo — foi alcançar clareza. Aqui, cada um responde por si, com maturidade e verdade.</p>`));
+  const people = CURRENT==='admin'?['tarsis','amanda']:[CURRENT];
+  people.forEach(u=>{
+    const d=S.decision[u]||(S.decision[u]={});
+    const editable=(CURRENT===u || (CURRENT==='admin'));
+    const c=el(`<div class="card" style="margin-bottom:18px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px"><span style="width:34px;height:34px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;color:#fff;background:${PEOPLE[u].grad};font-weight:700">${PEOPLE[u].av}</span><b style="font-size:16px">Decisão de ${PEOPLE[u].name}</b></div>
+    </div>`);
+    const q1=el(`<div class="r-q"><div class="q">Desejo continuar investindo neste casamento?</div></div>`);
+    const q2=el(`<div class="r-q"><div class="q">Acredito que existe base para reconstrução?</div></div>`);
+    if(editable){ q1.appendChild(ynPill(d,'continuar')); q2.appendChild(ynPill(d,'base')); }
+    else{ q1.appendChild(el(`<div style="color:var(--ink-faint);font-size:13px">${d.continuar?d.continuar.toUpperCase():'—'}</div>`)); q2.appendChild(el(`<div style="color:var(--ink-faint);font-size:13px">${d.base?d.base.toUpperCase():'—'}</div>`)); }
+    c.appendChild(q1); c.appendChild(q2);
+    const q3=el(`<div class="field" style="margin-top:8px"><label class="fld">Estou tomando essa decisão por amor ou por medo?</label><textarea ${editable?'':'disabled'} placeholder="${editable?'Reflita com honestidade...':'(privado)'}">${esc(d.amorMedo||'')}</textarea></div>`);
+    if(editable){ const ta=q3.querySelector('textarea'); ta.oninput=()=>{d.amorMedo=ta.value;}; ta.onblur=()=>{persist();toast('Resposta salva');}; }
+    c.appendChild(q3);
+    v.appendChild(c);
+  });
+}
+
+/* ---------------- SETTINGS ---------------- */
+function viewSettings(v){
+  v.appendChild(el(`<p class="page-intro">Ajuste a jornada ao ritmo de vocês. Ative apenas os recursos que fazem sentido para o momento atual.</p>`));
+
+  // data início
+  const dc=el(`<div class="card" style="margin-bottom:18px"><div class="section-title">Jornada</div>
+    <div class="field"><label class="fld">Data de início (Dia 1)</label><input type="date" id="startDate" value="${S.startDate}"></div>
+    <div style="font-size:13px;color:var(--ink-soft)">Hoje é o <b>dia ${curDay()}</b> de 90 · Fase ${curPhase()}</div></div>`);
+  dc.querySelector('#startDate').onchange=(e)=>{ S.startDate=e.target.value; persist(); render(); toast('Data atualizada'); };
+  v.appendChild(dc);
+
+  // espiritual toggles
+  const set=S.settings;
+  const tg=[
+    ['oracaoJuntos','Oração em casal','Prática semanal de oração juntos'],
+    ['devocionalSemanal','Devocional semanal','Momento devocional do casal'],
+    ['cultoSemanal','Culto semanal','Participação em culto/celebração'],
+    ['sessaoPastor','Sessão com pastor especializado','Aconselhamento pastoral (opcional)'],
+    ['casalMentor','Casal mentor','Acompanhamento por um casal mentor (opcional)']
+  ];
+  const sc=el(`<div class="card" style="margin-bottom:18px"><div class="section-title">Recursos espirituais</div></div>`);
+  tg.forEach(t=>{
+    const row=el(`<div class="toggle-row"><div class="tr-tx"><b>${t[1]}</b><span>${t[2]}</span></div><div class="switch ${set[t[0]]?'on':''}"></div></div>`);
+    row.querySelector('.switch').onclick=()=>{ set[t[0]]=!set[t[0]]; persist(); row.querySelector('.switch').classList.toggle('on'); };
+    sc.appendChild(row);
+  });
+  v.appendChild(sc);
+
+  // admin
+  const ac=el(`<div class="card" style="margin-bottom:18px"><div class="section-title">Perfil de Administrador</div>
+    <div class="toggle-row"><div class="tr-tx"><b>Ativar perfil de Administrador</b><span>Para psicólogo, pastor, mentor ou casal mentor — acesso de acompanhamento.</span></div><div class="switch ${S.adminEnabled?'on':''}"></div></div></div>`);
+  ac.querySelector('.switch').onclick=()=>{ S.adminEnabled=!S.adminEnabled; persist(); ac.querySelector('.switch').classList.toggle('on'); toast(S.adminEnabled?'Administrador ativado':'Administrador desativado'); };
+  v.appendChild(ac);
+
+  // sincronização na nuvem
+  const cloudCard=el(`<div class="card" style="margin-bottom:18px"><div class="section-title">Sincronização na nuvem</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <span class="tag" style="background:${CLOUD?'var(--green-soft)':'var(--amber-soft)'};color:${CLOUD?'var(--green)':'#9a7012'}">${CLOUD?'☁ Ativada':'⚠ Offline'}</span>
+      <span style="font-size:13px;color:var(--ink-soft)">${CLOUD?'Seus dados são salvos no Firebase e sincronizam em qualquer dispositivo.':'Os dados estão apenas neste dispositivo.'}</span>
+    </div>
+    <button class="btn ghost" id="cloudHelp">📘 Como ativar a sincronização (Firebase)</button></div>`);
+  cloudCard.querySelector('#cloudHelp').onclick=showCloudHelp;
+  v.appendChild(cloudCard);
+
+  // senha
+  const pwCard=el(`<div class="card" style="margin-bottom:18px"><div class="section-title">Senha de acesso</div>
+    <p style="font-size:13px;color:var(--ink-soft);margin-bottom:12px">Você está logado(a) como <b>${CURRENT==='admin'?'Administrador':PEOPLE[CURRENT]?.name||CURRENT}</b>.</p>
+    <button class="btn ghost" id="chgPw">🔑 Alterar minha senha</button></div>`);
+  pwCard.querySelector('#chgPw').onclick=()=>changePassword();
+  v.appendChild(pwCard);
+
+  // dados
+  const datc=el(`<div class="card"><div class="section-title">Dados & backup</div>
+    <p style="font-size:13px;color:var(--ink-soft);margin-bottom:14px">${CLOUD?'Além da nuvem, você pode exportar um backup local.':'Faça backup manual exportando o arquivo.'} Estrutura preparada para Google Sheets / PostgreSQL no futuro.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn ghost" id="expData">⬇️ Exportar dados (JSON)</button>
+      <button class="btn ghost" id="impData">⬆️ Importar dados</button>
+      <button class="btn ghost" id="resetData" style="color:var(--rose)">🗑️ Apagar tudo</button>
+    </div>
+    <input type="file" id="impFile" accept="application/json" style="display:none"></div>`);
+  datc.querySelector('#expData').onclick=()=>{
+    const blob=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='reconstrucao-clareza.json'; a.click();
+  };
+  datc.querySelector('#impData').onclick=()=>datc.querySelector('#impFile').click();
+  datc.querySelector('#impFile').onchange=(e)=>{
+    const f=e.target.files[0]; if(!f) return; const rd=new FileReader();
+    rd.onload=()=>{ try{ const obj=JSON.parse(rd.result); S=normalizeShared(obj); if(obj.users){['tarsis','amanda'].forEach(u=>{ if(obj.users[u]){ S.users[u].letters=obj.users[u].letters||[]; S.users[u].diary=obj.users[u].diary||[]; }});} persist(); render(); toast('Dados importados ✓'); }catch(err){ toast('Arquivo inválido'); } };
+    rd.readAsText(f);
+  };
+  datc.querySelector('#resetData').onclick=()=>{
+    openModal('Apagar todos os dados?',`<p style="color:var(--ink-soft)">Esta ação remove permanentemente todos os registros, check-ins, cartas e diários${CLOUD?' (inclusive na nuvem que você pode editar)':' deste dispositivo'}. Não pode ser desfeita.</p>`,()=>{
+      const start=S.startDate, adm=S.adminEnabled;
+      S=defaultState(); S.startDate=start; S.adminEnabled=adm;
+      Store.clearAll(); persist(); render(); toast('Tudo apagado'); return true;
+    },'Apagar');
+  };
+  v.appendChild(datc);
+}
+
+function changePassword(){
+  openModal('Alterar senha',`
+    <div class="field"><label class="fld">Nova senha</label><input type="password" id="np1" placeholder="Mínimo 6 caracteres"></div>
+    <div class="field"><label class="fld">Confirmar nova senha</label><input type="password" id="np2" placeholder="Repita a senha"></div>`,()=>{
+    const a=document.getElementById('np1').value, b=document.getElementById('np2').value;
+    if(a.length<(CLOUD?6:4)){ toast('Senha muito curta'); return false; }
+    if(a!==b){ toast('As senhas não conferem'); return false; }
+    if(CLOUD && AUTH.currentUser){
+      AUTH.currentUser.updatePassword(a).then(()=>toast('Senha alterada ✓'))
+        .catch(err=>{ if((err.code||'')==='auth/requires-recent-login'){ toast('Saia e entre novamente para alterar a senha'); } else toast('Erro: '+(err.message||err.code)); });
+    } else {
+      localStorage.setItem(PWKEY(CURRENT), btoa(a)); toast('Senha alterada ✓');
+    }
+    return true;
+  },'Salvar');
+}
+
+function showCloudHelp(){
+  openModal('Ativar sincronização (Firebase)',`
+    <div style="font-size:13.5px;line-height:1.65;color:var(--ink-soft)">
+      <p style="margin-bottom:10px">Para que os dados fiquem disponíveis em qualquer dispositivo, é preciso criar um projeto gratuito no Firebase (Google) — apenas uma vez:</p>
+      <ol style="padding-left:18px;display:flex;flex-direction:column;gap:7px">
+        <li>Acesse <b>console.firebase.google.com</b> e clique em <b>Adicionar projeto</b>.</li>
+        <li>No projeto, abra <b>Criação &gt; Authentication</b> → <b>Começar</b> → ative o provedor <b>E-mail/senha</b>.</li>
+        <li>Abra <b>Criação &gt; Firestore Database</b> → <b>Criar banco de dados</b> (modo de produção).</li>
+        <li>Em <b>⚙ Configurações do projeto &gt; Seus apps</b>, registre um <b>App Web</b> e copie o objeto <code>firebaseConfig</code>.</li>
+        <li>Cole esses valores no topo do arquivo <code>reconstrucao-clareza.html</code> (constante <code>FIREBASE_CONFIG</code>) e recarregue.</li>
+        <li>Na aba <b>Regras</b> do Firestore, cole as regras abaixo e publique (protegem a privacidade das cartas/diário):</li>
+      </ol>
+      <pre style="background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:10px;font-size:11.5px;overflow:auto;white-space:pre">rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+    function authed(){ return request.auth != null; }
+    function mail(){ return request.auth.token.email; }
+    match /couples/main {
+      allow read, write: if authed();
+    }
+    match /private/{uid} {
+      allow read, write: if authed() &&
+        (mail() == uid + '@reconstrucao.app'
+         || mail() == 'admin@reconstrucao.app');
+    }
+  }
+}</pre>
+      <p style="margin-top:10px">Pronto! Cada pessoa cria sua senha na primeira vez e passa a acessar de qualquer aparelho. O conteúdo privado de cada um fica protegido também no banco de dados.</p>
+    </div>`,()=>true,'Entendi');
+}
+
+/* ---------------- MODAL ---------------- */
+function openModal(title,bodyHTML,onSave,saveLabel){
+  const root=document.getElementById('modalRoot');
+  const bg=el(`<div class="modal-bg"><div class="modal"><h3>${title}</h3><div class="m-body">${bodyHTML}</div>
+    <div class="m-actions"><button class="btn ghost" data-x>Cancelar</button><button class="btn" data-ok>${saveLabel||'Salvar'}</button></div></div></div>`);
+  const close=()=>root.innerHTML='';
+  bg.querySelector('[data-x]').onclick=close;
+  bg.onclick=(e)=>{ if(e.target===bg) close(); };
+  bg.querySelector('[data-ok]').onclick=()=>{ const r=onSave?onSave():true; if(r!==false) close(); };
+  root.innerHTML=''; root.appendChild(bg);
+  const first=bg.querySelector('input,textarea'); if(first) setTimeout(()=>first.focus(),40);
+}
+
+/* =========================================================================
+   LOGIN / SESSION / AUTH
+   ========================================================================= */
+let pendingUser=null, authCreate=false;
+const $ = id => document.getElementById(id);
+
+function refreshLoginAdmin(){ $('adminBtn').classList.toggle('hidden', !S.adminEnabled); }
+
+function loadPrivateInto(){
+  accessibleOwners().forEach(u=>{
+    const p=Store.loadPriv(u)||{};
+    S.users[u].letters=p.letters||[]; S.users[u].diary=p.diary||[];
+  });
+}
+function clearPrivateMem(){
+  ['tarsis','amanda'].forEach(u=>{ if(S.users[u]){ S.users[u].letters=[]; S.users[u].diary=[]; } });
+}
+
+function login(user){
+  CURRENT=user;
+  VIEWAS = user==='admin' ? 'tarsis' : user;
+  loadPrivateInto();
+  $('login').style.display='none';
+  $('app').style.display='block';
+  const p = user==='admin' ? {name:'Administrador',av:'★',grad:'linear-gradient(140deg,#5a6b7d,#23303f)'} : PEOPLE[user];
+  $('footAv').textContent=p.av; $('footAv').style.background=p.grad;
+  $('footName').textContent=p.name;
+  $('footRole').textContent = user==='admin'?'Acesso total · mentor':'Individual + compartilhado';
+  Cloud.subscribe();
+  route='dash'; render();
+}
+function logout(){
+  Cloud.stop();
+  if(CLOUD && AUTH){ AUTH.signOut().catch(()=>{}); }
+  CURRENT=null; clearPrivateMem();
+  $('app').style.display='none';
+  $('login').style.display='flex';
+  resetAuthPanel();
+  refreshLoginAdmin();
+}
+
+/* ----- painel de autenticação (login screen) ----- */
+function selectProfile(u){
+  pendingUser=u; authCreate=false;
+  const p = u==='admin' ? {name:'Administrador',av:'★',grad:'linear-gradient(140deg,#5a6b7d,#23303f)'} : PEOPLE[u];
+  $('authAv').textContent=p.av; $('authAv').style.background=p.grad;
+  $('authName').textContent=p.name;
+  $('profiles').classList.add('hidden');
+  $('adminToggleRow').classList.add('hidden');
+  $('authPanel').classList.remove('hidden');
+  $('pw1').value=''; $('pw2').value=''; $('authErr').textContent='';
+  setAuthMode(false);
+  setTimeout(()=>$('pw1').focus(),40);
+}
+function resetAuthPanel(){
+  $('authPanel').classList.add('hidden');
+  $('profiles').classList.remove('hidden');
+  $('adminToggleRow').classList.remove('hidden');
+  pendingUser=null;
+}
+function setAuthMode(create){
+  authCreate=create;
+  $('pw2row').classList.toggle('hidden', !create);
+  $('authGo').textContent = create ? 'Criar senha e entrar' : 'Entrar';
+  $('authMode').textContent = create ? 'Defina uma senha para este perfil' : 'Digite sua senha para entrar';
+  $('toggleCreate').textContent = create ? 'Já tenho senha' : 'Primeira vez aqui? Criar senha';
+  $('authErr').textContent='';
+}
+function authError(msg){ $('authErr').textContent=msg; }
+
+function doAuth(){
+  const u=pendingUser; if(!u) return;
+  const pw=$('pw1').value;
+  if(pw.length<4){ authError('A senha precisa ter ao menos 4 caracteres.'); return; }
+  if(authCreate && pw!==$('pw2').value){ authError('As senhas não conferem.'); return; }
+  $('authGo').disabled=true; $('authGo').textContent='Aguarde...';
+  const done=()=>{ $('authGo').disabled=false; };
+  if(CLOUD){
+    const op = authCreate
+      ? AUTH.createUserWithEmailAndPassword(emailFor(u),pw)
+      : AUTH.signInWithEmailAndPassword(emailFor(u),pw);
+    op.then(()=>{ /* onAuthStateChanged cuida do login */ done(); })
+      .catch(err=>{
+        done(); setAuthMode(authCreate);
+        const c=err.code||'';
+        if(c==='auth/user-not-found'){ authError('Conta ainda não criada. Toque em "Criar senha".'); }
+        else if(c==='auth/wrong-password'||c==='auth/invalid-credential'){ authError('Senha incorreta.'); }
+        else if(c==='auth/email-already-in-use'){ authError('Este perfil já tem senha. Use "Já tenho senha".'); }
+        else if(c==='auth/weak-password'){ authError('Senha muito fraca (mín. 6 caracteres).'); }
+        else authError('Não foi possível entrar: '+(err.message||c));
+      });
+  } else {
+    // modo offline (sem Firebase): senha guardada apenas neste dispositivo
+    const stored=localStorage.getItem(PWKEY(u));
+    if(authCreate){ localStorage.setItem(PWKEY(u), btoa(pw)); done(); login(u); }
+    else if(!stored){ done(); setAuthMode(false); authError('Conta ainda não criada. Toque em "Criar senha".'); }
+    else if(btoa(pw)===stored){ done(); login(u); }
+    else { done(); setAuthMode(false); authError('Senha incorreta.'); }
+  }
+}
+
+/* ---------------- SIDEBAR (mobile) ---------------- */
+function closeSidebar(){ $('sidebar').classList.remove('open'); $('scrim').classList.remove('show'); }
+
+/* ---------------- WIRING ---------------- */
+document.querySelectorAll('.profile-btn').forEach(b=> b.onclick=()=>selectProfile(b.dataset.user));
+$('authGo').onclick=doAuth;
+$('pw1').addEventListener('keydown',e=>{ if(e.key==='Enter'){ if(authCreate) $('pw2').focus(); else doAuth(); }});
+$('pw2').addEventListener('keydown',e=>{ if(e.key==='Enter') doAuth(); });
+$('toggleCreate').onclick=()=>setAuthMode(!authCreate);
+$('authBack').onclick=resetAuthPanel;
+$('showAdmin').onclick=()=>{ S.adminEnabled=true; Store.saveShared(S); Cloud.pushAll(); refreshLoginAdmin(); toast('Perfil de Administrador disponível'); };
+$('logoutBtn').onclick=logout;
+$('menuBtn').onclick=()=>{ $('sidebar').classList.add('open'); $('scrim').classList.add('show'); };
+$('scrim').onclick=closeSidebar;
+
+$('cloudHint').innerHTML = CLOUD
+  ? '☁ Sincronização ativada — seus dados acompanham você em qualquer dispositivo.'
+  : '⚠ Modo offline: os dados ficam só neste dispositivo. Configure o Firebase em Configurações ⚙ para sincronizar.';
+
+// resume de sessão (Firebase mantém o login entre dispositivos/recarregamentos)
+if(CLOUD && AUTH){
+  AUTH.onAuthStateChanged(user=>{
+    if(user && !CURRENT){ login(userFromEmail(user.email)); }
+  });
+}
+refreshLoginAdmin();
+Store.saveShared(S); // garante estrutura local salva
+</script>
+</body>
+</html>
